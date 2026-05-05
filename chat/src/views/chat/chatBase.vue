@@ -1285,7 +1285,7 @@ provide('tryParseJson', tryParseJson)
   <div class="flex h-full w-full">
     <!-- Main container flex -->
     <div
-      class="relative overflow-hidden h-full w-full flex flex-col transition-all duration-300 ease-in-out transform"
+      class="relative overflow-hidden h-full w-full flex flex-col transition-all duration-300 ease-in-out transform bg-[var(--surface-page)]"
     >
       <!-- Background Image Layer -->
       <div

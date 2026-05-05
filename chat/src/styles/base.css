@@ -1,6 +1,7 @@
 /* Tailwind base reset 之外，自定义全局字体/排版 */
 html {
   font-family:
+    Inter,
     system-ui,
     -apple-system,
     BlinkMacSystemFont,

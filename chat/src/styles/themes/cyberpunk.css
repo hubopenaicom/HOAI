@@ -1,0 +1,7 @@
+/**
+ * 可选主题 cyberpunk：仅占位，避免与 data-theme 钩子冲突；实际变量由运行时主题切换覆盖。
+ */
+:root[data-theme='cyberpunk'] {
+  /* 保留与 dark 相近的对比度，细节可由后续专题迭代 */
+  --focus-ring: #22d3ee;
+}

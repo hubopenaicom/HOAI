@@ -1,9 +1,11 @@
-:root[data-theme='dark'] {
+:root[data-theme='dark'],
+html.dark {
+  /* 暗色：主按钮高对比金色 CTA，弱 chrome */
   /* ────────── Button Color ────────── */
-  --btn-bg-primary: #818cf8;
-  --btn-bg-primary-hover: #6366f1;
-  --btn-bg-primary-active: #4f46e5;
-  --btn-text-primary: #ffffff;
+  --btn-bg-primary: #d4af37;
+  --btn-bg-primary-hover: #e8c547;
+  --btn-bg-primary-active: #b8860b;
+  --btn-text-primary: #171717;
   --btn-border-primary: transparent;
 
   --btn-bg-secondary: #2f2f2f;
@@ -27,7 +29,7 @@
   /* ────────── Input Color ────────── */
   --input-border: #424242;
   --input-border-hover: #676767;
-  --input-border-focus: #818cf8;
+  --input-border-focus: #f4d03f;
   --input-border-error: #f87171;
   --input-bg: #2f2f2f;
   --input-text: #cdcdcd;
@@ -39,4 +41,19 @@
   --tab-text-dark: #9ca3af;
   --tab-active-bg-dark: #424242;
   --tab-active-text-dark: #f3f4f6;
+
+  /* ────────── Surface / Text / Border（暗色）────────── */
+  --hoai-sider-width: 260px;
+  --surface-page: #0f172a;
+  --surface-elevated: #1e293b;
+  --surface-muted: #0f172a;
+  --text-primary: #f8fafc;
+  --text-secondary: #e2e8f0;
+  --text-muted: #94a3b8;
+  --border-default: #334155;
+  --border-subtle: #1e293b;
+  --focus-ring: #f4d03f;
+  --focus-ring-offset: #0f172a;
+  --hoai-accent: #d4af37;
+  --hoai-accent-muted: #e8c547;
 }

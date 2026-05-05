@@ -126,7 +126,7 @@ async function loadBaiduCode() {
 }
 
 function setDocumentTitle() {
-  document.title = authStore.globalConfig?.siteName || 'AI'
+  document.title = authStore.globalConfig?.siteName || 'HOAI'
 }
 
 function noticeInit() {

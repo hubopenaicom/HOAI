@@ -40,7 +40,7 @@ const useGlobalStore = useGlobalStoreWithOut()
 const authStore = useAuthStore()
 const chatStore = useChatStore()
 const emit = defineEmits<Emit>()
-const siteName = authStore.globalConfig?.siteName || 'AIWeb'
+const siteName = authStore.globalConfig?.siteName || 'HOAI'
 const ms = message()
 const isFile = ref(true)
 const fileInput = ref()
@@ -1390,10 +1390,10 @@ const shouldShowButtonText = computed(() => {
         @drop="handleDrop"
       >
         <div
-          class="flex w-full border border-gray-400 dark:border-gray-700 hover:ring-1 hover:ring-primary-500 dark:hover:ring-primary-500 focus-within:ring-1 focus-within:ring-primary-500 dark:focus-within:ring-primary-500 justify-center items-center flex-col rounded-3xl resize-none px-2 transition-all duration-200"
+          class="flex w-full border border-[var(--border-default)] hover:ring-1 hover:ring-primary-500 dark:hover:ring-primary-500 focus-within:ring-1 focus-within:ring-primary-500 dark:focus-within:ring-primary-500 justify-center items-center flex-col rounded-3xl resize-none px-2 transition-all duration-200 bg-[var(--surface-elevated)]"
           :class="{
             'ring-1 ring-primary-500 dark:ring-primary-500': isDragging,
-            'bg-gray-50 dark:bg-gray-700/80': isFileDraggingOverPage,
+            'bg-[var(--surface-muted)]': isFileDraggingOverPage,
           }"
           :style="{ minHeight: '1.5rem', position: 'relative' }"
         >
@@ -1505,7 +1505,7 @@ const shouldShowButtonText = computed(() => {
               ref="inputRef"
               v-model="prompt"
               :placeholder="placeholderText"
-              class="flex flex-grow items-center justify-center mt-3 mb-2 w-full placeholder:text-gray-400 dark:placeholder:text-gray-500 text-base resize-none dark:text-gray-400 px-2 bg-transparent custom-scrollbar transition-all duration-300 ease-in-out"
+              class="flex flex-grow items-center justify-center mt-3 mb-2 w-full border-0 placeholder:text-gray-400 dark:placeholder:text-gray-500 text-base resize-none dark:text-gray-400 px-2 bg-transparent custom-scrollbar transition-all duration-300 ease-in-out outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0 focus-visible:ring-0"
               @input="autoResize"
               @keypress="handleEnter"
               @keyup="handleInput"

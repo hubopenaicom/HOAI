@@ -16,12 +16,10 @@ export const useAppStore = defineStore('app-store', {
       this.theme = theme
       window.theme = theme
       this.recordState()
-      // 切换暗黑模式逻辑
-      if (theme === 'dark') {
-        document.documentElement.classList.add('dark')
-      } else {
-        document.documentElement.classList.remove('dark')
-      }
+      // 与 useTheme / themes/*.css 一致：同时更新 class 与 data-theme，避免仅一侧更新导致主内容区变量与 Tailwind 脱节
+      const root = document.documentElement
+      root.dataset.theme = theme
+      root.classList.toggle('dark', theme === 'dark')
     },
 
     setLanguage(language: Language) {

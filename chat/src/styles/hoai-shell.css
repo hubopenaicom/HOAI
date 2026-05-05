@@ -1,0 +1,32 @@
+/**
+ * HOAI 用户端 Shell — AI-Native 极简界面层
+ * 与 design-system/hoai-用户端聊天/MASTER.md 对齐：Inter、弱 chrome、金色强调与墨黑主色
+ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --hoai-radius-shell: 1rem;
+  --hoai-transition-fast: 150ms;
+  --hoai-transition-ui: 200ms;
+  --hoai-shadow-shell: 0 12px 40px -12px rgba(15, 23, 42, 0.12);
+  --hoai-shadow-shell-dark: 0 12px 40px -12px rgba(0, 0, 0, 0.45);
+}
+
+html {
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --hoai-transition-fast: 0ms;
+    --hoai-transition-ui: 0ms;
+  }
+}

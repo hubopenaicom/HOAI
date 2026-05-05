@@ -31,7 +31,7 @@ const newUseMjToken = ref(0)
 const { isMobile } = useBasicLayout()
 const isLogin = computed(() => authStore.isLogin)
 const logoPath = computed(() => authStore.globalConfig.clientLogoPath || logo)
-const siteName = authStore.globalConfig?.siteName || 'AIWeb'
+const siteName = authStore.globalConfig?.siteName || 'HOAI'
 const model3Name = computed(() => authStore.globalConfig.model3Name || t('chat.ordinaryPoints'))
 const model4Name = computed(() => authStore.globalConfig.model4Name) || t('chat.advancedPoints')
 const drawMjName = computed(() => authStore.globalConfig.drawMjName) || t('chat.drawingPoints')

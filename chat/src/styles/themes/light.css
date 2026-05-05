@@ -1,9 +1,11 @@
-:root,
+/* 与 html.dark / data-theme 同步：避免仅一类名更新导致变量与 Tailwind 脱节 */
+:root:not(.dark),
 :root[data-theme='light'] {
+  /* HOAI 用户端：AI-Native 墨黑主色 + 金色强调（design-system/hoai-用户端聊天） */
   /* ────────── Button Color ────────── */
-  --btn-bg-primary: #4f46e5;
-  --btn-bg-primary-hover: #6366f1;
-  --btn-bg-primary-active: #4338ca;
+  --btn-bg-primary: #171717;
+  --btn-bg-primary-hover: #404040;
+  --btn-bg-primary-active: #0a0a0a;
   --btn-text-primary: #ffffff;
   --btn-border-primary: transparent;
   --btn-border-primary-hover: transparent;
@@ -35,7 +37,7 @@
   /* ────────── Input Color ────────── */
   --input-border: #e3e3e3;
   --input-border-hover: #cdcdcd;
-  --input-border-focus: #4f46e5;
+  --input-border-focus: #c9a227;
   --input-border-error: #ef4444;
   --input-bg: #ffffff;
   --input-text: #424242;
@@ -46,6 +48,21 @@
   --tab-group-bg-filled: #e2e8f0;
   --tab-text: #424242;
   --tab-active-bg: #ffffff;
-  --tab-active-text: #4f46e5;
+  --tab-active-text: #171717;
   --tab-active-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+
+  /* ────────── Surface / Text / Border（设计系统层级）────────── */
+  --hoai-sider-width: 260px;
+  --surface-page: #fafafa;
+  --surface-elevated: #ffffff;
+  --surface-muted: #f4f4f5;
+  --text-primary: #171717;
+  --text-secondary: #334155;
+  --text-muted: #475569;
+  --border-default: #e4e4e7;
+  --border-subtle: #f4f4f5;
+  --focus-ring: #d4af37;
+  --focus-ring-offset: #ffffff;
+  --hoai-accent: #d4af37;
+  --hoai-accent-muted: #c9a227;
 }

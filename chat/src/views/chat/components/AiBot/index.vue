@@ -26,7 +26,7 @@ onMounted(() => {
   getRandomItems()
 })
 const usingPlugin = computed(() => chatStore.currentPlugin)
-const siteName = authStore.globalConfig?.siteName || 'AIWeb'
+const siteName = authStore.globalConfig?.siteName || 'HOAI'
 const isCanvasModel = computed(() => usingPlugin.value?.parameters.includes('canvas'))
 
 const createNewChatGroup = inject('createNewChatGroup', () =>
