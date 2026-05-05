@@ -18,6 +18,7 @@ cd ..
 
 cd chat/
 pnpm install
+bash ../scripts/sync-brand-icons.sh
 pnpm build
 cd ..
 
