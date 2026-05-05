@@ -1,0 +1,8 @@
+
+/**
+ * 由 Fantastic-admin 提供技术支持
+ * Powered by Fantastic-admin
+ * https://fantastic-admin.hurui.me
+ */
+  
+.prompt,.answer{text-overflow:ellipsis;white-space:normal;cursor:pointer;width:100%;max-height:40px;overflow:hidden}.answer_container{max-height:500px;overflow:overlay}.details-container{padding:10px}.detail-content{background-color:#f9f9f9;border:1px solid #ebeef5;border-radius:4px;max-height:400px;padding:10px;overflow:auto}.media-links{margin-bottom:15px}.tool-calls,.plugin-param{white-space:pre-wrap;background-color:#f5f7fa;border-radius:4px;max-height:400px;padding:10px;font-family:monospace;overflow:auto}.markdown-body{font-size:14px;line-height:1.6}.markdown-body img{max-width:100%}.markdown-body pre{background-color:#f6f8fa;border-radius:3px;padding:16px;overflow:auto}.markdown-body code{background-color:#1b1f230d;border-radius:3px;padding:.2em .4em;font-family:monospace}

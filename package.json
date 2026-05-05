@@ -1,0 +1,12 @@
+{
+  "name": "hoai-monorepo-root",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hubopenaicom/HOAI.git"
+  },
+  "scripts": {
+    "build:all": "bash build.sh",
+    "release": "bash build.sh"
+  }
+}

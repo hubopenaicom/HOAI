@@ -1,0 +1,8 @@
+
+/**
+ * 由 Fantastic-admin 提供技术支持
+ * Powered by Fantastic-admin
+ * https://fantastic-admin.hurui.me
+ */
+  
+.prompt-template-editor[data-v-05f4de58]{padding:5px}.field-grid[data-v-05f4de58]{grid-template-columns:repeat(3,1fr);gap:1rem;width:100%;display:grid}.field-item[data-v-05f4de58]{background-color:#fdfdfd;width:100%;transition:box-shadow .2s ease-in-out}.field-item[data-v-05f4de58]:hover{box-shadow:var(--el-box-shadow-lighter)}.drag-handle[data-v-05f4de58]{touch-action:none}.field-number[data-v-05f4de58]{text-align:right;min-width:20px}.ghost[data-v-05f4de58]{opacity:.5;background:#c8ebfb;border:1px dashed #409eff}[data-v-05f4de58] .el-form-item__label{line-height:normal;margin-bottom:4px!important;padding:0!important}[data-v-05f4de58] .el-form-item{margin-bottom:10px}.category-selector[data-v-b9ddf986]{width:100%}.selected-categories[data-v-b9ddf986]{min-height:32px;padding:4px 0}.category-options .el-tag[data-v-b9ddf986]{transition:all .3s}.category-options .el-tag[data-v-b9ddf986]:not(.is-disabled):hover{transform:scale(1.05)}.category-options .el-tag.is-disabled[data-v-b9ddf986]{cursor:not-allowed;opacity:.6}

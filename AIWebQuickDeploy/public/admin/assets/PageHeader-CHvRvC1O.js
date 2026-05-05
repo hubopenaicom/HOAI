@@ -1,0 +1,8 @@
+
+/**
+ * 由 Fantastic-admin 提供技术支持
+ * Powered by Fantastic-admin
+ * https://fantastic-admin.hurui.me
+ */
+  
+import{At as e,D as t,E as n,O as r,S as i,T as a,X as o,b as s,cn as c,it as l,q as u,rn as d,ut as f,w as p,x as m}from"./vue.runtime.esm-bundler-C3TPsVo8.js";import{f as h,o as g}from"./components-DHGIf81s.js";import{o as _}from"./vue-router-DFzuDPgw.js";var v={key:0,class:`flex items-center gap-3`},y={class:`min-w-0 flex-1`},b=r({name:`PageHeader`,__name:`index`,props:{title:{},content:{},description:{},icon:{},class:{type:[Boolean,null,String,Object,Array]},mainClass:{type:[Boolean,null,String,Object,Array]},defaultClass:{type:[Boolean,null,String,Object,Array]}},setup(r){let b=r,x=l(),S=_(),C=s(()=>b.content??b.description),w=s(()=>{if(b.icon!==null)return b.icon?b.icon:S.matched.findLast(e=>!!e.meta?.icon)?.meta?.icon??void 0});return(s,l)=>{let _=h,S=g;return u(),i(S,{title:void 0,description:e(x).content?void 0:e(C),class:d(b.class),"main-class":b.mainClass,"default-class":b.defaultClass},a({title:f(()=>[e(w)?(u(),p(`div`,v,[t(_,{name:e(w),class:`size-7 shrink-0 text-primary`},null,8,[`name`]),m(`div`,y,[o(s.$slots,`title`,{},()=>[n(c(r.title),1)])])])):o(s.$slots,`title`,{key:1},()=>[n(c(r.title),1)])]),default:f(()=>[o(s.$slots,`default`)]),_:2},[e(x).content?{name:`description`,fn:f(()=>[o(s.$slots,`content`)]),key:`0`}:void 0]),1032,[`description`,`class`,`main-class`,`default-class`])}}});export{b as t};

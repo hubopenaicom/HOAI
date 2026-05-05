@@ -1,0 +1,8 @@
+
+/**
+ * 由 Fantastic-admin 提供技术支持
+ * Powered by Fantastic-admin
+ * https://fantastic-admin.hurui.me
+ */
+  
+[data-v-37dbbdfd] .el-tabs .el-tabs__header .el-tabs__nav .el-tabs__active-bar{z-index:0;background-color:oklch(var(--primary)/.12);border-right:2px solid oklch(var(--primary));width:100%;transition:transform .3s, background-color .3s, var(--el-transition-border)}[data-v-37dbbdfd] .el-tabs .el-tabs__header .el-tabs__nav .el-tabs__item{text-align:left;padding-right:100px}[data-v-37dbbdfd] .el-tabs .el-tab-pane{padding:0 20px 0 30px}h2[data-v-37dbbdfd]{margin:0 0 30px;font-weight:400}.basic[data-v-37dbbdfd] .headimg-upload{text-align:center}.basic[data-v-37dbbdfd] .headimg-upload .el-upload-dragger{border-radius:50%}.security .setting-list .item[data-v-37dbbdfd]{border-bottom:1px solid oklch(var(--border));transition:var(--el-transition-border);justify-content:space-between;align-items:center;padding:10px 0;display:flex}.security .setting-list .item .content .title[data-v-37dbbdfd]{color:oklch(var(--foreground));transition:var(--el-transition-color);margin-bottom:5px}.security .setting-list .item .content .desc[data-v-37dbbdfd]{color:oklch(var(--muted-foreground));transition:var(--el-transition-color);font-size:14px}.security .setting-list .item[data-v-37dbbdfd]:last-child{border-bottom:0}
