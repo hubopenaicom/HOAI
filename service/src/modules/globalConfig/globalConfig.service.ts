@@ -503,7 +503,7 @@ export class GlobalConfigService implements OnModuleInit {
 
   /* get namespace */
   getNamespace() {
-    return process.env.NAMESPACE || 'AIWeb';
+    return process.env.NAMESPACE || 'HOAI';
   }
 
   /* 获取签名赠送额度 */
@@ -535,7 +535,7 @@ export class GlobalConfigService implements OnModuleInit {
     const responseData: any = await response.json();
     const { success = true, message } = responseData;
 
-    Logger.debug('感谢您使用AIWeb，祝您使用愉快~');
+    Logger.debug('感谢您使用HOAI，祝您使用愉快~');
   }
 
   /* 拿到敏感次配置 都开启优先使用百度云 */

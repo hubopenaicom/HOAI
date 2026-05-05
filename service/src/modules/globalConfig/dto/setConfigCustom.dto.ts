@@ -10,7 +10,7 @@ interface KeyValue {
 
 export class SetConfigCustomDto {
   @ApiProperty({
-    example: { configKey: 'siteName', configVal: 'AIWeb', infoKey: 'AIWeb' },
+    example: { configKey: 'siteName', configVal: 'HOAI', infoKey: 'HOAI' },
     description: '设置更新配置信息',
   })
   @ValidateNested({ each: true })
