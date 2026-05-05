@@ -1,0 +1,8 @@
+
+/**
+ * 由 Fantastic-admin 提供技术支持
+ * Powered by Fantastic-admin
+ * https://fantastic-admin.hurui.me
+ */
+  
+import{L as e,O as t,S as n,X as r,b as i,q as a,tt as o,ut as s}from"./vue.runtime.esm-bundler-C3TPsVo8.js";import{P as c,v as l}from"./components-zGvTOJDq.js";var u=t({name:`HButton`,inheritAttrs:!1,__name:`index`,props:{block:{type:Boolean,default:!1},outline:{type:Boolean,default:!1},text:{type:Boolean,default:!1},disabled:{type:Boolean,default:!1},loading:{type:Boolean,default:!1},type:{default:`default`}},setup(t){let u=t,d=o(),f=i(()=>u.text?`ghost`:u.outline?`outline`:u.type===`danger`?`destructive`:u.type===`primary`?`default`:`secondary`),p=i(()=>{let e=[];return u.block&&e.push(`w-full`),u.outline?(u.type===`success`&&e.push(`border-emerald-600/70 text-emerald-700 hover:bg-emerald-600/10 dark:border-emerald-500/60 dark:text-emerald-400`),u.type===`danger`&&e.push(`border-destructive text-destructive hover:bg-destructive/10`),u.type===`primary`&&e.push(`border-primary text-primary hover:bg-primary/10`)):u.type===`success`&&e.push(`bg-emerald-600 text-white hover:bg-emerald-600/90`),e.join(` `)}),m=i(()=>c(p.value,d.class)),h=i(()=>{let{class:e,...t}=d;return t});return(i,o)=>{let c=l;return a(),n(c,e({variant:f.value,disabled:t.disabled,loading:t.loading,class:m.value},h.value),{default:s(()=>[r(i.$slots,`default`)]),_:3},16,[`variant`,`disabled`,`loading`,`class`])}}});export{u as t};

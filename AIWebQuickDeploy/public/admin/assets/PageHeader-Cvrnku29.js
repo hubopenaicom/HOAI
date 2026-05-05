@@ -1,0 +1,8 @@
+
+/**
+ * 由 Fantastic-admin 提供技术支持
+ * Powered by Fantastic-admin
+ * https://fantastic-admin.hurui.me
+ */
+  
+import{At as e,D as t,E as n,O as r,S as i,T as a,X as o,b as s,cn as c,it as l,q as u,rn as d,ut as f,w as p,x as m}from"./vue.runtime.esm-bundler-C3TPsVo8.js";import{P as h,f as g,o as _}from"./components-zGvTOJDq.js";import{o as v}from"./vue-router-DFzuDPgw.js";var y={key:0,class:`flex items-start gap-4`},b={class:`hoai-icon-pill`},x={class:`min-w-0 flex-1 pt-0.5`},S=r({name:`PageHeader`,__name:`index`,props:{title:{},content:{},description:{},icon:{},class:{type:[Boolean,null,String,Object,Array]},mainClass:{type:[Boolean,null,String,Object,Array]},defaultClass:{type:[Boolean,null,String,Object,Array]}},setup(r){let S=r,C=l(),w=v(),T=s(()=>S.content??S.description),E=s(()=>{if(S.icon!==null)return S.icon?S.icon:w.matched.findLast(e=>!!e.meta?.icon)?.meta?.icon??void 0});return(s,l)=>{let v=g,w=_;return u(),i(w,{title:void 0,description:e(C).content?void 0:e(T),class:d(e(h)(`hoai-page-header`,S.class)),"main-class":S.mainClass,"default-class":e(h)(`gap-2 sm:gap-3`,S.defaultClass)},a({title:f(()=>[e(E)?(u(),p(`div`,y,[m(`span`,b,[t(v,{name:e(E),class:`size-6`},null,8,[`name`])]),m(`div`,x,[o(s.$slots,`title`,{},()=>[n(c(r.title),1)])])])):o(s.$slots,`title`,{key:1},()=>[n(c(r.title),1)])]),default:f(()=>[o(s.$slots,`default`)]),_:2},[e(C).content?{name:`description`,fn:f(()=>[o(s.$slots,`content`)]),key:`0`}:void 0]),1032,[`description`,`class`,`main-class`,`default-class`])}}});export{S as t};

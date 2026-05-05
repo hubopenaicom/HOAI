@@ -2959,7 +2959,7 @@ let GlobalConfigService = class GlobalConfigService {
         };
     }
     getNamespace() {
-        return process.env.NAMESPACE || 'AIWeb';
+        return process.env.NAMESPACE || 'HOAI';
     }
     async getSignatureGiftConfig() {
         const { signInStatus = 0, signInModel3Count = 0, signInModel4Count = 0, signInMjDrawToken = 0, } = await this.getConfigs([
@@ -2982,7 +2982,7 @@ let GlobalConfigService = class GlobalConfigService {
         const response = await fetch(api, {});
         const responseData = await response.json();
         const { success = true, message } = responseData;
-        common_1.Logger.debug('感谢您使用AIWeb，祝您使用愉快~');
+        common_1.Logger.debug('感谢您使用HOAI，祝您使用愉快~');
     }
     async getSensitiveConfig() {
         const { baiduTextStatus = 0, baiduTextAccessToken } = await this.getConfigs([
@@ -8628,7 +8628,7 @@ __decorate([
 ], AddAutoReplyDto.prototype, "prompt", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({
-        example: '我是AIWeb提供的Ai服务机器人',
+        example: '我是HOAI提供的Ai服务机器人',
         description: '回答的答案',
         required: true,
     }),
@@ -14328,8 +14328,8 @@ let DatabaseService = class DatabaseService {
         try {
             const code = ``;
             const noticeInfo = `
-#### AIWeb 欢迎您
- - 欢迎使用 AIWeb
+#### HOAI 欢迎您
+ - 欢迎使用 HOAI
  - 初始管理员账号密码  super  123456 【前台后台登录都可以修改】
  - 初始预览账号密码  admin  123456 【为后台查看账号 仅可查看部分非敏感数据】
 `;
@@ -14825,7 +14825,7 @@ class SetConfigDto {
 exports.SetConfigDto = SetConfigDto;
 __decorate([
     (0, swagger_1.ApiProperty)({
-        example: [{ configKey: 'siteName', configVal: 'AIWeb' }],
+        example: [{ configKey: 'siteName', configVal: 'HOAI' }],
         description: '设置配置信息',
     }),
     (0, class_validator_1.IsArray)(),
