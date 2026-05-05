@@ -1,5 +1,6 @@
 <script setup lang="ts">
   import type { HTMLAttributes } from 'vue';
+  import { cn } from '@/utils';
 
   defineOptions({
     name: 'PageHeader',
@@ -42,14 +43,16 @@
   <FaPageHeader
     :title="undefined"
     :description="!slots.content ? descriptionText : undefined"
-    :class="props.class"
+    :class="cn('hoai-page-header', props.class)"
     :main-class="props.mainClass"
-    :default-class="props.defaultClass"
+    :default-class="cn('gap-2 sm:gap-3', props.defaultClass)"
   >
     <template #title>
-      <div v-if="resolvedIcon" class="flex items-center gap-3">
-        <FaIcon :name="resolvedIcon" class="size-7 shrink-0 text-primary" />
-        <div class="min-w-0 flex-1">
+      <div v-if="resolvedIcon" class="flex items-start gap-4">
+        <span class="hoai-icon-pill">
+          <FaIcon :name="resolvedIcon" class="size-6" />
+        </span>
+        <div class="min-w-0 flex-1 pt-0.5">
           <slot name="title">{{ title }}</slot>
         </div>
       </div>

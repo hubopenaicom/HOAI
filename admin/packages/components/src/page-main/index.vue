@@ -35,21 +35,33 @@ function handleCollaspe() {
 
 <template>
   <div
-    :class="cn('m-4 flex flex-col overflow-hidden rounded-lg border transition-[background-color,border-color]', {
-      'overflow-hidden': collaspe,
-    }, props.class)"
+    :class="cn(
+      'hoai-page-shell m-4 flex flex-col overflow-hidden',
+      { 'overflow-hidden': collaspe },
+      props.class,
+    )"
   >
-    <div v-if="!!slots.title || title" :class="cn('px-4 py-4 my--2 bg-muted rounded-t-lg text-sm', props.titleClass)">
+    <div
+      v-if="!!slots.title || title"
+      :class="cn(
+        'border-b border-border/80 bg-muted/45 px-5 py-3 text-sm font-semibold tracking-tight text-foreground',
+        props.titleClass,
+      )"
+    >
       <slot name="title">
         {{ title }}
       </slot>
     </div>
     <div
-      :class="cn('group/pagemain relative h-[calc-size(auto,size)] bg-card p-4 rounded-lg transition-height after:(pointer-events-none absolute bottom-0 left-0 z-1 h-12 max-h-full w-full from-transparent to-[oklch(var(--card))] bg-gradient-to-b opacity-0 transition-opacity content-empty)', {
-        'border-t': !!slots.title || title,
-        'overflow-hidden': collaspe,
-        'after:(opacity-100)': isCollaspe,
-      }, props.mainClass)" :style="{
+      :class="cn(
+        'group/pagemain relative h-[calc-size(auto,size)] bg-card p-5 transition-height after:(pointer-events-none absolute bottom-0 left-0 z-1 h-12 max-h-full w-full from-transparent to-[oklch(var(--card))] bg-gradient-to-b opacity-0 transition-opacity content-empty)',
+        {
+          'overflow-hidden': collaspe,
+          'after:(opacity-100)': isCollaspe,
+        },
+        props.mainClass,
+      )"
+      :style="{
         height: isCollaspe ? height : '',
       }"
     >

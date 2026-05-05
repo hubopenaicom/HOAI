@@ -50,7 +50,7 @@ useHotkeyBindings({
                   }" @click="switchTo(index)"
                 >
                   <div class="inline-flex min-h-0 w-full flex-1 flex-col gap-0.5 items-center justify-center">
-                    <FaIcon v-if="item.meta?.icon" :name="item.meta.icon" class="menu-item-container-icon transition-transform group-hover-scale-120" />
+                    <FaIcon v-if="item.meta?.icon" :name="item.meta.icon" class="menu-item-container-icon transition-opacity group-hover:opacity-90" />
                     <span
                       class="max-w-full text-center text-[11px] leading-tight text-balance transition-height transition-opacity transition-width empty:hidden line-clamp-2 break-words"
                     >
@@ -64,8 +64,8 @@ useHotkeyBindings({
         </div>
       </FaScrollArea>
       <Component :is="useSlots('main-sidebar-after-menu')" />
-      <div class="px-3 py-2 flex-center">
-        <AppAccountButton only-avatar :button-variant="appSettingsStore.settings.menu.mode === 'side' ? 'secondary' : 'ghost'" class="p-1.5 size-10" />
+      <div class="rail-account flex-center border-t border-white/10 px-3 py-2">
+        <AppAccountButton only-avatar :button-variant="appSettingsStore.settings.menu.mode === 'side' ? 'secondary' : 'ghost'" class="p-1.5 size-10 ring-1 ring-white/15" />
       </div>
       <Component :is="useSlots('main-sidebar-bottom')" />
     </div>
@@ -81,12 +81,24 @@ useHotkeyBindings({
   width: var(--g-main-sidebar-width);
   color: var(--g-main-sidebar-menu-color);
   background-color: var(--g-main-sidebar-bg);
-  box-shadow: 1px 0 0 0 oklch(var(--border));
+  box-shadow:
+    1px 0 0 0 oklch(1 0 0 / 0.08),
+    4px 0 24px -8px oklch(0 0 0 / 0.2);
   transition: color 0.15s, background-color 0.15s, box-shadow 0.15s;
 
   .sidebar-logo {
     background-color: var(--g-main-sidebar-bg);
     transition: background-color 0.15s;
+  }
+
+  /* Logo / 标题在深色轨上强制浅色（与子侧栏区分） */
+  :deep(.sidebar-logo a) {
+    color: oklch(0.96 0.01 265) !important;
+  }
+
+  :deep(.sidebar-logo img.logo) {
+    filter: brightness(0) invert(1);
+    opacity: 0.92;
   }
 
   .menu {

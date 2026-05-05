@@ -60,8 +60,8 @@ defineExpose({
             }),
           }" :class="cn('group menu-item-container relative h-full w-full min-w-0 flex items-center justify-between gap-1 rounded-lg', {
             'px-4 py-3': true,
-            'cursor-pointer text-[var(--g-sub-sidebar-menu-color)] transition-colors hover-(bg-[var(--g-sub-sidebar-menu-hover-bg)] text-[var(--g-sub-sidebar-menu-hover-color)])': true,
-            'text-[var(--g-sub-sidebar-menu-active-color)]! bg-[var(--g-sub-sidebar-menu-active-bg)]!': isItemActive,
+            'cursor-pointer text-[var(--g-sub-sidebar-menu-color)] transition-colors duration-200 hover-(bg-[var(--g-sub-sidebar-menu-hover-bg)] text-[var(--g-sub-sidebar-menu-hover-color)])': true,
+            'text-[var(--g-sub-sidebar-menu-active-color)]! bg-[var(--g-sub-sidebar-menu-active-bg)]! before:(absolute start-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-full bg-primary content-empty)': isItemActive,
             'px-3': rootMenu.isMenuPopup && level === 0,
             'py-3': rootMenu.isMenuPopup && level !== 0,
           })" :title="generateTitle(item.meta?.title)" v-on="{
@@ -82,7 +82,7 @@ defineExpose({
             <FaIcon
               v-if="icon" :name="icon" :class="cn('menu-item-container-icon', {
                 'size-5': true,
-                'transition-transform group-hover-scale-120': true,
+                'transition-opacity duration-200 group-hover:opacity-85': true,
               })"
             />
             <span

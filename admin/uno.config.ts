@@ -27,6 +27,12 @@ export default defineConfig({
     },
   },
   shortcuts: [
+    /* HOAI 页面壳层：扁平、细边框、极弱 elevation（与设计系统一致） */
+    ['hoai-page-shell', 'rounded-[length:var(--radius)] border border-border/90 bg-card ring-1 ring-border/40 shadow-[0_1px_2px_0_oklch(0_0_0/0.04)] transition-[box-shadow,border-color] duration-200'],
+    ['hoai-elevate-md', 'hoai-page-shell'],
+    ['hoai-page-header-bar', 'border-b border-border/80 bg-background/95 px-5 py-4 backdrop-blur-sm supports-[backdrop-filter]:bg-background/80 sm:px-6'],
+    ['hoai-page-header', 'hoai-page-header-bar'],
+    ['hoai-icon-pill', 'flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/15 transition-colors duration-200'],
     [/^flex-?(col)?-(start|end|center|baseline|stretch)-?(start|end|center|between|around|evenly|left|right)?$/, ([, col, items, justify]) => {
       const cls = ['flex']
       if (col === 'col') {
@@ -81,8 +87,21 @@ ${returnCss.join('\n')}
 }
 
 body {
+  font-family: 'Plus Jakarta Sans', 'Fira Sans', ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   color: oklch(var(--foreground));
   background: oklch(var(--background));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 button:not(:disabled),

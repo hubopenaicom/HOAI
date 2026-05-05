@@ -8,7 +8,7 @@ defineOptions({
 </script>
 
 <template>
-  <div class="bg-[var(--g-toolbar-bg)] flex h-[var(--g-toolbar-height)] items-center justify-between">
+  <div class="border-b border-border/70 bg-[var(--g-toolbar-bg)] flex h-[var(--g-toolbar-height)] items-center justify-between">
     <div class="start-side pe-16 ps-2 flex h-full items-center of-hidden">
       <StartSide />
     </div>

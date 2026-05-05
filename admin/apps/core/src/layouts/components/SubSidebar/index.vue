@@ -99,7 +99,9 @@ watch(() => appMenuStore.actived, (val, oldVal) => {
   flex-direction: column;
   width: var(--g-sub-sidebar-width);
   background-color: var(--g-sub-sidebar-bg);
-  box-shadow: 1px 0 0 0 oklch(var(--border));
+  box-shadow:
+    1px 0 0 0 oklch(var(--border)),
+    6px 0 20px -10px oklch(0.25 0.04 265 / 0.08);
   transition: inset-inline-start 0.3s, width 0.3s, background-color 0.15s, box-shadow 0.15s;
 
   &.is-collapse {

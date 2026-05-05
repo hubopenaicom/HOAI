@@ -1,109 +1,109 @@
+/**
+ * HOAI Admin — UI 设计系统落地（扁平 B2B SaaS）：
+ * - 文本/壳层：slate 系前景与浅灰画布（#F8FAFC 附近）
+ * - 品牌 CTA / 激活态：天青 primary（≈ #0369A1）
+ * - 主导航窄轨：slate-900 近 #0F172A，与内容区清晰分层
+ * - 次导航与顶栏：白/近白卡片面，细边框分区、弱阴影（易读优先）
+ */
 export const lightTheme = {
-  // shadcn
-  '--background': '1 0 0', // oklch(1 0 0)
-  '--foreground': '0.145 0 0', // oklch(0.145 0 0)
-  '--card': '1 0 0', // oklch(1 0 0)
-  '--card-foreground': '0.145 0 0', // oklch(0.145 0 0)
-  '--popover': '1 0 0', // oklch(1 0 0)
-  '--popover-foreground': '0.145 0 0', // oklch(0.145 0 0)
-  '--primary': '0.205 0 0', // oklch(0.205 0 0)
-  '--primary-foreground': '0.985 0 0', // oklch(0.985 0 0)
-  '--secondary': '0.97 0 0', // oklch(0.97 0 0)
-  '--secondary-foreground': '0.205 0 0', // oklch(0.205 0 0)
-  '--muted': '0.97 0 0', // oklch(0.97 0 0)
-  '--muted-foreground': '0.556 0 0', // oklch(0.556 0 0)
-  '--accent': '0.97 0 0', // oklch(0.97 0 0)
-  '--accent-foreground': '0.205 0 0', // oklch(0.205 0 0)
-  '--destructive': '0.577 0.245 27.325', // oklch(0.577 0.245 27.325)
-  '--border': '0.922 0 0', // oklch(0.922 0 0)
-  '--input': '0.922 0 0', // oklch(0.922 0 0)
-  '--ring': '0.708 0 0', // oklch(0.708 0 0)
-  // 主要区域
-  '--g-main-area-bg': 'oklch(0.9612 0 0)',
-  // 头部
-  '--g-header-bg': 'oklch(var(--background))',
-  '--g-header-color': 'oklch(var(--foreground))',
-  '--g-header-menu-color': 'oklch(var(--accent-foreground))',
-  '--g-header-menu-hover-bg': 'oklch(var(--accent))',
-  '--g-header-menu-hover-color': 'oklch(var(--accent-foreground))',
-  '--g-header-menu-active-bg': 'oklch(var(--primary))',
-  '--g-header-menu-active-color': 'oklch(var(--primary-foreground))',
-  // 主导航
-  '--g-main-sidebar-bg': 'oklch(var(--background))',
-  '--g-main-sidebar-menu-color': 'oklch(var(--accent-foreground))',
-  '--g-main-sidebar-menu-hover-bg': 'oklch(var(--accent))',
-  '--g-main-sidebar-menu-hover-color': 'oklch(var(--accent-foreground))',
-  '--g-main-sidebar-menu-active-bg': 'oklch(var(--primary))',
-  '--g-main-sidebar-menu-active-color': 'oklch(var(--primary-foreground))',
-  // 次导航
-  '--g-sub-sidebar-bg': 'oklch(var(--background))',
-  '--g-sub-sidebar-menu-color': 'oklch(var(--accent-foreground))',
-  '--g-sub-sidebar-menu-hover-bg': 'oklch(var(--accent))',
-  '--g-sub-sidebar-menu-hover-color': 'oklch(var(--accent-foreground))',
-  '--g-sub-sidebar-menu-active-bg': 'oklch(var(--primary))',
-  '--g-sub-sidebar-menu-active-color': 'oklch(var(--primary-foreground))',
-  // 标签栏
-  '--g-tabbar-bg': 'oklch(var(--background))',
-  '--g-tabbar-tab-color': 'oklch(var(--accent-foreground) / 50%)',
-  '--g-tabbar-tab-hover-bg': 'oklch(var(--accent) / 50%)',
-  '--g-tabbar-tab-hover-color': 'oklch(var(--accent-foreground) / 50%)',
-  '--g-tabbar-tab-active-bg': 'oklch(var(--accent))',
-  '--g-tabbar-tab-active-color': 'oklch(var(--foreground))',
-  // 工具栏
-  '--g-toolbar-bg': 'oklch(var(--background))',
-} as const
+  '--background': '0.985 0.006 252',
+  '--foreground': '0.21 0.035 265',
+  '--card': '1 0 0',
+  '--card-foreground': '0.21 0.035 265',
+  '--popover': '1 0 0',
+  '--popover-foreground': '0.21 0.035 265',
+  /* 天青 CTA，与 slate 文本形成专业对比 */
+  '--primary': '0.47 0.11 246',
+  '--primary-foreground': '0.99 0.01 252',
+  '--secondary': '0.955 0.018 265',
+  '--secondary-foreground': '0.21 0.035 265',
+  '--muted': '0.965 0.012 265',
+  '--muted-foreground': '0.45 0.028 260',
+  '--accent': '0.96 0.02 250',
+  '--accent-foreground': '0.24 0.04 265',
+  '--destructive': '0.577 0.245 27.325',
+  '--border': '0.90 0.018 265',
+  '--input': '0.90 0.018 265',
+  '--ring': '0.47 0.11 246',
 
-export const darkTheme = {
-  // shadcn
-  '--background': '0.145 0 0', // oklch(0.145 0 0)
-  '--foreground': '0.985 0 0', // oklch(0.985 0 0)
-  '--card': '0.205 0 0', // oklch(0.205 0 0)
-  '--card-foreground': '0.985 0 0', // oklch(0.985 0 0)
-  '--popover': '0.205 0 0', // oklch(0.205 0 0)
-  '--popover-foreground': '0.985 0 0', // oklch(0.985 0 0)
-  '--primary': '0.922 0 0', // oklch(0.922 0 0)
-  '--primary-foreground': '0.205 0 0', // oklch(0.205 0 0)
-  '--secondary': '0.269 0 0', // oklch(0.269 0 0)
-  '--secondary-foreground': '0.985 0 0', // oklch(0.985 0 0)
-  '--muted': '0.269 0 0', // oklch(0.269 0 0)
-  '--muted-foreground': '0.708 0 0', // oklch(0.708 0 0)
-  '--accent': '0.269 0 0', // oklch(0.269 0 0)
-  '--accent-foreground': '0.985 0 0', // oklch(0.985 0 0)
-  '--destructive': '0.704 0.191 22.216', // oklch(0.704 0.191 22.216)
-  '--border': '0.252 0 0', // oklch(0.252 0 0)
-  '--input': '0.341 0 0', // oklch(0.341 0 0)
-  '--ring': '0.556 0 0', // oklch(0.556 0 0)
-  // 主要区域
-  '--g-main-area-bg': 'oklch(var(--background))',
-  // 头部
-  '--g-header-bg': 'oklch(var(--background))',
+  '--g-main-area-bg': 'oklch(0.965 0.022 265)',
+
+  '--g-header-bg': 'oklch(var(--card))',
   '--g-header-color': 'oklch(var(--foreground))',
   '--g-header-menu-color': 'oklch(var(--muted-foreground))',
   '--g-header-menu-hover-bg': 'oklch(var(--muted))',
-  '--g-header-menu-hover-color': 'oklch(var(--muted-foreground))',
+  '--g-header-menu-hover-color': 'oklch(var(--foreground))',
+  '--g-header-menu-active-bg': 'oklch(var(--primary))',
+  '--g-header-menu-active-color': 'oklch(var(--primary-foreground))',
+
+  '--g-main-sidebar-bg': 'oklch(0.21 0.035 265)',
+  '--g-main-sidebar-menu-color': 'oklch(0.80 0.028 265)',
+  '--g-main-sidebar-menu-hover-bg': 'oklch(1 0 0 / 0.10)',
+  '--g-main-sidebar-menu-hover-color': 'oklch(0.99 0.005 265)',
+  '--g-main-sidebar-menu-active-bg': 'oklch(var(--primary))',
+  '--g-main-sidebar-menu-active-color': 'oklch(var(--primary-foreground))',
+
+  '--g-sub-sidebar-bg': 'oklch(0.998 0.004 265)',
+  '--g-sub-sidebar-menu-color': 'oklch(var(--foreground))',
+  '--g-sub-sidebar-menu-hover-bg': 'oklch(var(--muted))',
+  '--g-sub-sidebar-menu-hover-color': 'oklch(var(--foreground))',
+  '--g-sub-sidebar-menu-active-bg': 'oklch(var(--primary) / 0.12)',
+  '--g-sub-sidebar-menu-active-color': 'oklch(var(--primary))',
+
+  '--g-tabbar-bg': 'oklch(var(--card))',
+  '--g-tabbar-tab-color': 'oklch(var(--muted-foreground) / 80%)',
+  '--g-tabbar-tab-hover-bg': 'oklch(var(--muted))',
+  '--g-tabbar-tab-hover-color': 'oklch(var(--foreground) / 85%)',
+  '--g-tabbar-tab-active-bg': 'oklch(var(--primary) / 0.10)',
+  '--g-tabbar-tab-active-color': 'oklch(var(--primary))',
+
+  '--g-toolbar-bg': 'oklch(var(--card))',
+} as const
+
+export const darkTheme = {
+  '--background': '0.17 0.042 268',
+  '--foreground': '0.93 0.018 265',
+  '--card': '0.22 0.048 268',
+  '--card-foreground': '0.93 0.018 265',
+  '--popover': '0.22 0.048 268',
+  '--popover-foreground': '0.93 0.018 265',
+  '--primary': '0.68 0.12 246',
+  '--primary-foreground': '0.16 0.04 268',
+  '--secondary': '0.28 0.055 268',
+  '--secondary-foreground': '0.93 0.018 265',
+  '--muted': '0.28 0.055 268',
+  '--muted-foreground': '0.72 0.04 265',
+  '--accent': '0.30 0.06 250',
+  '--accent-foreground': '0.95 0.02 265',
+  '--destructive': '0.704 0.191 22.216',
+  '--border': '0.32 0.048 268',
+  '--input': '0.34 0.055 268',
+  '--ring': '0.68 0.12 246',
+  '--g-main-area-bg': 'oklch(var(--background))',
+  '--g-header-bg': 'oklch(var(--card))',
+  '--g-header-color': 'oklch(var(--foreground))',
+  '--g-header-menu-color': 'oklch(var(--muted-foreground))',
+  '--g-header-menu-hover-bg': 'oklch(var(--muted))',
+  '--g-header-menu-hover-color': 'oklch(var(--foreground))',
   '--g-header-menu-active-bg': 'oklch(var(--accent))',
   '--g-header-menu-active-color': 'oklch(var(--accent-foreground))',
-  // 主导航
-  '--g-main-sidebar-bg': 'oklch(var(--background))',
-  '--g-main-sidebar-menu-color': 'oklch(var(--muted-foreground))',
-  '--g-main-sidebar-menu-hover-bg': 'oklch(var(--muted))',
-  '--g-main-sidebar-menu-hover-color': 'oklch(var(--muted-foreground))',
+  '--g-main-sidebar-bg': 'oklch(0.14 0.045 268)',
+  '--g-main-sidebar-menu-color': 'oklch(0.78 0.035 265)',
+  '--g-main-sidebar-menu-hover-bg': 'oklch(1 0 0 / 0.08)',
+  '--g-main-sidebar-menu-hover-color': 'oklch(0.98 0 0)',
   '--g-main-sidebar-menu-active-bg': 'oklch(var(--accent))',
   '--g-main-sidebar-menu-active-color': 'oklch(var(--accent-foreground))',
-  // 次导航
-  '--g-sub-sidebar-bg': 'oklch(var(--background))',
+  '--g-sub-sidebar-bg': 'oklch(var(--card))',
   '--g-sub-sidebar-menu-color': 'oklch(var(--muted-foreground))',
   '--g-sub-sidebar-menu-hover-bg': 'oklch(var(--muted))',
-  '--g-sub-sidebar-menu-hover-color': 'oklch(var(--muted-foreground))',
-  '--g-sub-sidebar-menu-active-bg': 'oklch(var(--accent))',
-  '--g-sub-sidebar-menu-active-color': 'oklch(var(--accent-foreground))',
-  // 标签栏
-  '--g-tabbar-bg': 'oklch(var(--background))',
-  '--g-tabbar-tab-color': 'oklch(var(--accent-foreground) / 50%)',
-  '--g-tabbar-tab-hover-bg': 'oklch(var(--accent) / 50%)',
-  '--g-tabbar-tab-hover-color': 'oklch(var(--accent-foreground) / 50%)',
-  '--g-tabbar-tab-active-bg': 'oklch(var(--accent))',
-  '--g-tabbar-tab-active-color': 'oklch(var(--foreground))',
-  // 工具栏
-  '--g-toolbar-bg': 'oklch(var(--background))',
+  '--g-sub-sidebar-menu-hover-color': 'oklch(var(--foreground))',
+  '--g-sub-sidebar-menu-active-bg': 'oklch(var(--primary) / 0.20)',
+  '--g-sub-sidebar-menu-active-color': 'oklch(var(--primary))',
+  '--g-tabbar-bg': 'oklch(var(--card))',
+  '--g-tabbar-tab-color': 'oklch(var(--muted-foreground) / 80%)',
+  '--g-tabbar-tab-hover-bg': 'oklch(var(--muted))',
+  '--g-tabbar-tab-hover-color': 'oklch(var(--foreground) / 85%)',
+  '--g-tabbar-tab-active-bg': 'oklch(var(--primary) / 0.18)',
+  '--g-tabbar-tab-active-color': 'oklch(var(--primary))',
+  '--g-toolbar-bg': 'oklch(var(--card))',
 } as const

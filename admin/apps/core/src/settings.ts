@@ -1,13 +1,19 @@
 import { setSettings } from '@fantastic-admin/settings'
 
 export default setSettings({
+  theme: {
+    colorScheme: 'light',
+    /** 卡片与控件圆角：略放大以配合扁平壳层的精致感 */
+    radius: 0.5,
+    colorAmblyopia: false,
+  },
   menu: {
     mode: 'side',
     mainMenuClickMode: 'switch',
     subMenuUniqueExpand: true,
     subMenuCollapse: false,
     subMenuCollapseButton: true,
-    hotkeys: false,
+    hotkeys: true,
   },
   app: {
     dynamicTitle: true,
@@ -17,8 +23,12 @@ export default setSettings({
   },
   topbar: {
     mode: 'static',
-    tabbar: false,
+    tabbar: true,
     toolbar: true,
+  },
+  tabbar: {
+    icon: true,
+    hotkeys: true,
   },
   toolbar: {
     breadcrumb: true,

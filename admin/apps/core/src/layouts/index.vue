@@ -148,6 +148,12 @@ const enableAppSetting = import.meta.env.VITE_APP_SETTING
       '--g-main-container-padding-bottom': `${fixedContentAfterAreaHeight}px`,
     }"
   >
+    <a
+      href="#app-content"
+      class="pointer-events-none fixed start-4 top-4 z-[2000] rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground opacity-0 shadow-md outline-none ring-2 ring-ring ring-offset-2 transition-[opacity,transform] duration-200 focus:pointer-events-auto focus:translate-y-0 focus:opacity-100 -translate-y-16"
+    >
+      跳到主内容
+    </a>
     <div ref="layoutTopRef" class="slots-layout-top mx-auto bg-background w-full shadow-[-1px_0_0_0_oklch(var(--border)),1px_0_0_0_oklch(var(--border)),0_-1px_0_0_oklch(var(--border)),0_1px_0_0_oklch(var(--border))] transition-width-300 inset-t-0 fixed z-1030 empty:hidden">
       <Component :is="useSlots('layout-top')" />
     </div>
