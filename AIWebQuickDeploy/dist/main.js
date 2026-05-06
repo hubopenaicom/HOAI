@@ -5529,14 +5529,27 @@ let UserService = class UserService {
         if (!u) {
             throw new common_1.HttpException('当前用户不存在！', common_1.HttpStatus.BAD_REQUEST);
         }
-        if (body.nickname && u.nickname === body.nickname) {
-            throw new common_1.HttpException('没有变更，无需更改！', common_1.HttpStatus.BAD_REQUEST);
+        const patch = {};
+        if (body.nickname !== undefined && body.nickname !== null) {
+            const nextNick = String(body.nickname).trim();
+            if (nextNick && nextNick !== u.nickname) {
+                patch.nickname = nextNick;
+            }
         }
-        const r = await this.userEntity.update({ id }, body);
+        if (body.avatar !== undefined && body.avatar !== null && String(body.avatar).trim() !== '') {
+            const nextAvatar = String(body.avatar).trim();
+            if (nextAvatar !== u.avatar) {
+                patch.avatar = nextAvatar;
+            }
+        }
+        if (Object.keys(patch).length === 0) {
+            throw new common_1.HttpException('没有变更，无需保存', common_1.HttpStatus.BAD_REQUEST);
+        }
+        const r = await this.userEntity.update({ id }, patch);
         if (r.affected <= 0) {
-            throw new common_1.HttpException('修改用户信息失败！', common_1.HttpStatus.BAD_REQUEST);
+            throw new common_1.HttpException('保存失败，请稍后重试', common_1.HttpStatus.BAD_REQUEST);
         }
-        return '修改用户昵称成功！';
+        return '保存成功';
     }
     async isUsernameTaken(username, excludeUserId) {
         const where = { username };
