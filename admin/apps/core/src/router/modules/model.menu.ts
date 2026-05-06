@@ -21,6 +21,12 @@ const routes: RouteRecordRaw = {
       meta: { title: '模型设置', icon: 'i-mdi:robot-outline' },
     },
     {
+      path: 'tokenCatalog',
+      name: 'AiModelTokenCatalog',
+      component: () => import('@/views/models/tokenCatalog.vue'),
+      meta: { title: 'Token 限额维护', icon: 'i-mdi:table-cog' },
+    },
+    {
       path: 'baseSetting',
       name: 'baseSetting',
       component: () => import('@/views/models/baseSetting.vue'),
