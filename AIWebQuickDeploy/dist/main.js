@@ -16245,7 +16245,7 @@ function lookupLiteLLmLimits(modelId, lmIndex) {
     }
     return null;
 }
-function mergeResolvedLimits(orRow, lmHit) {
+function mergeResolvedLimits(orRow, lmHit, opts) {
     const ctxOr = orRow?.top_provider?.context_length ?? orRow?.context_length ?? undefined;
     const ctxLm = lmHit?.input ?? undefined;
     let ctx;
@@ -16276,11 +16276,12 @@ function mergeResolvedLimits(orRow, lmHit) {
     else if (orRow) {
         source = 'openrouter';
     }
+    const displayName = orRow?.name ?? opts?.catalogModelId;
     return {
         maxModelTokens: ctx,
         max_tokens: outNum,
         source,
-        displayName: orRow?.name,
+        displayName,
     };
 }
 function resolveLimitsForModelId(modelId, orById, lmIndex) {
@@ -16291,7 +16292,7 @@ function resolveLimitsForModelId(modelId, orById, lmIndex) {
     const lmHit = lookupLiteLLmLimits(trimmed, lmIndex);
     if (!orRow && !lmHit)
         return null;
-    return mergeResolvedLimits(orRow, lmHit);
+    return mergeResolvedLimits(orRow, lmHit, { catalogModelId: trimmed });
 }
 const OPENROUTER_STYLE_PREFIXES = [
     'openai/',
@@ -16410,7 +16411,7 @@ function resolveLimitsForModelIdFlexible(modelId, orById, lmIndex) {
     for (const k of collectLiteLLmSuffixMatches(shortName, lmIndex)) {
         const orRow = orById.get(k);
         const lmHit = lmIndex.get(k) ?? null;
-        const r = mergeResolvedLimits(orRow, lmHit);
+        const r = mergeResolvedLimits(orRow, lmHit, { catalogModelId: k });
         if (r) {
             return { limits: r, matchedModelId: k };
         }
