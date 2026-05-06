@@ -434,22 +434,22 @@ const chatGroup_module_1 = __webpack_require__(172);
 const chatLog_module_1 = __webpack_require__(177);
 const crami_module_1 = __webpack_require__(188);
 const database_module_1 = __webpack_require__(200);
-const globalConfig_module_1 = __webpack_require__(205);
-const models_module_1 = __webpack_require__(209);
-const official_module_1 = __webpack_require__(215);
-const order_module_1 = __webpack_require__(220);
-const pay_module_1 = __webpack_require__(227);
-const plugin_module_1 = __webpack_require__(229);
+const globalConfig_module_1 = __webpack_require__(206);
+const models_module_1 = __webpack_require__(210);
+const official_module_1 = __webpack_require__(222);
+const order_module_1 = __webpack_require__(227);
+const pay_module_1 = __webpack_require__(234);
+const plugin_module_1 = __webpack_require__(236);
 const redisCache_module_1 = __webpack_require__(26);
-const share_module_1 = __webpack_require__(232);
-const signin_module_1 = __webpack_require__(235);
-const spa_module_1 = __webpack_require__(238);
-const statistic_module_1 = __webpack_require__(240);
-const task_module_1 = __webpack_require__(244);
-const upload_module_1 = __webpack_require__(247);
+const share_module_1 = __webpack_require__(239);
+const signin_module_1 = __webpack_require__(242);
+const spa_module_1 = __webpack_require__(245);
+const statistic_module_1 = __webpack_require__(247);
+const task_module_1 = __webpack_require__(251);
+const upload_module_1 = __webpack_require__(254);
 const user_module_1 = __webpack_require__(122);
-const userBalance_module_1 = __webpack_require__(250);
-const verification_module_1 = __webpack_require__(252);
+const userBalance_module_1 = __webpack_require__(257);
+const verification_module_1 = __webpack_require__(259);
 let AppModule = class AppModule {
     configure(consumer) {
         consumer;
@@ -14186,10 +14186,11 @@ const crami_entity_1 = __webpack_require__(191);
 const cramiPackage_entity_1 = __webpack_require__(71);
 const config_entity_1 = __webpack_require__(73);
 const models_entity_1 = __webpack_require__(78);
-const order_entity_1 = __webpack_require__(202);
+const model_token_catalog_entity_1 = __webpack_require__(202);
+const order_entity_1 = __webpack_require__(203);
 const plugin_entity_1 = __webpack_require__(160);
-const share_entity_1 = __webpack_require__(203);
-const signIn_entity_1 = __webpack_require__(204);
+const share_entity_1 = __webpack_require__(204);
+const signIn_entity_1 = __webpack_require__(205);
 const user_entity_1 = __webpack_require__(83);
 const accountLog_entity_1 = __webpack_require__(79);
 const balance_entity_1 = __webpack_require__(80);
@@ -14230,6 +14231,7 @@ exports.DatabaseModule = DatabaseModule = DatabaseModule_1 = __decorate([
                         signIn_entity_1.SigninEntity,
                         violationLog_entity_1.ViolationLogEntity,
                         models_entity_1.ModelsEntity,
+                        model_token_catalog_entity_1.ModelTokenCatalogEntity,
                         user_entity_1.UserEntity,
                         accountLog_entity_1.AccountLogEntity,
                         fingerprint_entity_1.FingerprintLogEntity,
@@ -14455,6 +14457,71 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ModelTokenCatalogEntity = void 0;
+const baseEntity_1 = __webpack_require__(72);
+const typeorm_1 = __webpack_require__(3);
+let ModelTokenCatalogEntity = class ModelTokenCatalogEntity extends baseEntity_1.BaseEntity {
+    modelId;
+    displayName;
+    maxModelTokens;
+    max_tokens;
+    source;
+    locked;
+    remark;
+};
+exports.ModelTokenCatalogEntity = ModelTokenCatalogEntity;
+__decorate([
+    (0, typeorm_1.Column)({
+        length: 512,
+        unique: true,
+        comment: 'API 模型 ID，与模型配置里「账号关联模型」一致，如 openai/gpt-4o',
+    }),
+    __metadata("design:type", String)
+], ModelTokenCatalogEntity.prototype, "modelId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ length: 512, nullable: true, comment: '展示名称（可选）' }),
+    __metadata("design:type", String)
+], ModelTokenCatalogEntity.prototype, "displayName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', comment: '上下文 Tokens（最大输入窗口）' }),
+    __metadata("design:type", Number)
+], ModelTokenCatalogEntity.prototype, "maxModelTokens", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', comment: '单次回复 Tokens 上限' }),
+    __metadata("design:type", Number)
+], ModelTokenCatalogEntity.prototype, "max_tokens", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ length: 32, comment: '数据来源' }),
+    __metadata("design:type", String)
+], ModelTokenCatalogEntity.prototype, "source", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: false, comment: '锁定后批量同步将跳过（手工维护建议锁定）' }),
+    __metadata("design:type", Boolean)
+], ModelTokenCatalogEntity.prototype, "locked", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'text', nullable: true, comment: '备注' }),
+    __metadata("design:type", String)
+], ModelTokenCatalogEntity.prototype, "remark", void 0);
+exports.ModelTokenCatalogEntity = ModelTokenCatalogEntity = __decorate([
+    (0, typeorm_1.Entity)({ name: 'model_token_catalog' })
+], ModelTokenCatalogEntity);
+
+
+/***/ }),
+/* 203 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
 var _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.OrderEntity = void 0;
@@ -14536,7 +14603,7 @@ exports.OrderEntity = OrderEntity = __decorate([
 
 
 /***/ }),
-/* 203 */
+/* 204 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14582,7 +14649,7 @@ exports.Share = Share = __decorate([
 
 
 /***/ }),
-/* 204 */
+/* 205 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14629,7 +14696,7 @@ exports.SigninEntity = SigninEntity = __decorate([
 
 
 /***/ }),
-/* 205 */
+/* 206 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14645,7 +14712,7 @@ const common_1 = __webpack_require__(2);
 const typeorm_1 = __webpack_require__(33);
 const chatLog_entity_1 = __webpack_require__(75);
 const config_entity_1 = __webpack_require__(73);
-const globalConfig_controller_1 = __webpack_require__(206);
+const globalConfig_controller_1 = __webpack_require__(207);
 const globalConfig_service_1 = __webpack_require__(74);
 let GlobalConfigModule = class GlobalConfigModule {
 };
@@ -14662,7 +14729,7 @@ exports.GlobalConfigModule = GlobalConfigModule = __decorate([
 
 
 /***/ }),
-/* 206 */
+/* 207 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14686,8 +14753,8 @@ const superAuth_guard_1 = __webpack_require__(103);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
 const express_1 = __webpack_require__(104);
-const queryConfig_dto_1 = __webpack_require__(207);
-const setConfig_dto_1 = __webpack_require__(208);
+const queryConfig_dto_1 = __webpack_require__(208);
+const setConfig_dto_1 = __webpack_require__(209);
 const globalConfig_service_1 = __webpack_require__(74);
 let GlobalConfigController = class GlobalConfigController {
     globalConfigService;
@@ -14766,7 +14833,7 @@ exports.GlobalConfigController = GlobalConfigController = __decorate([
 
 
 /***/ }),
-/* 207 */
+/* 208 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14801,7 +14868,7 @@ __decorate([
 
 
 /***/ }),
-/* 208 */
+/* 209 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14837,7 +14904,7 @@ __decorate([
 
 
 /***/ }),
-/* 209 */
+/* 210 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14850,26 +14917,28 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ModelsModule = void 0;
 const common_1 = __webpack_require__(2);
-const models_controller_1 = __webpack_require__(210);
+const models_controller_1 = __webpack_require__(211);
 const models_service_1 = __webpack_require__(76);
 const typeorm_1 = __webpack_require__(33);
 const models_entity_1 = __webpack_require__(78);
+const model_token_catalog_entity_1 = __webpack_require__(202);
+const model_token_catalog_service_1 = __webpack_require__(219);
 let ModelsModule = class ModelsModule {
 };
 exports.ModelsModule = ModelsModule;
 exports.ModelsModule = ModelsModule = __decorate([
     (0, common_1.Global)(),
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([models_entity_1.ModelsEntity])],
+        imports: [typeorm_1.TypeOrmModule.forFeature([models_entity_1.ModelsEntity, model_token_catalog_entity_1.ModelTokenCatalogEntity])],
         controllers: [models_controller_1.ModelsController],
-        providers: [models_service_1.ModelsService],
-        exports: [models_service_1.ModelsService],
+        providers: [models_service_1.ModelsService, model_token_catalog_service_1.ModelTokenCatalogService],
+        exports: [models_service_1.ModelsService, model_token_catalog_service_1.ModelTokenCatalogService],
     })
 ], ModelsModule);
 
 
 /***/ }),
-/* 210 */
+/* 211 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14885,22 +14954,28 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var _a, _b, _c, _d, _e, _f;
+var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ModelsController = void 0;
 const adminAuth_guard_1 = __webpack_require__(86);
 const superAuth_guard_1 = __webpack_require__(103);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
-const queryModel_dto_1 = __webpack_require__(211);
-const queryModelType_dto_1 = __webpack_require__(212);
-const setModel_dto_1 = __webpack_require__(213);
-const setModelType_dto_1 = __webpack_require__(214);
+const queryModel_dto_1 = __webpack_require__(212);
+const queryModelType_dto_1 = __webpack_require__(213);
+const queryTokenCatalog_dto_1 = __webpack_require__(214);
+const setModel_dto_1 = __webpack_require__(215);
+const setModelType_dto_1 = __webpack_require__(216);
+const setTokenCatalog_dto_1 = __webpack_require__(217);
+const syncTokenCatalog_dto_1 = __webpack_require__(218);
+const model_token_catalog_service_1 = __webpack_require__(219);
 const models_service_1 = __webpack_require__(76);
 let ModelsController = class ModelsController {
     modelsService;
-    constructor(modelsService) {
+    modelTokenCatalogService;
+    constructor(modelsService, modelTokenCatalogService) {
         this.modelsService = modelsService;
+        this.modelTokenCatalogService = modelTokenCatalogService;
     }
     setModel(params) {
         return this.modelsService.setModel(params);
@@ -14926,6 +15001,24 @@ let ModelsController = class ModelsController {
     delModelType(params) {
         return this.modelsService.delModelType(params);
     }
+    queryTokenCatalog(params) {
+        return this.modelTokenCatalogService.query(params);
+    }
+    setTokenCatalog(body) {
+        return this.modelTokenCatalogService.set(body);
+    }
+    delTokenCatalog(body) {
+        return this.modelTokenCatalogService.delete(body.id);
+    }
+    syncTokenCatalog(body) {
+        return this.modelTokenCatalogService.startSyncJob(body || {});
+    }
+    syncTokenCatalogProgress(syncId) {
+        return this.modelTokenCatalogService.getSyncProgress(syncId);
+    }
+    lookupTokenCatalog(modelId) {
+        return this.modelTokenCatalogService.lookup(modelId);
+    }
 };
 exports.ModelsController = ModelsController;
 __decorate([
@@ -14935,7 +15028,7 @@ __decorate([
     (0, swagger_1.ApiBearerAuth)(),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [typeof (_b = typeof setModel_dto_1.SetModelDto !== "undefined" && setModel_dto_1.SetModelDto) === "function" ? _b : Object]),
+    __metadata("design:paramtypes", [typeof (_c = typeof setModel_dto_1.SetModelDto !== "undefined" && setModel_dto_1.SetModelDto) === "function" ? _c : Object]),
     __metadata("design:returntype", void 0)
 ], ModelsController.prototype, "setModel", null);
 __decorate([
@@ -14956,7 +15049,7 @@ __decorate([
     __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Query)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [typeof (_c = typeof Request !== "undefined" && Request) === "function" ? _c : Object, typeof (_d = typeof queryModel_dto_1.QueryModelDto !== "undefined" && queryModel_dto_1.QueryModelDto) === "function" ? _d : Object]),
+    __metadata("design:paramtypes", [typeof (_d = typeof Request !== "undefined" && Request) === "function" ? _d : Object, typeof (_e = typeof queryModel_dto_1.QueryModelDto !== "undefined" && queryModel_dto_1.QueryModelDto) === "function" ? _e : Object]),
     __metadata("design:returntype", void 0)
 ], ModelsController.prototype, "queryModels", null);
 __decorate([
@@ -14978,7 +15071,7 @@ __decorate([
     (0, swagger_1.ApiOperation)({ summary: '查询模型类型' }),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [typeof (_e = typeof queryModelType_dto_1.QueryModelTypeDto !== "undefined" && queryModelType_dto_1.QueryModelTypeDto) === "function" ? _e : Object]),
+    __metadata("design:paramtypes", [typeof (_f = typeof queryModelType_dto_1.QueryModelTypeDto !== "undefined" && queryModelType_dto_1.QueryModelTypeDto) === "function" ? _f : Object]),
     __metadata("design:returntype", void 0)
 ], ModelsController.prototype, "queryModelType", null);
 __decorate([
@@ -14988,7 +15081,7 @@ __decorate([
     (0, swagger_1.ApiBearerAuth)(),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [typeof (_f = typeof setModelType_dto_1.SetModelTypeDto !== "undefined" && setModelType_dto_1.SetModelTypeDto) === "function" ? _f : Object]),
+    __metadata("design:paramtypes", [typeof (_g = typeof setModelType_dto_1.SetModelTypeDto !== "undefined" && setModelType_dto_1.SetModelTypeDto) === "function" ? _g : Object]),
     __metadata("design:returntype", void 0)
 ], ModelsController.prototype, "setModelType", null);
 __decorate([
@@ -15001,15 +15094,75 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], ModelsController.prototype, "delModelType", null);
+__decorate([
+    (0, common_1.Get)('queryTokenCatalog'),
+    (0, swagger_1.ApiOperation)({ summary: '模型 Token 维护表分页查询' }),
+    (0, common_1.UseGuards)(adminAuth_guard_1.AdminAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    __param(0, (0, common_1.Query)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_h = typeof queryTokenCatalog_dto_1.QueryTokenCatalogDto !== "undefined" && queryTokenCatalog_dto_1.QueryTokenCatalogDto) === "function" ? _h : Object]),
+    __metadata("design:returntype", void 0)
+], ModelsController.prototype, "queryTokenCatalog", null);
+__decorate([
+    (0, common_1.Post)('setTokenCatalog'),
+    (0, swagger_1.ApiOperation)({ summary: '新增/更新模型 Token 维护项' }),
+    (0, common_1.UseGuards)(superAuth_guard_1.SuperAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_j = typeof setTokenCatalog_dto_1.SetTokenCatalogDto !== "undefined" && setTokenCatalog_dto_1.SetTokenCatalogDto) === "function" ? _j : Object]),
+    __metadata("design:returntype", void 0)
+], ModelsController.prototype, "setTokenCatalog", null);
+__decorate([
+    (0, common_1.Post)('delTokenCatalog'),
+    (0, swagger_1.ApiOperation)({ summary: '删除模型 Token 维护项' }),
+    (0, common_1.UseGuards)(superAuth_guard_1.SuperAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], ModelsController.prototype, "delTokenCatalog", null);
+__decorate([
+    (0, common_1.Post)('syncTokenCatalog'),
+    (0, swagger_1.ApiOperation)({ summary: '启动异步同步（返回 syncId，轮询 syncTokenCatalogProgress）' }),
+    (0, common_1.UseGuards)(superAuth_guard_1.SuperAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_k = typeof syncTokenCatalog_dto_1.SyncTokenCatalogDto !== "undefined" && syncTokenCatalog_dto_1.SyncTokenCatalogDto) === "function" ? _k : Object]),
+    __metadata("design:returntype", void 0)
+], ModelsController.prototype, "syncTokenCatalog", null);
+__decorate([
+    (0, common_1.Get)('syncTokenCatalogProgress'),
+    (0, swagger_1.ApiOperation)({ summary: '查询同步任务进度' }),
+    (0, common_1.UseGuards)(superAuth_guard_1.SuperAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    __param(0, (0, common_1.Query)('syncId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], ModelsController.prototype, "syncTokenCatalogProgress", null);
+__decorate([
+    (0, common_1.Get)('lookupTokenCatalog'),
+    (0, swagger_1.ApiOperation)({ summary: '按模型 ID 查询建议的上下文/回复 Tokens（先表后公开源）' }),
+    (0, common_1.UseGuards)(adminAuth_guard_1.AdminAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    __param(0, (0, common_1.Query)('modelId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], ModelsController.prototype, "lookupTokenCatalog", null);
 exports.ModelsController = ModelsController = __decorate([
     (0, swagger_1.ApiTags)('models'),
     (0, common_1.Controller)('models'),
-    __metadata("design:paramtypes", [typeof (_a = typeof models_service_1.ModelsService !== "undefined" && models_service_1.ModelsService) === "function" ? _a : Object])
+    __metadata("design:paramtypes", [typeof (_a = typeof models_service_1.ModelsService !== "undefined" && models_service_1.ModelsService) === "function" ? _a : Object, typeof (_b = typeof model_token_catalog_service_1.ModelTokenCatalogService !== "undefined" && model_token_catalog_service_1.ModelTokenCatalogService) === "function" ? _b : Object])
 ], ModelsController);
 
 
 /***/ }),
-/* 211 */
+/* 212 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15073,7 +15226,7 @@ __decorate([
 
 
 /***/ }),
-/* 212 */
+/* 213 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15119,7 +15272,49 @@ __decorate([
 
 
 /***/ }),
-/* 213 */
+/* 214 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.QueryTokenCatalogDto = void 0;
+const swagger_1 = __webpack_require__(14);
+class QueryTokenCatalogDto {
+    page;
+    size;
+    modelId;
+    source;
+}
+exports.QueryTokenCatalogDto = QueryTokenCatalogDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 1, required: false }),
+    __metadata("design:type", Number)
+], QueryTokenCatalogDto.prototype, "page", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 10, required: false }),
+    __metadata("design:type", Number)
+], QueryTokenCatalogDto.prototype, "size", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 'gpt', required: false, description: 'modelId 模糊搜索' }),
+    __metadata("design:type", String)
+], QueryTokenCatalogDto.prototype, "modelId", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 'manual', required: false, description: '来源筛选' }),
+    __metadata("design:type", String)
+], QueryTokenCatalogDto.prototype, "source", void 0);
+
+
+/***/ }),
+/* 215 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15272,7 +15467,7 @@ __decorate([
 
 
 /***/ }),
-/* 214 */
+/* 216 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15413,7 +15608,829 @@ __decorate([
 
 
 /***/ }),
-/* 215 */
+/* 217 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.SetTokenCatalogDto = void 0;
+const swagger_1 = __webpack_require__(14);
+class SetTokenCatalogDto {
+    id;
+    modelId;
+    displayName;
+    maxModelTokens;
+    max_tokens;
+    source;
+    locked;
+    remark;
+}
+exports.SetTokenCatalogDto = SetTokenCatalogDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    __metadata("design:type", Number)
+], SetTokenCatalogDto.prototype, "id", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 'openai/gpt-4o', description: 'API 模型 ID' }),
+    __metadata("design:type", String)
+], SetTokenCatalogDto.prototype, "modelId", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    __metadata("design:type", String)
+], SetTokenCatalogDto.prototype, "displayName", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 128000 }),
+    __metadata("design:type", Number)
+], SetTokenCatalogDto.prototype, "maxModelTokens", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 16384 }),
+    __metadata("design:type", Number)
+], SetTokenCatalogDto.prototype, "max_tokens", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 'manual', required: false }),
+    __metadata("design:type", String)
+], SetTokenCatalogDto.prototype, "source", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: true, required: false }),
+    __metadata("design:type", Boolean)
+], SetTokenCatalogDto.prototype, "locked", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    __metadata("design:type", String)
+], SetTokenCatalogDto.prototype, "remark", void 0);
+
+
+/***/ }),
+/* 218 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.SyncTokenCatalogDto = void 0;
+const swagger_1 = __webpack_require__(14);
+class SyncTokenCatalogDto {
+    scope;
+    force;
+}
+exports.SyncTokenCatalogDto = SyncTokenCatalogDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 'both', required: false }),
+    __metadata("design:type", String)
+], SyncTokenCatalogDto.prototype, "scope", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: false, required: false }),
+    __metadata("design:type", Boolean)
+], SyncTokenCatalogDto.prototype, "force", void 0);
+
+
+/***/ }),
+/* 219 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var ModelTokenCatalogService_1;
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ModelTokenCatalogService = void 0;
+const common_1 = __webpack_require__(2);
+const typeorm_1 = __webpack_require__(33);
+const axios_1 = __webpack_require__(39);
+const https = __webpack_require__(220);
+const crypto_1 = __webpack_require__(16);
+const typeorm_2 = __webpack_require__(3);
+const model_limits_openrouter_litellm_1 = __webpack_require__(221);
+const model_token_catalog_entity_1 = __webpack_require__(202);
+let ModelTokenCatalogService = ModelTokenCatalogService_1 = class ModelTokenCatalogService {
+    catalogRepo;
+    logger = new common_1.Logger(ModelTokenCatalogService_1.name);
+    syncJobs = new Map();
+    activeSyncJobId = null;
+    constructor(catalogRepo) {
+        this.catalogRepo = catalogRepo;
+    }
+    createSyncHttpsAgent() {
+        if (process.env.HOAI_SYNC_TLS_INSECURE === '1') {
+            this.logger.warn('HOAI_SYNC_TLS_INSECURE=1：同步外网目录时将跳过 TLS 证书校验（仅建议排障临时使用）');
+            return new https.Agent({ rejectUnauthorized: false });
+        }
+        return undefined;
+    }
+    axiosSyncConfig() {
+        return {
+            timeout: 180000,
+            httpsAgent: this.createSyncHttpsAgent(),
+            validateStatus: (s) => s >= 200 && s < 300,
+        };
+    }
+    httpExceptionMessage(err) {
+        const res = err.getResponse();
+        if (typeof res === 'string')
+            return res;
+        if (res && typeof res === 'object' && 'message' in res) {
+            const m = res.message;
+            return Array.isArray(m) ? m.join('; ') : String(m || err.message);
+        }
+        return err.message;
+    }
+    formatAxiosError(e) {
+        if (!axios_1.default.isAxiosError(e)) {
+            return e instanceof Error ? e.message : String(e);
+        }
+        const ax = e;
+        const code = ax.code || '';
+        const status = ax.response?.status;
+        const url = ax.config?.url || '';
+        if (code === 'UNABLE_TO_VERIFY_LEAF_SIGNATURE' || code === 'CERT_HAS_EXPIRED') {
+            return `HTTPS 证书校验失败（${code}）。可在服务器设置环境变量 HOAI_SYNC_TLS_INSECURE=1 后重试（仅用于排障），或修复系统 CA 证书。 URL: ${url}`;
+        }
+        if (code === 'ECONNREFUSED' || code === 'ETIMEDOUT' || code === 'ENOTFOUND') {
+            return `网络不可达（${code}）：${url}`;
+        }
+        if (status) {
+            return `HTTP ${status} 拉取失败：${url}`;
+        }
+        return ax.message || '外网请求失败';
+    }
+    async fetchOpenRouterModels() {
+        try {
+            const { data } = await axios_1.default.get(model_limits_openrouter_litellm_1.OPENROUTER_MODELS_URL, this.axiosSyncConfig());
+            return (0, model_limits_openrouter_litellm_1.openRouterListToMap)(data?.data);
+        }
+        catch (e) {
+            throw new common_1.HttpException(`拉取 OpenRouter 模型列表失败：${this.formatAxiosError(e)}`, common_1.HttpStatus.BAD_GATEWAY);
+        }
+    }
+    async fetchLiteLLmJson() {
+        const envUrl = process.env.LITELLM_COST_MAP_URL?.trim();
+        const urls = [
+            envUrl,
+            model_limits_openrouter_litellm_1.LITELLM_COST_MAP_URL,
+            'https://cdn.jsdelivr.net/gh/BerriAI/litellm@main/model_prices_and_context_window.json',
+        ].filter((u) => Boolean(u));
+        const tried = new Set();
+        let lastErr;
+        for (const url of urls) {
+            if (tried.has(url))
+                continue;
+            tried.add(url);
+            try {
+                const { data } = await axios_1.default.get(url, this.axiosSyncConfig());
+                if (!data || typeof data !== 'object') {
+                    throw new Error('响应不是 JSON 对象');
+                }
+                return data;
+            }
+            catch (e) {
+                lastErr = e;
+                this.logger.warn(`LiteLLM 映射拉取失败，尝试下一镜像：${url} → ${this.formatAxiosError(e)}`);
+            }
+        }
+        throw new common_1.HttpException(`拉取 LiteLLM model_prices_and_context_window.json 失败（已尝试 ${tried.size} 个地址）：${this.formatAxiosError(lastErr)}`, common_1.HttpStatus.BAD_GATEWAY);
+    }
+    getSyncProgress(syncId) {
+        const job = this.syncJobs.get(syncId);
+        if (!job) {
+            throw new common_1.HttpException('同步任务不存在或已过期', common_1.HttpStatus.NOT_FOUND);
+        }
+        return job;
+    }
+    startSyncJob(body) {
+        if (this.activeSyncJobId) {
+            const j = this.syncJobs.get(this.activeSyncJobId);
+            if (j && (j.status === 'queued' || j.status === 'running')) {
+                throw new common_1.HttpException(`已有同步任务进行中（${this.activeSyncJobId}），请稍候再试`, common_1.HttpStatus.CONFLICT);
+            }
+        }
+        const syncId = (0, crypto_1.randomUUID)();
+        const job = {
+            id: syncId,
+            status: 'queued',
+            phase: '排队中',
+            percent: 0,
+            processed: 0,
+            total: 0,
+            inserted: 0,
+            updated: 0,
+            skipped: 0,
+            openRouterModels: 0,
+            liteLLmChatKeys: 0,
+            createdAt: Date.now(),
+        };
+        this.syncJobs.set(syncId, job);
+        this.activeSyncJobId = syncId;
+        void this.runSyncJob(syncId, body || {}).catch(err => {
+            this.logger.error(`同步任务异常 ${syncId}: ${err?.stack || err}`);
+            const j = this.syncJobs.get(syncId);
+            if (j) {
+                j.status = 'error';
+                j.phase = '失败';
+                j.percent = 100;
+                j.message =
+                    err instanceof common_1.HttpException
+                        ? this.httpExceptionMessage(err)
+                        : this.formatAxiosError(err);
+            }
+            if (this.activeSyncJobId === syncId) {
+                this.activeSyncJobId = null;
+            }
+        });
+        this.pruneOldJobs();
+        return { syncId };
+    }
+    pruneOldJobs() {
+        const ttl = 3600_000;
+        const now = Date.now();
+        for (const [id, j] of this.syncJobs) {
+            if (now - j.createdAt > ttl && (j.status === 'done' || j.status === 'error')) {
+                this.syncJobs.delete(id);
+            }
+        }
+    }
+    updateJob(syncId, patch) {
+        const j = this.syncJobs.get(syncId);
+        if (!j)
+            return;
+        Object.assign(j, patch);
+    }
+    async bulkUpsertTokenCatalogChunk(rows) {
+        if (rows.length === 0)
+            return;
+        const meta = this.catalogRepo.metadata;
+        const q = (name) => `\`${meta.findColumnWithPropertyName(name).databaseName}\``;
+        const table = `\`${meta.tablePath}\``;
+        const cols = [
+            q('modelId'),
+            q('displayName'),
+            q('maxModelTokens'),
+            q('max_tokens'),
+            q('source'),
+            q('locked'),
+            q('createdAt'),
+            q('updatedAt'),
+        ].join(', ');
+        const placeholders = rows.map(() => '(?, ?, ?, ?, ?, 0, NOW(), NOW())').join(', ');
+        const params = rows.flatMap(r => [
+            r.modelId,
+            r.displayName,
+            r.maxModelTokens,
+            r.max_tokens,
+            r.source,
+        ]);
+        await this.catalogRepo.query(`INSERT INTO ${table} (${cols}) VALUES ${placeholders}
+       ON DUPLICATE KEY UPDATE
+         ${q('displayName')} = VALUES(${q('displayName')}),
+         ${q('maxModelTokens')} = VALUES(${q('maxModelTokens')}),
+         ${q('max_tokens')} = VALUES(${q('max_tokens')}),
+         ${q('source')} = VALUES(${q('source')}),
+         ${q('updatedAt')} = NOW()`, params);
+    }
+    async runSyncJob(syncId, body) {
+        const scope = body.scope || 'both';
+        const force = Boolean(body.force);
+        this.updateJob(syncId, { status: 'running', phase: '拉取 OpenRouter / LiteLLM', percent: 5 });
+        let orMap = new Map();
+        let lmIndex = new Map();
+        if (scope === 'openrouter') {
+            orMap = await this.fetchOpenRouterModels();
+        }
+        else if (scope === 'litellm') {
+            const lmRoot = await this.fetchLiteLLmJson();
+            lmIndex = (0, model_limits_openrouter_litellm_1.buildLiteLLmChatIndex)(lmRoot);
+        }
+        else {
+            const [or, lmRoot] = await Promise.all([
+                this.fetchOpenRouterModels(),
+                this.fetchLiteLLmJson(),
+            ]);
+            orMap = or;
+            lmIndex = (0, model_limits_openrouter_litellm_1.buildLiteLLmChatIndex)(lmRoot);
+        }
+        this.updateJob(syncId, {
+            phase: '合并模型列表',
+            percent: 20,
+            openRouterModels: orMap.size,
+            liteLLmChatKeys: lmIndex.size,
+        });
+        const modelIds = new Set();
+        orMap.forEach((_, id) => modelIds.add(id));
+        lmIndex.forEach((_, id) => modelIds.add(id));
+        const existingRows = await this.catalogRepo.find();
+        const byModelId = new Map(existingRows.map(r => [r.modelId, r]));
+        const knownModelIds = new Set(existingRows.map(r => r.modelId));
+        const upsertPayloads = [];
+        let skipped = 0;
+        for (const mid of modelIds) {
+            const resolved = (0, model_limits_openrouter_litellm_1.resolveLimitsForModelId)(mid, orMap, lmIndex);
+            if (!resolved)
+                continue;
+            const existing = byModelId.get(mid);
+            if (existing && existing.locked && !force) {
+                skipped++;
+                continue;
+            }
+            upsertPayloads.push({
+                modelId: mid,
+                displayName: resolved.displayName ?? null,
+                maxModelTokens: resolved.maxModelTokens,
+                max_tokens: resolved.max_tokens,
+                source: resolved.source,
+            });
+        }
+        const total = upsertPayloads.length;
+        this.updateJob(syncId, { total, skipped, phase: '写入数据库', percent: 25, processed: 0 });
+        let inserted = 0;
+        let updated = 0;
+        const chunkSize = 150;
+        for (let i = 0; i < upsertPayloads.length; i += chunkSize) {
+            const chunk = upsertPayloads.slice(i, i + chunkSize);
+            await this.bulkUpsertTokenCatalogChunk(chunk);
+            for (const c of chunk) {
+                if (knownModelIds.has(c.modelId)) {
+                    updated++;
+                }
+                else {
+                    inserted++;
+                    knownModelIds.add(c.modelId);
+                }
+            }
+            const processed = Math.min(i + chunkSize, upsertPayloads.length);
+            const pct = 25 + Math.floor((processed / Math.max(total, 1)) * 70);
+            this.updateJob(syncId, { processed, percent: pct, inserted, updated });
+        }
+        const result = {
+            inserted,
+            updated,
+            skipped,
+            openRouterModels: orMap.size,
+            liteLLmChatKeys: lmIndex.size,
+            totalCandidates: modelIds.size,
+        };
+        this.updateJob(syncId, {
+            status: 'done',
+            phase: '完成',
+            percent: 100,
+            processed: total,
+            result,
+            message: undefined,
+        });
+        if (this.activeSyncJobId === syncId) {
+            this.activeSyncJobId = null;
+        }
+        this.logger.log(`Token 目录同步完成 ${syncId}: inserted=${inserted} updated=${updated} skipped=${skipped}`);
+    }
+    async query(params) {
+        const page = Number(params.page) > 0 ? Number(params.page) : 1;
+        const size = Number(params.size) > 0 ? Number(params.size) : 20;
+        const where = {};
+        if (params.modelId) {
+            where.modelId = (0, typeorm_2.Like)(`%${params.modelId.trim()}%`);
+        }
+        if (params.source) {
+            where.source = params.source.trim();
+        }
+        const [rows, count] = await this.catalogRepo.findAndCount({
+            where,
+            order: { updatedAt: 'DESC' },
+            skip: (page - 1) * size,
+            take: size,
+        });
+        return { rows, count };
+    }
+    async set(params) {
+        const modelId = params.modelId?.trim();
+        if (!modelId) {
+            throw new common_1.HttpException('modelId 不能为空', common_1.HttpStatus.BAD_REQUEST);
+        }
+        const maxModelTokens = Number(params.maxModelTokens);
+        const max_tokens = Number(params.max_tokens);
+        if (!Number.isFinite(maxModelTokens) || maxModelTokens <= 0) {
+            throw new common_1.HttpException('上下文 Tokens 无效', common_1.HttpStatus.BAD_REQUEST);
+        }
+        if (!Number.isFinite(max_tokens) || max_tokens <= 0) {
+            throw new common_1.HttpException('回复 Tokens 无效', common_1.HttpStatus.BAD_REQUEST);
+        }
+        const source = params.source?.trim() || 'manual';
+        const locked = params.locked !== undefined ? Boolean(params.locked) : source === 'manual';
+        if (params.id) {
+            const other = await this.catalogRepo.findOne({ where: { modelId } });
+            if (other && other.id !== params.id) {
+                throw new common_1.HttpException(`模型 ID 已被其它记录使用：${modelId}`, common_1.HttpStatus.BAD_REQUEST);
+            }
+            await this.catalogRepo.update({ id: params.id }, {
+                modelId,
+                displayName: params.displayName ?? null,
+                maxModelTokens,
+                max_tokens,
+                source,
+                locked,
+                remark: params.remark ?? null,
+            });
+            return true;
+        }
+        const exists = await this.catalogRepo.findOne({ where: { modelId } });
+        if (exists) {
+            throw new common_1.HttpException(`模型 ID 已存在：${modelId}`, common_1.HttpStatus.BAD_REQUEST);
+        }
+        await this.catalogRepo.save({
+            modelId,
+            displayName: params.displayName ?? null,
+            maxModelTokens,
+            max_tokens,
+            source,
+            locked,
+            remark: params.remark ?? null,
+        });
+        return true;
+    }
+    async delete(id) {
+        if (!id) {
+            throw new common_1.HttpException('缺少 id', common_1.HttpStatus.BAD_REQUEST);
+        }
+        await this.catalogRepo.softDelete({ id });
+        return true;
+    }
+    async findCatalogRowFlexible(mid) {
+        const exact = await this.catalogRepo.findOne({ where: { modelId: mid } });
+        if (exact)
+            return exact;
+        if (!mid.includes('/')) {
+            const suf = `/${mid}`;
+            const n = suf.length;
+            const rows = await this.catalogRepo
+                .createQueryBuilder('c')
+                .where('RIGHT(c.modelId, :n) = :suf', { n, suf })
+                .getMany();
+            if (rows.length === 0)
+                return null;
+            rows.sort((a, b) => {
+                const ap = a.modelId.startsWith('openai/') ? 0 : 1;
+                const bp = b.modelId.startsWith('openai/') ? 0 : 1;
+                if (ap !== bp)
+                    return ap - bp;
+                return a.modelId.length - b.modelId.length;
+            });
+            return rows[0];
+        }
+        return null;
+    }
+    async lookup(modelId) {
+        const mid = modelId?.trim();
+        if (!mid) {
+            throw new common_1.HttpException('modelId 不能为空', common_1.HttpStatus.BAD_REQUEST);
+        }
+        const row = await this.findCatalogRowFlexible(mid);
+        if (row) {
+            return {
+                found: true,
+                fromCatalog: true,
+                matchedModelId: row.modelId,
+                maxModelTokens: row.maxModelTokens,
+                max_tokens: row.max_tokens,
+                source: row.source,
+                displayName: row.displayName,
+                locked: row.locked,
+            };
+        }
+        try {
+            const [orMap, lmRoot] = await Promise.all([
+                this.fetchOpenRouterModels(),
+                this.fetchLiteLLmJson(),
+            ]);
+            const lmIndex = (0, model_limits_openrouter_litellm_1.buildLiteLLmChatIndex)(lmRoot);
+            const flex = (0, model_limits_openrouter_litellm_1.resolveLimitsForModelIdFlexible)(mid, orMap, lmIndex);
+            if (!flex) {
+                return {
+                    found: false,
+                    fromCatalog: false,
+                    matchedModelId: null,
+                    maxModelTokens: null,
+                    max_tokens: null,
+                    source: null,
+                };
+            }
+            return {
+                found: true,
+                fromCatalog: false,
+                matchedModelId: flex.matchedModelId,
+                maxModelTokens: flex.limits.maxModelTokens,
+                max_tokens: flex.limits.max_tokens,
+                source: flex.limits.source,
+                displayName: flex.limits.displayName ?? null,
+            };
+        }
+        catch (e) {
+            this.logger.warn(`lookup 解析失败 modelId=${mid}: ${e instanceof common_1.HttpException ? this.httpExceptionMessage(e) : this.formatAxiosError(e)}`);
+            return {
+                found: false,
+                fromCatalog: false,
+                matchedModelId: null,
+                maxModelTokens: null,
+                max_tokens: null,
+                source: null,
+            };
+        }
+    }
+};
+exports.ModelTokenCatalogService = ModelTokenCatalogService;
+exports.ModelTokenCatalogService = ModelTokenCatalogService = ModelTokenCatalogService_1 = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, typeorm_1.InjectRepository)(model_token_catalog_entity_1.ModelTokenCatalogEntity)),
+    __metadata("design:paramtypes", [typeof (_a = typeof typeorm_2.Repository !== "undefined" && typeorm_2.Repository) === "function" ? _a : Object])
+], ModelTokenCatalogService);
+
+
+/***/ }),
+/* 220 */
+/***/ ((module) => {
+
+module.exports = require("https");
+
+/***/ }),
+/* 221 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.LITELLM_COST_MAP_URL = exports.OPENROUTER_MODELS_URL = void 0;
+exports.extractLiteLLmChatLimits = extractLiteLLmChatLimits;
+exports.buildLiteLLmChatIndex = buildLiteLLmChatIndex;
+exports.liteLLmLookupKeys = liteLLmLookupKeys;
+exports.lookupLiteLLmLimits = lookupLiteLLmLimits;
+exports.mergeResolvedLimits = mergeResolvedLimits;
+exports.resolveLimitsForModelId = resolveLimitsForModelId;
+exports.expandModelIdCandidates = expandModelIdCandidates;
+exports.resolveLimitsForModelIdFlexible = resolveLimitsForModelIdFlexible;
+exports.openRouterListToMap = openRouterListToMap;
+exports.OPENROUTER_MODELS_URL = 'https://openrouter.ai/api/v1/models';
+exports.LITELLM_COST_MAP_URL = 'https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json';
+function extractLiteLLmChatLimits(entry) {
+    const mode = entry.mode;
+    if (mode && mode !== 'chat') {
+        return null;
+    }
+    const maxInput = typeof entry.max_input_tokens === 'number' ? entry.max_input_tokens : null;
+    const maxOutExplicit = typeof entry.max_output_tokens === 'number' ? entry.max_output_tokens : null;
+    const maxLegacy = typeof entry.max_tokens === 'number' ? entry.max_tokens : null;
+    if (maxInput == null && maxOutExplicit == null && maxLegacy == null) {
+        return null;
+    }
+    const output = maxOutExplicit ?? maxLegacy ?? null;
+    return {
+        input: maxInput,
+        output,
+    };
+}
+function buildLiteLLmChatIndex(root) {
+    const map = new Map();
+    for (const key of Object.keys(root)) {
+        if (key === 'sample_spec')
+            continue;
+        const entry = root[key];
+        if (!entry || typeof entry !== 'object')
+            continue;
+        const lim = extractLiteLLmChatLimits(entry);
+        if (!lim)
+            continue;
+        map.set(key, lim);
+    }
+    return map;
+}
+function liteLLmLookupKeys(modelId) {
+    const m = modelId.trim();
+    if (!m)
+        return [];
+    const keys = new Set();
+    keys.add(m);
+    const slash = m.indexOf('/');
+    if (slash > 0) {
+        keys.add(m.slice(slash + 1));
+    }
+    return [...keys];
+}
+function lookupLiteLLmLimits(modelId, lmIndex) {
+    for (const k of liteLLmLookupKeys(modelId)) {
+        const hit = lmIndex.get(k);
+        if (hit)
+            return hit;
+    }
+    return null;
+}
+function mergeResolvedLimits(orRow, lmHit) {
+    const ctxOr = orRow?.top_provider?.context_length ?? orRow?.context_length ?? undefined;
+    const ctxLm = lmHit?.input ?? undefined;
+    let ctx;
+    if (typeof ctxOr === 'number' && ctxOr > 0) {
+        ctx = ctxOr;
+    }
+    else if (typeof ctxLm === 'number' && ctxLm > 0) {
+        ctx = ctxLm;
+    }
+    if (ctx === undefined || ctx <= 0) {
+        return null;
+    }
+    const orOut = orRow?.top_provider?.max_completion_tokens;
+    let outNum;
+    if (typeof orOut === 'number' && orOut > 0) {
+        outNum = orOut;
+    }
+    else if (lmHit?.output != null && lmHit.output > 0) {
+        outNum = lmHit.output;
+    }
+    else {
+        outNum = Math.min(8192, ctx);
+    }
+    let source = 'litellm';
+    if (orRow && lmHit) {
+        source = 'merged';
+    }
+    else if (orRow) {
+        source = 'openrouter';
+    }
+    return {
+        maxModelTokens: ctx,
+        max_tokens: outNum,
+        source,
+        displayName: orRow?.name,
+    };
+}
+function resolveLimitsForModelId(modelId, orById, lmIndex) {
+    const trimmed = modelId.trim();
+    if (!trimmed)
+        return null;
+    const orRow = orById.get(trimmed);
+    const lmHit = lookupLiteLLmLimits(trimmed, lmIndex);
+    if (!orRow && !lmHit)
+        return null;
+    return mergeResolvedLimits(orRow, lmHit);
+}
+const OPENROUTER_STYLE_PREFIXES = [
+    'openai/',
+    'anthropic/',
+    'google/',
+    'x-ai/',
+    'mistralai/',
+    'meta-llama/',
+    'deepseek/',
+    'qwen/',
+    'moonshotai/',
+    'nvidia/',
+    'z-ai/',
+    'openrouter/',
+    'perplexity/',
+    'cohere/',
+    'microsoft/',
+    'ibm-granite/',
+    'amazon/',
+    'mistral/',
+    'ai21/',
+];
+function expandModelIdCandidates(raw) {
+    const mid = raw.trim();
+    if (!mid)
+        return [];
+    const out = [];
+    const seen = new Set();
+    const add = (s) => {
+        const t = s.trim();
+        if (!t || seen.has(t))
+            return;
+        seen.add(t);
+        out.push(t);
+    };
+    add(mid);
+    const lastSlash = mid.lastIndexOf('/');
+    const shortName = lastSlash >= 0 ? mid.slice(lastSlash + 1) : mid;
+    if (shortName && shortName !== mid) {
+        add(shortName);
+    }
+    if (!mid.includes('/')) {
+        for (const p of OPENROUTER_STYLE_PREFIXES) {
+            add(p + mid);
+        }
+    }
+    return out;
+}
+function scoreOpenRouterIdForShortName(fullId, shortName) {
+    if (fullId === shortName)
+        return 0;
+    if (fullId === `openai/${shortName}`)
+        return 1;
+    if (fullId.startsWith('openai/'))
+        return 2;
+    return 10 + fullId.length;
+}
+function collectOpenRouterSuffixMatches(shortName, orById) {
+    const matches = [];
+    const sn = shortName.trim();
+    if (!sn || sn.includes('/'))
+        return matches;
+    for (const id of orById.keys()) {
+        if (id === sn) {
+            matches.push(id);
+            continue;
+        }
+        if (id.endsWith(`/${sn}`)) {
+            matches.push(id);
+            continue;
+        }
+        const base = id.includes(':') ? id.slice(0, id.indexOf(':')) : id;
+        if (base.endsWith(`/${sn}`)) {
+            matches.push(id);
+        }
+    }
+    const uniq = [...new Set(matches)];
+    uniq.sort((a, b) => scoreOpenRouterIdForShortName(a, sn) - scoreOpenRouterIdForShortName(b, sn));
+    return uniq;
+}
+function collectLiteLLmSuffixMatches(shortName, lmIndex) {
+    const matches = [];
+    const sn = shortName.trim();
+    if (!sn || sn.includes('/'))
+        return matches;
+    for (const k of lmIndex.keys()) {
+        if (k === sn) {
+            matches.unshift(k);
+            continue;
+        }
+        if (k.endsWith(`/${sn}`)) {
+            matches.push(k);
+        }
+    }
+    const uniq = [...new Set(matches)];
+    uniq.sort((a, b) => a.length - b.length);
+    return uniq;
+}
+function resolveLimitsForModelIdFlexible(modelId, orById, lmIndex) {
+    const trimmed = modelId.trim();
+    if (!trimmed)
+        return null;
+    for (const cand of expandModelIdCandidates(trimmed)) {
+        const r = resolveLimitsForModelId(cand, orById, lmIndex);
+        if (r) {
+            return { limits: r, matchedModelId: cand };
+        }
+    }
+    const shortName = trimmed.includes('/') ? trimmed.slice(trimmed.lastIndexOf('/') + 1) : trimmed;
+    for (const id of collectOpenRouterSuffixMatches(shortName, orById)) {
+        const r = resolveLimitsForModelId(id, orById, lmIndex);
+        if (r) {
+            return { limits: r, matchedModelId: id };
+        }
+    }
+    for (const k of collectLiteLLmSuffixMatches(shortName, lmIndex)) {
+        const orRow = orById.get(k);
+        const lmHit = lmIndex.get(k) ?? null;
+        const r = mergeResolvedLimits(orRow, lmHit);
+        if (r) {
+            return { limits: r, matchedModelId: k };
+        }
+    }
+    return null;
+}
+function openRouterListToMap(data) {
+    const map = new Map();
+    if (!data?.length)
+        return map;
+    for (const row of data) {
+        if (row?.id)
+            map.set(row.id, row);
+    }
+    return map;
+}
+
+
+/***/ }),
+/* 222 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15426,8 +16443,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.OfficialModule = void 0;
 const common_1 = __webpack_require__(2);
-const official_controller_1 = __webpack_require__(216);
-const official_service_1 = __webpack_require__(219);
+const official_controller_1 = __webpack_require__(223);
+const official_service_1 = __webpack_require__(226);
 let OfficialModule = class OfficialModule {
 };
 exports.OfficialModule = OfficialModule;
@@ -15442,7 +16459,7 @@ exports.OfficialModule = OfficialModule = __decorate([
 
 
 /***/ }),
-/* 216 */
+/* 223 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15467,9 +16484,9 @@ const utils_1 = __webpack_require__(36);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
 const express_1 = __webpack_require__(104);
-const createMenu_dto_1 = __webpack_require__(217);
-const getQrCode_dto_1 = __webpack_require__(218);
-const official_service_1 = __webpack_require__(219);
+const createMenu_dto_1 = __webpack_require__(224);
+const getQrCode_dto_1 = __webpack_require__(225);
+const official_service_1 = __webpack_require__(226);
 let OfficialController = class OfficialController {
     officialService;
     constructor(officialService) {
@@ -15821,7 +16838,7 @@ exports.OfficialController = OfficialController = __decorate([
 
 
 /***/ }),
-/* 217 */
+/* 224 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15957,7 +16974,7 @@ __decorate([
 
 
 /***/ }),
-/* 218 */
+/* 225 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15990,7 +17007,7 @@ __decorate([
 
 
 /***/ }),
-/* 219 */
+/* 226 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16420,7 +17437,7 @@ exports.OfficialService = OfficialService = __decorate([
 
 
 /***/ }),
-/* 220 */
+/* 227 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16434,9 +17451,9 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.OrderModule = void 0;
 const cramiPackage_entity_1 = __webpack_require__(71);
 const common_1 = __webpack_require__(2);
-const order_controller_1 = __webpack_require__(221);
-const order_service_1 = __webpack_require__(222);
-const order_entity_1 = __webpack_require__(202);
+const order_controller_1 = __webpack_require__(228);
+const order_service_1 = __webpack_require__(229);
+const order_entity_1 = __webpack_require__(203);
 const typeorm_1 = __webpack_require__(33);
 const user_entity_1 = __webpack_require__(83);
 let OrderModule = class OrderModule {
@@ -16452,7 +17469,7 @@ exports.OrderModule = OrderModule = __decorate([
 
 
 /***/ }),
-/* 221 */
+/* 228 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16475,12 +17492,12 @@ const superAuth_guard_1 = __webpack_require__(103);
 const jwtAuth_guard_1 = __webpack_require__(87);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
-const order_service_1 = __webpack_require__(222);
+const order_service_1 = __webpack_require__(229);
 const express_1 = __webpack_require__(104);
-const buy_dto_1 = __webpack_require__(224);
-const queryByOrder_dto_1 = __webpack_require__(225);
+const buy_dto_1 = __webpack_require__(231);
+const queryByOrder_dto_1 = __webpack_require__(232);
 const adminAuth_guard_1 = __webpack_require__(86);
-const queryAllOrder_dto_1 = __webpack_require__(226);
+const queryAllOrder_dto_1 = __webpack_require__(233);
 let OrderController = class OrderController {
     orderService;
     constructor(orderService) {
@@ -16560,7 +17577,7 @@ exports.OrderController = OrderController = __decorate([
 
 
 /***/ }),
-/* 222 */
+/* 229 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16585,9 +17602,9 @@ const typeorm_1 = __webpack_require__(33);
 const typeorm_2 = __webpack_require__(3);
 const cramiPackage_entity_1 = __webpack_require__(71);
 const globalConfig_service_1 = __webpack_require__(74);
-const pay_service_1 = __webpack_require__(223);
+const pay_service_1 = __webpack_require__(230);
 const user_entity_1 = __webpack_require__(83);
-const order_entity_1 = __webpack_require__(202);
+const order_entity_1 = __webpack_require__(203);
 let OrderService = class OrderService {
     orderEntity;
     cramiPackageEntity;
@@ -16722,7 +17739,7 @@ exports.OrderService = OrderService = __decorate([
 
 
 /***/ }),
-/* 223 */
+/* 230 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16749,7 +17766,7 @@ const crypto = __webpack_require__(16);
 const typeorm_2 = __webpack_require__(3);
 const cramiPackage_entity_1 = __webpack_require__(71);
 const globalConfig_service_1 = __webpack_require__(74);
-const order_entity_1 = __webpack_require__(202);
+const order_entity_1 = __webpack_require__(203);
 const user_service_1 = __webpack_require__(97);
 const userBalance_service_1 = __webpack_require__(34);
 let PayService = class PayService {
@@ -17444,7 +18461,7 @@ exports.PayService = PayService = __decorate([
 
 
 /***/ }),
-/* 224 */
+/* 231 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17481,7 +18498,7 @@ __decorate([
 
 
 /***/ }),
-/* 225 */
+/* 232 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17512,7 +18529,7 @@ __decorate([
 
 
 /***/ }),
-/* 226 */
+/* 233 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17565,7 +18582,7 @@ __decorate([
 
 
 /***/ }),
-/* 227 */
+/* 234 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17578,9 +18595,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PayModule = void 0;
 const common_1 = __webpack_require__(2);
-const pay_controller_1 = __webpack_require__(228);
-const pay_service_1 = __webpack_require__(223);
-const order_entity_1 = __webpack_require__(202);
+const pay_controller_1 = __webpack_require__(235);
+const pay_service_1 = __webpack_require__(230);
+const order_entity_1 = __webpack_require__(203);
 const cramiPackage_entity_1 = __webpack_require__(71);
 const typeorm_1 = __webpack_require__(33);
 let PayModule = class PayModule {
@@ -17598,7 +18615,7 @@ exports.PayModule = PayModule = __decorate([
 
 
 /***/ }),
-/* 228 */
+/* 235 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17619,7 +18636,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PayController = void 0;
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
-const pay_service_1 = __webpack_require__(223);
+const pay_service_1 = __webpack_require__(230);
 let PayController = class PayController {
     payService;
     constructor(payService) {
@@ -17683,7 +18700,7 @@ exports.PayController = PayController = __decorate([
 
 
 /***/ }),
-/* 229 */
+/* 236 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17697,9 +18714,9 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PluginModule = void 0;
 const common_1 = __webpack_require__(2);
 const typeorm_1 = __webpack_require__(33);
-const plugin_controller_1 = __webpack_require__(230);
+const plugin_controller_1 = __webpack_require__(237);
 const plugin_entity_1 = __webpack_require__(160);
-const plugin_service_1 = __webpack_require__(231);
+const plugin_service_1 = __webpack_require__(238);
 let PluginModule = class PluginModule {
 };
 exports.PluginModule = PluginModule;
@@ -17713,7 +18730,7 @@ exports.PluginModule = PluginModule = __decorate([
 
 
 /***/ }),
-/* 230 */
+/* 237 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17736,7 +18753,7 @@ const superAuth_guard_1 = __webpack_require__(103);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
 const express_1 = __webpack_require__(104);
-const plugin_service_1 = __webpack_require__(231);
+const plugin_service_1 = __webpack_require__(238);
 let PluginController = class PluginController {
     pluginService;
     constructor(pluginService) {
@@ -17802,7 +18819,7 @@ exports.PluginController = PluginController = __decorate([
 
 
 /***/ }),
-/* 231 */
+/* 238 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17932,7 +18949,7 @@ exports.PluginService = PluginService = __decorate([
 
 
 /***/ }),
-/* 232 */
+/* 239 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17946,9 +18963,9 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ShareModule = void 0;
 const common_1 = __webpack_require__(2);
 const typeorm_1 = __webpack_require__(33);
-const share_controller_1 = __webpack_require__(233);
-const share_entity_1 = __webpack_require__(203);
-const share_service_1 = __webpack_require__(234);
+const share_controller_1 = __webpack_require__(240);
+const share_entity_1 = __webpack_require__(204);
+const share_service_1 = __webpack_require__(241);
 let ShareModule = class ShareModule {
 };
 exports.ShareModule = ShareModule;
@@ -17962,7 +18979,7 @@ exports.ShareModule = ShareModule = __decorate([
 
 
 /***/ }),
-/* 233 */
+/* 240 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17984,7 +19001,7 @@ exports.ShareController = void 0;
 const jwtAuth_guard_1 = __webpack_require__(87);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
-const share_service_1 = __webpack_require__(234);
+const share_service_1 = __webpack_require__(241);
 let ShareController = class ShareController {
     shareService;
     constructor(shareService) {
@@ -18032,7 +19049,7 @@ exports.ShareController = ShareController = __decorate([
 
 
 /***/ }),
-/* 234 */
+/* 241 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18055,7 +19072,7 @@ const common_1 = __webpack_require__(2);
 const typeorm_1 = __webpack_require__(33);
 const typeorm_2 = __webpack_require__(3);
 const globalConfig_service_1 = __webpack_require__(74);
-const share_entity_1 = __webpack_require__(203);
+const share_entity_1 = __webpack_require__(204);
 let ShareService = class ShareService {
     shareRepository;
     globalConfigService;
@@ -18111,7 +19128,7 @@ exports.ShareService = ShareService = __decorate([
 
 
 /***/ }),
-/* 235 */
+/* 242 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18124,10 +19141,10 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.SigninModule = void 0;
 const common_1 = __webpack_require__(2);
-const signin_controller_1 = __webpack_require__(236);
-const signin_service_1 = __webpack_require__(237);
+const signin_controller_1 = __webpack_require__(243);
+const signin_service_1 = __webpack_require__(244);
 const typeorm_1 = __webpack_require__(33);
-const signIn_entity_1 = __webpack_require__(204);
+const signIn_entity_1 = __webpack_require__(205);
 const user_entity_1 = __webpack_require__(83);
 let SigninModule = class SigninModule {
 };
@@ -18144,7 +19161,7 @@ exports.SigninModule = SigninModule = __decorate([
 
 
 /***/ }),
-/* 236 */
+/* 243 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18164,7 +19181,7 @@ var _a, _b, _c;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.SigninController = void 0;
 const common_1 = __webpack_require__(2);
-const signin_service_1 = __webpack_require__(237);
+const signin_service_1 = __webpack_require__(244);
 const swagger_1 = __webpack_require__(14);
 const jwtAuth_guard_1 = __webpack_require__(87);
 const express_1 = __webpack_require__(104);
@@ -18209,7 +19226,7 @@ exports.SigninController = SigninController = __decorate([
 
 
 /***/ }),
-/* 237 */
+/* 244 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18231,7 +19248,7 @@ exports.SigninService = void 0;
 const globalConfig_service_1 = __webpack_require__(74);
 const userBalance_service_1 = __webpack_require__(34);
 const common_1 = __webpack_require__(2);
-const signIn_entity_1 = __webpack_require__(204);
+const signIn_entity_1 = __webpack_require__(205);
 const typeorm_1 = __webpack_require__(33);
 const typeorm_2 = __webpack_require__(3);
 const date_1 = __webpack_require__(47);
@@ -18344,7 +19361,7 @@ exports.SigninService = SigninService = __decorate([
 
 
 /***/ }),
-/* 238 */
+/* 245 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18357,7 +19374,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.SpaModule = void 0;
 const common_1 = __webpack_require__(2);
-const spa_controller_1 = __webpack_require__(239);
+const spa_controller_1 = __webpack_require__(246);
 let SpaModule = class SpaModule {
 };
 exports.SpaModule = SpaModule;
@@ -18369,7 +19386,7 @@ exports.SpaModule = SpaModule = __decorate([
 
 
 /***/ }),
-/* 239 */
+/* 246 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18440,7 +19457,7 @@ exports.SpaController = SpaController = SpaController_1 = __decorate([
 
 
 /***/ }),
-/* 240 */
+/* 247 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18456,10 +19473,10 @@ const common_1 = __webpack_require__(2);
 const typeorm_1 = __webpack_require__(33);
 const chatLog_entity_1 = __webpack_require__(75);
 const config_entity_1 = __webpack_require__(73);
-const order_entity_1 = __webpack_require__(202);
+const order_entity_1 = __webpack_require__(203);
 const user_entity_1 = __webpack_require__(83);
-const statistic_controller_1 = __webpack_require__(241);
-const statistic_service_1 = __webpack_require__(243);
+const statistic_controller_1 = __webpack_require__(248);
+const statistic_service_1 = __webpack_require__(250);
 let StatisticModule = class StatisticModule {
 };
 exports.StatisticModule = StatisticModule;
@@ -18473,7 +19490,7 @@ exports.StatisticModule = StatisticModule = __decorate([
 
 
 /***/ }),
-/* 241 */
+/* 248 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18495,8 +19512,8 @@ exports.StatisticController = void 0;
 const adminAuth_guard_1 = __webpack_require__(86);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
-const queryStatisticDto_dto_1 = __webpack_require__(242);
-const statistic_service_1 = __webpack_require__(243);
+const queryStatisticDto_dto_1 = __webpack_require__(249);
+const statistic_service_1 = __webpack_require__(250);
 let StatisticController = class StatisticController {
     statisticService;
     constructor(statisticService) {
@@ -18550,7 +19567,7 @@ exports.StatisticController = StatisticController = __decorate([
 
 
 /***/ }),
-/* 242 */
+/* 249 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18577,7 +19594,7 @@ __decorate([
 
 
 /***/ }),
-/* 243 */
+/* 250 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18605,7 +19622,7 @@ const typeorm_2 = __webpack_require__(3);
 const chatLog_entity_1 = __webpack_require__(75);
 const config_entity_1 = __webpack_require__(73);
 const globalConfig_service_1 = __webpack_require__(74);
-const order_entity_1 = __webpack_require__(202);
+const order_entity_1 = __webpack_require__(203);
 const user_entity_1 = __webpack_require__(83);
 let StatisticService = class StatisticService {
     userEntity;
@@ -18861,7 +19878,7 @@ exports.StatisticService = StatisticService = __decorate([
 
 
 /***/ }),
-/* 244 */
+/* 251 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18874,12 +19891,12 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.TaskModule = void 0;
 const common_1 = __webpack_require__(2);
-const schedule_1 = __webpack_require__(245);
+const schedule_1 = __webpack_require__(252);
 const typeorm_1 = __webpack_require__(33);
-const globalConfig_module_1 = __webpack_require__(205);
-const models_module_1 = __webpack_require__(209);
+const globalConfig_module_1 = __webpack_require__(206);
+const models_module_1 = __webpack_require__(210);
 const userBalance_entity_1 = __webpack_require__(81);
-const task_service_1 = __webpack_require__(246);
+const task_service_1 = __webpack_require__(253);
 let TaskModule = class TaskModule {
 };
 exports.TaskModule = TaskModule;
@@ -18897,13 +19914,13 @@ exports.TaskModule = TaskModule = __decorate([
 
 
 /***/ }),
-/* 245 */
+/* 252 */
 /***/ ((module) => {
 
 module.exports = require("@nestjs/schedule");
 
 /***/ }),
-/* 246 */
+/* 253 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18923,7 +19940,7 @@ var _a, _b, _c;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.TaskService = void 0;
 const common_1 = __webpack_require__(2);
-const schedule_1 = __webpack_require__(245);
+const schedule_1 = __webpack_require__(252);
 const typeorm_1 = __webpack_require__(33);
 const fs = __webpack_require__(18);
 const path = __webpack_require__(20);
@@ -19003,7 +20020,7 @@ exports.TaskService = TaskService = __decorate([
 
 
 /***/ }),
-/* 247 */
+/* 254 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19017,7 +20034,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UploadModule = void 0;
 const common_1 = __webpack_require__(2);
 const redisCache_module_1 = __webpack_require__(26);
-const upload_controller_1 = __webpack_require__(248);
+const upload_controller_1 = __webpack_require__(255);
 const upload_service_1 = __webpack_require__(161);
 let UploadModule = class UploadModule {
 };
@@ -19034,7 +20051,7 @@ exports.UploadModule = UploadModule = __decorate([
 
 
 /***/ }),
-/* 248 */
+/* 255 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19055,7 +20072,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UploadController = void 0;
 const jwtAuth_guard_1 = __webpack_require__(87);
 const common_1 = __webpack_require__(2);
-const platform_express_1 = __webpack_require__(249);
+const platform_express_1 = __webpack_require__(256);
 const swagger_1 = __webpack_require__(14);
 const express_1 = __webpack_require__(104);
 const upload_service_1 = __webpack_require__(161);
@@ -19094,13 +20111,13 @@ exports.UploadController = UploadController = __decorate([
 
 
 /***/ }),
-/* 249 */
+/* 256 */
 /***/ ((module) => {
 
 module.exports = require("@nestjs/platform-express");
 
 /***/ }),
-/* 250 */
+/* 257 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19122,7 +20139,7 @@ const chatGroup_entity_1 = __webpack_require__(82);
 const chatLog_entity_1 = __webpack_require__(75);
 const cramiPackage_entity_1 = __webpack_require__(71);
 const config_entity_1 = __webpack_require__(73);
-const globalConfig_module_1 = __webpack_require__(205);
+const globalConfig_module_1 = __webpack_require__(206);
 const redisCache_service_1 = __webpack_require__(28);
 const user_entity_1 = __webpack_require__(83);
 const verification_entity_1 = __webpack_require__(101);
@@ -19130,7 +20147,7 @@ const verification_service_1 = __webpack_require__(100);
 const accountLog_entity_1 = __webpack_require__(79);
 const balance_entity_1 = __webpack_require__(80);
 const fingerprint_entity_1 = __webpack_require__(84);
-const userBalance_controller_1 = __webpack_require__(251);
+const userBalance_controller_1 = __webpack_require__(258);
 const userBalance_entity_1 = __webpack_require__(81);
 const userBalance_service_1 = __webpack_require__(34);
 let UserBalanceModule = class UserBalanceModule {
@@ -19165,7 +20182,7 @@ exports.UserBalanceModule = UserBalanceModule = __decorate([
 
 
 /***/ }),
-/* 251 */
+/* 258 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19272,7 +20289,7 @@ exports.UserBalanceController = UserBalanceController = __decorate([
 
 
 /***/ }),
-/* 252 */
+/* 259 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19301,7 +20318,7 @@ exports.VerificationModule = VerificationModule = __decorate([
 
 
 /***/ }),
-/* 253 */
+/* 260 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19351,7 +20368,7 @@ exports.AllExceptionsFilter = AllExceptionsFilter = __decorate([
 
 
 /***/ }),
-/* 254 */
+/* 261 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -19359,7 +20376,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.initDatabase = initDatabase;
 const common_1 = __webpack_require__(2);
 const dotenv_1 = __webpack_require__(17);
-const mysql = __webpack_require__(255);
+const mysql = __webpack_require__(262);
 const typeorm_1 = __webpack_require__(3);
 const app_entity_1 = __webpack_require__(106);
 const appCats_entity_1 = __webpack_require__(107);
@@ -19373,10 +20390,11 @@ const crami_entity_1 = __webpack_require__(191);
 const cramiPackage_entity_1 = __webpack_require__(71);
 const config_entity_1 = __webpack_require__(73);
 const models_entity_1 = __webpack_require__(78);
-const order_entity_1 = __webpack_require__(202);
+const model_token_catalog_entity_1 = __webpack_require__(202);
+const order_entity_1 = __webpack_require__(203);
 const plugin_entity_1 = __webpack_require__(160);
-const share_entity_1 = __webpack_require__(203);
-const signIn_entity_1 = __webpack_require__(204);
+const share_entity_1 = __webpack_require__(204);
+const signIn_entity_1 = __webpack_require__(205);
 const user_entity_1 = __webpack_require__(83);
 const accountLog_entity_1 = __webpack_require__(79);
 const balance_entity_1 = __webpack_require__(80);
@@ -19402,6 +20420,7 @@ const dataSourceOptions = {
         signIn_entity_1.SigninEntity,
         violationLog_entity_1.ViolationLogEntity,
         models_entity_1.ModelsEntity,
+        model_token_catalog_entity_1.ModelTokenCatalogEntity,
         user_entity_1.UserEntity,
         accountLog_entity_1.AccountLogEntity,
         fingerprint_entity_1.FingerprintLogEntity,
@@ -19566,7 +20585,7 @@ async function initDatabase() {
 
 
 /***/ }),
-/* 255 */
+/* 262 */
 /***/ ((module) => {
 
 module.exports = require("mysql2/promise");
@@ -19620,7 +20639,7 @@ const ioredis_1 = __webpack_require__(19);
 const path = __webpack_require__(20);
 __webpack_require__(21);
 const app_module_1 = __webpack_require__(22);
-const allExceptions_filter_1 = __webpack_require__(253);
+const allExceptions_filter_1 = __webpack_require__(260);
 Dotenv.config({ path: '.env' });
 function findFilePath(filename) {
     const possiblePaths = [
@@ -19654,7 +20673,7 @@ async function bootstrap() {
         common_1.Logger.log('Generating and setting new JWT_SECRET');
         await redis.set('JWT_SECRET', jwtSecret);
     }
-    const { initDatabase } = __webpack_require__(254);
+    const { initDatabase } = __webpack_require__(261);
     const app = await core_1.NestFactory.create(app_module_1.AppModule, {
         bufferLogs: true,
         logger: ['log', 'error', 'warn', 'debug', 'verbose'],
