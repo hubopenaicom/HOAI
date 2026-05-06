@@ -70,7 +70,7 @@ const profileModal = useFaModal().create({
             {{ appAccountStore.account }}
           </div>
           <div class="text-xs text-secondary-foreground/50 font-normal">
-            [ xyz@xyz.com ]
+            admin@hubopenai.com
           </div>
         </div>
       </div>
