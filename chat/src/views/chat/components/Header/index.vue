@@ -1,42 +1,9 @@
 <script lang="ts" setup>
 import { fetchQueryOneCatAPI } from '@/api/appStore'
-import { fetchUpdateGroupAPI } from '@/api/group'
-import { fetchQueryModelsListAPI } from '@/api/models'
-import { DropdownMenu } from '@/components/common/DropdownMenu'
 import { useBasicLayout } from '@/hooks/useBasicLayout'
 import { useAppStore, useChatStore, useGlobalStoreWithOut } from '@/store'
-import {
-  Brightness,
-  CheckOne,
-  Close,
-  DarkMode,
-  EditTwo,
-  ExpandLeft,
-  Right,
-} from '@icon-park/vue-next'
-import { computed, inject, onMounted, ref, Ref, watch } from 'vue'
-
-interface ModelOption {
-  label: string
-  value: string
-  modelDescription: string
-  modelAvatar: string
-}
-
-interface Model {
-  isFileUpload: any
-  isImageUpload: any
-  modelName: string
-  model: string
-  deductType: number
-  keyType: number
-  deduct: number
-  modelAvatar: string
-  modelDescription: string
-  isNetworkSearch: any
-  isMcpTool: any
-  deepThinkingType: any
-}
+import { Brightness, Close, DarkMode, EditTwo, ExpandLeft } from '@icon-park/vue-next'
+import { computed, inject, ref, watch } from 'vue'
 
 interface ExternalLink {
   icon?: string
@@ -47,16 +14,12 @@ interface ExternalLink {
 const useGlobalStore = useGlobalStoreWithOut()
 const appStore = useAppStore()
 const chatStore = useChatStore()
-const modelOptions: Ref<ModelOption[]> = ref([])
 const appDetail: any = ref(null)
 const dataSources = computed(() => chatStore.groupList)
 const collapsed = computed(() => appStore.siderCollapsed)
-const chatGroupId = computed(() => chatStore.active)
 const darkMode = computed(() => appStore.theme === 'dark')
 
 const { isMobile } = useBasicLayout()
-const isHovering = ref(false)
-const isMenuOpen = ref(false)
 const activeGroupInfo = computed(() => chatStore.getChatByGroupInfo())
 const listSources = computed(() => chatStore.chatList)
 
@@ -70,30 +33,14 @@ const isPreviewerVisible = computed(
 
 // 计算应用广场状态
 const isAppListVisible = computed(() => useGlobalStore.showAppListComponent)
-const configObj = computed(() => {
-  const configString = activeGroupInfo.value?.config
-  if (!configString) {
-    return {} // 提早返回一个空对象
-  }
-
-  try {
-    return JSON.parse(configString)
-  } catch (e) {
-    return {} // 解析失败时返回一个空对象
-  }
-})
 
 function checkMode() {
   const mode = darkMode.value ? 'light' : 'dark'
   appStore.setTheme(mode)
 }
 
-const activeModel = computed(() => String(configObj?.value?.modelInfo?.model ?? ''))
 /* 当前对话组是否是应用 */
 const activeAppId = computed(() => activeGroupInfo?.value?.appId || 0)
-
-let modelMapsCache: any = ref({})
-let modelTypeListCache: any = ref([])
 
 watch(
   activeAppId,
@@ -109,15 +56,6 @@ async function queryAppDetail(id: number) {
   const res: any = await fetchQueryOneCatAPI({ id })
   appDetail.value = res.data
 }
-
-const notSwitchModel = computed(() => {
-  return (
-    activeGroupInfo?.value?.appId &&
-    (configObj.value.modelInfo?.isFixedModel === 1 ||
-      configObj.value.modelInfo?.isGPTs === 1 ||
-      configObj.value.modelInfo?.isFlowith === 1)
-  )
-})
 
 const createNewChatGroup = inject('createNewChatGroup', () =>
   Promise.resolve()
@@ -136,76 +74,6 @@ function closeAppList() {
   }
 }
 
-/* 修改对话组模型配置 */
-async function switchModel(option: any) {
-  chatStore.setUsingDeepThinking(false)
-  chatStore.setUsingNetwork(false)
-  chatStore.setUsingPlugin(null)
-  const { modelInfo, fileInfo } = chatStore.activeConfig
-
-  const { isGPTs, isFixedModel, modelName, isFlowith } = modelInfo
-
-  const config = {
-    modelInfo: {
-      keyType: option.keyType,
-      modelName: (activeGroupInfo?.value?.appId ? modelName : option.label) || '', // 更明确的条件
-      model: option.value,
-      deductType: option.deductType,
-      deduct: option.deduct,
-      isFileUpload: option.isFileUpload,
-      isImageUpload: option.isImageUpload,
-      isNetworkSearch: option.isNetworkSearch,
-      deepThinkingType: option.deepThinkingType,
-      isMcpTool: option.isMcpTool,
-      modelAvatar: option.modelAvatar || '',
-      isGPTs, // 简化赋值
-      isFlowith, // 简化赋值
-      isFixedModel, // 简化赋值
-    },
-    fileInfo: fileInfo || {}, // 确保 fileInfo 为空时不出错
-  }
-
-  const params = {
-    groupId: chatGroupId.value,
-    config: JSON.stringify(config),
-  }
-  await fetchUpdateGroupAPI(params)
-  await chatStore.queryMyGroup()
-  // useGlobalStore.updateModelDialog(false);
-}
-
-async function queryModelsList() {
-  try {
-    const res: any = await fetchQueryModelsListAPI()
-    if (!res.success) return
-    const { modelMaps, modelTypeList } = res.data
-    modelMapsCache.value = modelMaps
-    modelTypeListCache.value = modelTypeList
-    // 使用类型断言来告诉 TypeScript flatModelArray 是 Model[] 类型
-    const flatModelArray = Object.values(modelMaps).flat() as Model[]
-    const filteredModelArray = flatModelArray.filter(model => model.keyType === 1)
-    modelOptions.value = filteredModelArray.map(model => ({
-      label: model.modelName,
-      value: model.model,
-      deductType: model.deductType,
-      keyType: model.keyType,
-      deduct: model.deduct,
-      isFileUpload: model.isFileUpload,
-      isImageUpload: model.isImageUpload,
-      isNetworkSearch: model.isNetworkSearch,
-      deepThinkingType: model.deepThinkingType,
-      isMcpTool: model.isMcpTool,
-      modelAvatar: model.modelAvatar,
-      modelDescription: model.modelDescription,
-    }))
-  } catch (error) {}
-}
-
-// 在mounted时查询模型列表
-onMounted(() => {
-  queryModelsList()
-})
-
 const externalLinkActive = computed(
   () => useGlobalStore.externalLinkDialog && useGlobalStore.currentExternalLink
 )
@@ -217,11 +85,6 @@ const currentExternalLink = computed(() => {
 // 打开文本编辑器
 const openTextEditor = () => {
   useGlobalStore.updateTextEditor(true)
-}
-
-// 添加一个新的方法来处理模型选择
-function handleModelSelect(option: any) {
-  switchModel(option)
 }
 
 function openSettings(tab?: number) {
@@ -279,90 +142,15 @@ function openSettings(tab?: number) {
             </div>
           </div>
 
-          <!-- 不可切换模型状态，使用与可切换模型相同的样式 -->
-          <div v-else-if="notSwitchModel" class="flex-1 flex items-center">
-            <div class="menu menu-md relative">
-              <button class="menu-trigger" aria-label="当前对话" disabled>
-                <span class="truncate whitespace-nowrap overflow-hidden max-w-[30vw]">
+          <!-- 模型选择在输入区；顶栏展示对话标题 -->
+          <div v-else class="flex-1 flex items-center min-w-0">
+            <div class="menu menu-md relative min-w-0">
+              <button type="button" class="menu-trigger max-w-full" aria-label="当前对话" disabled>
+                <span class="truncate whitespace-nowrap overflow-hidden max-w-[50vw]">
                   {{ activeGroupInfo?.title || '新对话' }}
                 </span>
               </button>
             </div>
-          </div>
-
-          <!-- 使用通用下拉菜单组件 -->
-          <div v-else class="flex-1 flex items-center">
-            <DropdownMenu v-model="isMenuOpen" position="bottom-left" max-height="40vh">
-              <template #trigger>
-                <button
-                  class="menu-trigger"
-                  @mouseover="isHovering = true"
-                  @mouseleave="isHovering = false"
-                  aria-label="选择模型"
-                >
-                  <span class="truncate whitespace-nowrap overflow-hidden max-w-[50vw]">
-                    {{ configObj?.modelInfo?.modelName || '新对话' }}
-                  </span>
-                  <Right
-                    v-if="isHovering || isMobile || isMenuOpen"
-                    size="20"
-                    class="ml-2 justify-center items-center flex-shrink-0"
-                    :class="{
-                      'text-base font-bold': isMobile,
-                      'text-sm': !isMobile,
-                    }"
-                    aria-hidden="true"
-                  />
-                </button>
-              </template>
-              <template #menu="{ close }">
-                <div>
-                  <div
-                    v-for="(option, index) in modelOptions"
-                    :key="index"
-                    class="menu-item menu-item-md"
-                    :class="{ 'menu-item-active': activeModel === option.value }"
-                    @click="
-                      () => {
-                        handleModelSelect(option)
-                        close()
-                      }
-                    "
-                    role="menuitem"
-                    tabindex="0"
-                    :aria-label="`选择${option.label}模型`"
-                  >
-                    <div class="avatar avatar-md">
-                      <img
-                        v-if="option.modelAvatar"
-                        :src="option.modelAvatar"
-                        :alt="`${option.label}模型图标`"
-                        class="w-full h-full object-cover"
-                      />
-                      <span v-else>
-                        {{ option.label.charAt(0) }}
-                      </span>
-                    </div>
-                    <div class="menu-item-content">
-                      <div class="menu-item-title">
-                        {{ option.label }}
-                      </div>
-                      <div v-if="option.modelDescription" class="menu-item-description">
-                        {{ option.modelDescription }}
-                      </div>
-                    </div>
-                    <div class="flex-shrink-0" v-if="activeModel === option.value">
-                      <CheckOne
-                        theme="filled"
-                        size="16"
-                        class="text-gray-500 dark:text-gray-400"
-                        aria-hidden="true"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </template>
-            </DropdownMenu>
           </div>
 
           <div class="flex items-center">
