@@ -23,5 +23,8 @@ export default {
   passwordEdit: (data: { oldPassword: string; password: string }) =>
     api.post('auth/updatePassword', data),
 
+  /** 当前登录用户更新昵称、头像 */
+  updateProfile: (data: { nickname?: string; avatar?: string }) => api.post('user/update', data),
+
   queryUserAccountLog: (params: any) => api.get('balance/accountLog', { params }),
 };
