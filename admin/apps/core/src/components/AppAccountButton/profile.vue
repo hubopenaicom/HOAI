@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import EditPassword from '@/components/AppAccountForm/edit-password.vue'
+import EditProfileBasic from '@/components/AppAccountForm/edit-profile-basic.vue'
 
 const active = ref(0)
 const tabs = ref([
@@ -26,10 +27,8 @@ const tabs = ref([
         </div>
       </div>
     </div>
-    <div class="p-10 pt-20 flex-col-center min-h-full md:(ms-40 pt-10)">
-      <div v-if="active === 0">
-        请开发者自行扩展
-      </div>
+    <div class="p-6 pt-20 flex-col-center min-h-full md:(ms-40 p-10 pt-10)">
+      <EditProfileBasic v-if="active === 0" />
       <EditPassword v-if="active === 1" />
     </div>
   </div>
