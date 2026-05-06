@@ -297,7 +297,7 @@ export class UserService {
     return await this.userEntity.findOne({ where: { openId } });
   }
 
-  /* 修改用户信息 */
+  /* 修改用户信息（昵称、头像可单独或组合更新） */
   async updateInfo(body: UpdateUserDto, req: Request) {
     const { id } = req.user;
 
@@ -305,15 +305,32 @@ export class UserService {
     if (!u) {
       throw new HttpException('当前用户不存在！', HttpStatus.BAD_REQUEST);
     }
-    if (body.nickname && u.nickname === body.nickname) {
-      throw new HttpException('没有变更，无需更改！', HttpStatus.BAD_REQUEST);
+
+    const patch: Partial<Pick<UserEntity, 'nickname' | 'avatar'>> = {};
+
+    if (body.nickname !== undefined && body.nickname !== null) {
+      const nextNick = String(body.nickname).trim();
+      if (nextNick && nextNick !== u.nickname) {
+        patch.nickname = nextNick;
+      }
     }
 
-    const r = await this.userEntity.update({ id }, body);
-    if (r.affected <= 0) {
-      throw new HttpException('修改用户信息失败！', HttpStatus.BAD_REQUEST);
+    if (body.avatar !== undefined && body.avatar !== null && String(body.avatar).trim() !== '') {
+      const nextAvatar = String(body.avatar).trim();
+      if (nextAvatar !== u.avatar) {
+        patch.avatar = nextAvatar;
+      }
     }
-    return '修改用户昵称成功！';
+
+    if (Object.keys(patch).length === 0) {
+      throw new HttpException('没有变更，无需保存', HttpStatus.BAD_REQUEST);
+    }
+
+    const r = await this.userEntity.update({ id }, patch);
+    if (r.affected <= 0) {
+      throw new HttpException('保存失败，请稍后重试', HttpStatus.BAD_REQUEST);
+    }
+    return '保存成功';
   }
 
   /* 检查用户名是否已存在 */
