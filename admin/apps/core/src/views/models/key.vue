@@ -11,7 +11,7 @@
     UploadRequestOptions,
   } from 'element-plus';
   import { ElMessage } from 'element-plus';
-  import { computed, nextTick, onMounted, reactive, ref } from 'vue';
+  import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 
   import {
     DEDUCTTYPELIST,
@@ -484,6 +484,46 @@
     }
     return true;
   };
+
+  /** 根据 Token 维护表 / OpenRouter / LiteLLM 填入上下文与回复 Tokens */
+  async function fillTokensFromCatalog(modelStr: string | undefined) {
+    const m = modelStr?.trim();
+    if (!m) {
+      ElMessage.warning('请先填写或选择「账号关联模型」');
+      return;
+    }
+    try {
+      modelLoading.value = true;
+      const res: any = await ApiModels.lookupTokenCatalog({ modelId: m });
+      const payload = res.data;
+      if (payload?.found && payload.maxModelTokens != null && payload.max_tokens != null) {
+        formPackage.maxModelTokens = payload.maxModelTokens;
+        formPackage.max_tokens = payload.max_tokens;
+        const src = payload.fromCatalog ? '维护表' : `公开源（${payload.source || '—'}）`;
+        const hit = payload.matchedModelId as string | undefined;
+        const aliasHint = hit && hit !== m ? `，已按「${hit}」匹配` : '';
+        ElMessage.success(`已填入 Token 限额（${src}${aliasHint}）`);
+      } else {
+        ElMessage.info(
+          `未找到与「${m}」对应的限额（可填写完整 ID，如 openai/gpt-4o；短名会自动尝试常见厂商前缀与后缀匹配）`,
+        );
+      }
+    } finally {
+      modelLoading.value = false;
+    }
+  }
+
+  let catalogFillTimer: ReturnType<typeof setTimeout> | null = null;
+  watch(
+    () => formPackage.model,
+    (val) => {
+      if (!visible.value || !val) return;
+      if (![1, 3].includes(Number(formPackage.keyType))) return;
+      if (activeModelKeyId.value !== 0) return;
+      if (catalogFillTimer) clearTimeout(catalogFillTimer);
+      catalogFillTimer = setTimeout(() => fillTokensFromCatalog(String(val)), 500);
+    },
+  );
 
   onMounted(() => {
     queryModelsList();
@@ -1041,6 +1081,16 @@
             v-model.number="formPackage.max_tokens"
             placeholder="请填写模型最大回复、不填写默认使用默认！"
           />
+        </el-form-item>
+
+        <el-form-item v-if="[1, 3].includes(Number(formPackage.keyType))" label="">
+          <el-button type="primary" link @click="fillTokensFromCatalog(formPackage.model)">
+            根据「账号关联模型」填入 Token 限额
+          </el-button>
+          <span class="text-xs text-gray-400 ml-2">
+            支持完整 ID（如 openai/gpt-4o）或短名（如 gpt-4o）：维护表按后缀匹配，公开源会尝试常见 provider/
+            前缀。新增模型保存前会自动尝试填入。
+          </span>
         </el-form-item>
 
         <el-form-item label="调用超时时间" prop="timeout">
