@@ -11,6 +11,8 @@ export const useAppAccountStore = defineStore('appAccount', () => {
   const token = ref(localStorage.token ?? '')
   const account = ref(localStorage.username ?? '')
   const avatar = ref('')
+  const nickname = ref('')
+  const email = ref('')
 
   const permissions = ref<string[]>([])
 
@@ -23,6 +25,8 @@ export const useAppAccountStore = defineStore('appAccount', () => {
     const { role } = userInfo
     account.value = userInfo.username
     avatar.value = userInfo.avatar ?? ''
+    nickname.value = userInfo.nickname ?? ''
+    email.value = userInfo.email ?? ''
     if (!['admin', 'super'].includes(role)) {
       ElMessage.error('您没有权限访问该系统!!!')
       await logout()
@@ -68,6 +72,8 @@ export const useAppAccountStore = defineStore('appAccount', () => {
 
   function logoutCleanStatus() {
     avatar.value = ''
+    nickname.value = ''
+    email.value = ''
     permissions.value = []
     appSettingsStore.updateSettings({}, true)
     appTabbarStore.clean()
@@ -98,6 +104,11 @@ export const useAppAccountStore = defineStore('appAccount', () => {
     })
   }
 
+  async function updateProfile(data: { nickname?: string; avatar?: string }) {
+    await apiUser.updateProfile(data)
+    await getInfo()
+  }
+
   function lock() {
     localStorage.removeItem('token')
   }
@@ -110,6 +121,8 @@ export const useAppAccountStore = defineStore('appAccount', () => {
     token,
     account,
     avatar,
+    nickname,
+    email,
     permissions,
     isLogin,
     login,
@@ -118,6 +131,7 @@ export const useAppAccountStore = defineStore('appAccount', () => {
     getPermissions,
     getInfo,
     editPassword,
+    updateProfile,
     lock,
     unlock,
   }
