@@ -1,14 +1,19 @@
 <script setup lang="ts">
 import { fetchQueryAppsAPI, fetchQueryOneCatAPI } from '@/api/appStore'
+import { fetchUpdateGroupAPI } from '@/api/group'
+import { fetchQueryModelsListAPI } from '@/api/models'
 import type { ResData } from '@/api/types'
+import { DropdownMenu } from '@/components/common/DropdownMenu'
 import { useBasicLayout } from '@/hooks/useBasicLayout'
 import { useAuthStore, useChatStore, useGlobalStoreWithOut } from '@/store'
 import {
   AddPicture,
+  CheckOne,
   FullScreen,
   LoadingFour,
   OffScreen,
   Plus,
+  Right,
   SendOne,
   Sphere,
   Square,
@@ -84,6 +89,36 @@ interface App {
   updatedAt: string
 }
 
+interface ModelOption {
+  label: string
+  value: string
+  modelDescription?: string
+  modelAvatar?: string
+  deductType?: number
+  keyType?: number
+  deduct?: number
+  isFileUpload?: unknown
+  isImageUpload?: unknown
+  isNetworkSearch?: unknown
+  isMcpTool?: unknown
+  deepThinkingType?: unknown
+}
+
+interface Model {
+  isFileUpload: unknown
+  isImageUpload: unknown
+  modelName: string
+  model: string
+  deductType: number
+  keyType: number
+  deduct: number
+  modelAvatar: string
+  modelDescription: string
+  isNetworkSearch: unknown
+  isMcpTool: unknown
+  deepThinkingType: unknown
+}
+
 // 双向绑定 chatStore.prompt
 const prompt = computed({
   get: () => chatStore.prompt,
@@ -111,9 +146,9 @@ const isStreamIn = computed(() => {
   return chatStore.isStreamIn !== undefined ? chatStore.isStreamIn : false
 })
 const dataSources = computed(() => chatStore.chatList)
-const activeModelName = computed(() => String(configObj?.value.modelInfo.modelName))
+const activeModelName = computed(() => String(configObj.value?.modelInfo?.modelName ?? ''))
 const activeModelKeyType = computed(() => {
-  return usingPlugin.value?.modelType || Number(configObj?.value.modelInfo.keyType)
+  return usingPlugin.value?.modelType ?? Number(configObj.value?.modelInfo?.keyType ?? 0)
 })
 
 const activeGroupId = computed(() => chatStore.active)
@@ -130,6 +165,94 @@ const configObj = computed(() => {
     return {} // 解析失败时返回一个空对象
   }
 })
+
+const modelOptions = ref<ModelOption[]>([])
+const isModelMenuOpen = ref(false)
+const isModelHovering = ref(false)
+
+const notSwitchModel = computed(() => {
+  return (
+    !!activeGroupInfo.value?.appId &&
+    (configObj.value.modelInfo?.isFixedModel === 1 ||
+      configObj.value.modelInfo?.isGPTs === 1 ||
+      configObj.value.modelInfo?.isFlowith === 1)
+  )
+})
+
+const activeModelId = computed(() => String(configObj.value?.modelInfo?.model ?? ''))
+
+async function switchModel(option: ModelOption) {
+  chatStore.setUsingDeepThinking(false)
+  chatStore.setUsingNetwork(false)
+  chatStore.setUsingPlugin(null)
+  const ac = chatStore.activeConfig as {
+    modelInfo?: Record<string, unknown>
+    fileInfo?: Record<string, unknown>
+  }
+  const prev = ac?.modelInfo || {}
+  const fileInfo = ac?.fileInfo || {}
+
+  const isGPTs = prev.isGPTs
+  const isFixedModel = prev.isFixedModel
+  const modelName = prev.modelName
+  const isFlowith = prev.isFlowith
+
+  const config = {
+    modelInfo: {
+      keyType: option.keyType,
+      modelName: (activeGroupInfo.value?.appId ? modelName : option.label) || '',
+      model: option.value,
+      deductType: option.deductType,
+      deduct: option.deduct,
+      isFileUpload: option.isFileUpload,
+      isImageUpload: option.isImageUpload,
+      isNetworkSearch: option.isNetworkSearch,
+      deepThinkingType: option.deepThinkingType,
+      isMcpTool: option.isMcpTool,
+      modelAvatar: option.modelAvatar || '',
+      isGPTs,
+      isFlowith,
+      isFixedModel,
+    },
+    fileInfo: fileInfo || {},
+  }
+
+  const params = {
+    groupId: activeGroupId.value,
+    config: JSON.stringify(config),
+  }
+  await fetchUpdateGroupAPI(params)
+  await chatStore.queryMyGroup()
+}
+
+async function queryModelsList() {
+  try {
+    const res: unknown = await fetchQueryModelsListAPI()
+    const r = res as { success?: boolean; data?: { modelMaps: Record<string, Model[]> } }
+    if (!r.success || !r.data?.modelMaps) return
+    const flatModelArray = Object.values(r.data.modelMaps).flat() as Model[]
+    const filteredModelArray = flatModelArray.filter(model => model.keyType === 1)
+    modelOptions.value = filteredModelArray.map(model => ({
+      label: model.modelName,
+      value: model.model,
+      deductType: model.deductType,
+      keyType: model.keyType,
+      deduct: model.deduct,
+      isFileUpload: model.isFileUpload,
+      isImageUpload: model.isImageUpload,
+      isNetworkSearch: model.isNetworkSearch,
+      deepThinkingType: model.deepThinkingType,
+      isMcpTool: model.isMcpTool,
+      modelAvatar: model.modelAvatar,
+      modelDescription: model.modelDescription,
+    }))
+  } catch (error) {}
+}
+
+function handleModelSelect(option: ModelOption) {
+  switchModel(option)
+}
+
 const activeModelFileUpload = computed(() => Number(configObj?.value?.modelInfo?.isFileUpload))
 const activeModelImageUpload = computed(() => Number(configObj?.value?.modelInfo?.isImageUpload))
 
@@ -1219,7 +1342,7 @@ onMounted(async () => {
       inputRef.value.focus()
     }
   })
-  await queryApps()
+  await Promise.all([queryApps(), queryModelsList()])
 
   // 添加全局拖拽事件监听
   document.addEventListener('dragover', handleDocumentDragOver)
@@ -1520,110 +1643,204 @@ const shouldShowButtonText = computed(() => {
           </div>
 
           <!-- 按钮容器 -->
-          <div ref="buttonContainerRef" class="flex justify-between flex-grow w-full pb-2">
-            <!-- 文件上传按钮区域 -->
-            <div class="flex justify-start items-center">
-              <!-- 统一的文件/图片上传按钮 -->
+          <div ref="buttonContainerRef" class="flex justify-between flex-grow w-full pb-2 gap-1">
+            <!-- 左侧：模型选择勿放入 overflow-x-auto，否则 top 定位的下拉会被裁切/无法命中 -->
+            <div class="flex justify-start items-center min-w-0 flex-1 gap-1">
+              <!-- 模型选择：与输入框同卡片，便于发送前切换 -->
+              <div v-if="notSwitchModel" class="flex-shrink-0">
+                <div
+                  class="btn-pill btn-md mx-1 opacity-75 cursor-default select-none max-w-[40vw] sm:max-w-[12rem] flex items-center gap-1"
+                  role="status"
+                  aria-label="当前对话固定模型，不可切换"
+                >
+                  <span class="truncate">{{
+                    configObj?.modelInfo?.modelName || activeModelName
+                  }}</span>
+                </div>
+              </div>
+              <div v-else class="relative z-30 flex-shrink-0">
+                <DropdownMenu
+                  v-model="isModelMenuOpen"
+                  position="top-left"
+                  max-height="40vh"
+                  min-width="240px"
+                  :z-index="100"
+                >
+                  <template #trigger>
+                    <button
+                      type="button"
+                      class="btn-pill btn-md mx-1 max-w-[42vw] sm:max-w-[14rem] flex items-center gap-1 cursor-pointer transition-colors duration-150"
+                      :title="isMobile ? undefined : '选择对话模型'"
+                      @mouseenter="isModelHovering = true"
+                      @mouseleave="isModelHovering = false"
+                      aria-label="选择模型"
+                    >
+                      <span class="truncate text-left">{{
+                        configObj?.modelInfo?.modelName || '选择模型'
+                      }}</span>
+                      <Right
+                        v-if="isModelHovering || isMobile || isModelMenuOpen"
+                        size="14"
+                        class="flex-shrink-0 opacity-70"
+                        aria-hidden="true"
+                      />
+                    </button>
+                  </template>
+                  <template #menu="{ close }">
+                    <div>
+                      <div
+                        v-for="(option, index) in modelOptions"
+                        :key="index"
+                        class="menu-item menu-item-md"
+                        :class="{ 'menu-item-active': activeModelId === option.value }"
+                        @click="
+                          () => {
+                            handleModelSelect(option)
+                            close()
+                          }
+                        "
+                        role="menuitem"
+                        tabindex="0"
+                        :aria-label="`选择${option.label}模型`"
+                      >
+                        <div class="avatar avatar-md">
+                          <img
+                            v-if="option.modelAvatar"
+                            :src="option.modelAvatar"
+                            :alt="`${option.label}模型图标`"
+                            class="w-full h-full object-cover"
+                          />
+                          <span v-else>
+                            {{ option.label.charAt(0) }}
+                          </span>
+                        </div>
+                        <div class="menu-item-content">
+                          <div class="menu-item-title">
+                            {{ option.label }}
+                          </div>
+                          <div v-if="option.modelDescription" class="menu-item-description">
+                            {{ option.modelDescription }}
+                          </div>
+                        </div>
+                        <div class="flex-shrink-0" v-if="activeModelId === option.value">
+                          <CheckOne
+                            theme="filled"
+                            size="16"
+                            class="text-gray-500 dark:text-gray-400"
+                            aria-hidden="true"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </template>
+                </DropdownMenu>
+              </div>
+
               <div
-                v-if="showUploadButton && !isUploading"
-                class="group relative"
-                @dragover.prevent="
-                  e => {
-                    e.stopPropagation()
-                    isDragging = true
-                  }
-                "
-                @dragleave.prevent="
-                  e => {
-                    e.stopPropagation()
-                    isDragging = false
-                  }
-                "
-                @drop.prevent="
-                  e => {
-                    e.stopPropagation()
-                    isDragging = false
-                    isFileDraggingOverPage = false
-                    handleUnifiedFileDrop(e, 'button')
-                  }
-                "
+                class="flex justify-start items-center min-w-0 flex-1 overflow-x-auto overflow-y-visible"
               >
-                <button
-                  type="button"
-                  class="btn-pill mx-1"
-                  @click="triggerUpload"
-                  :aria-label="uploadButtonTooltip"
-                >
-                  <Plus size="15" />
-                </button>
-                <div v-if="!isMobile" class="tooltip tooltip-top">{{ uploadButtonTooltip }}</div>
-              </div>
-
-              <LoadingFour
-                v-if="isUploading"
-                size="15"
-                class="p-1 mx-2 animate-rotate text-gray-500 dark:text-gray-500"
-              />
-
-              <!-- 隐藏的文件输入框 - 保持原有的两个input，但共用同一个按钮触发 -->
-              <input ref="fileInput" type="file" class="hidden" @change="handleFileSelect" />
-              <input
-                ref="imageInput"
-                type="file"
-                accept="image/*"
-                class="hidden"
-                @change="handleImageSelect"
-              />
-
-              <div v-if="shouldShowDeepThinking" class="group relative">
+                <!-- 统一的文件/图片上传按钮 -->
                 <div
-                  class="btn-pill btn-md mx-1"
-                  :class="[usingDeepThinking ? 'btn-pill-active' : '']"
-                  @click="usingDeepThinking = !usingDeepThinking"
-                  role="button"
-                  :aria-pressed="usingDeepThinking"
-                  aria-label="启用或禁用推理功能"
-                  tabindex="0"
+                  v-if="showUploadButton && !isUploading"
+                  class="group relative"
+                  @dragover.prevent="
+                    e => {
+                      e.stopPropagation()
+                      isDragging = true
+                    }
+                  "
+                  @dragleave.prevent="
+                    e => {
+                      e.stopPropagation()
+                      isDragging = false
+                    }
+                  "
+                  @drop.prevent="
+                    e => {
+                      e.stopPropagation()
+                      isDragging = false
+                      isFileDraggingOverPage = false
+                      handleUnifiedFileDrop(e, 'button')
+                    }
+                  "
                 >
-                  <TwoEllipses size="15" />
-                  <span v-if="shouldShowButtonText" class="ml-1">推理</span>
+                  <button
+                    type="button"
+                    class="btn-pill mx-1"
+                    @click="triggerUpload"
+                    :aria-label="uploadButtonTooltip"
+                  >
+                    <Plus size="15" />
+                  </button>
+                  <div v-if="!isMobile" class="tooltip tooltip-top">{{ uploadButtonTooltip }}</div>
                 </div>
-                <div v-if="!isMobile" class="tooltip tooltip-top">
-                  AI 推理能力，帮助寻找更深层次的答案
-                </div>
-              </div>
 
-              <div v-if="shouldShowNetworkSearch" class="group relative">
-                <div
-                  class="btn-pill btn-md mx-1"
-                  :class="[usingNetwork ? 'btn-pill-active' : '']"
-                  @click="usingNetwork = !usingNetwork"
-                  role="button"
-                  :aria-pressed="usingNetwork"
-                  aria-label="启用或禁用网络搜索"
-                  tabindex="0"
-                >
-                  <Sphere size="15" />
-                  <span v-if="shouldShowButtonText" class="ml-1">搜索</span>
-                </div>
-                <div v-if="!isMobile" class="tooltip tooltip-top">启用网络搜索，获取最新信息</div>
-              </div>
+                <LoadingFour
+                  v-if="isUploading"
+                  size="15"
+                  class="p-1 mx-2 animate-rotate text-gray-500 dark:text-gray-500"
+                />
 
-              <div v-if="shouldShowMermaidTool" class="group relative">
-                <div
-                  class="btn-pill btn-md mx-1"
-                  :class="[usingMermaid ? 'btn-pill-active' : '']"
-                  @click="usingMermaid = !usingMermaid"
-                  role="button"
-                  :aria-pressed="usingMermaid"
-                  aria-label="启用或禁用流程图功能"
-                  tabindex="0"
-                >
-                  <TreeDiagram size="15" />
-                  <span v-if="shouldShowButtonText" class="ml-1">图表</span>
+                <!-- 隐藏的文件输入框 - 保持原有的两个input，但共用同一个按钮触发 -->
+                <input ref="fileInput" type="file" class="hidden" @change="handleFileSelect" />
+                <input
+                  ref="imageInput"
+                  type="file"
+                  accept="image/*"
+                  class="hidden"
+                  @change="handleImageSelect"
+                />
+
+                <div v-if="shouldShowDeepThinking" class="group relative">
+                  <div
+                    class="btn-pill btn-md mx-1"
+                    :class="[usingDeepThinking ? 'btn-pill-active' : '']"
+                    @click="usingDeepThinking = !usingDeepThinking"
+                    role="button"
+                    :aria-pressed="usingDeepThinking"
+                    aria-label="启用或禁用推理功能"
+                    tabindex="0"
+                  >
+                    <TwoEllipses size="15" />
+                    <span v-if="shouldShowButtonText" class="ml-1">推理</span>
+                  </div>
+                  <div v-if="!isMobile" class="tooltip tooltip-top">
+                    AI 推理能力，帮助寻找更深层次的答案
+                  </div>
                 </div>
-                <div v-if="!isMobile" class="tooltip tooltip-top">
-                  启用图表功能，支持Mermaid图表绘制
+
+                <div v-if="shouldShowNetworkSearch" class="group relative">
+                  <div
+                    class="btn-pill btn-md mx-1"
+                    :class="[usingNetwork ? 'btn-pill-active' : '']"
+                    @click="usingNetwork = !usingNetwork"
+                    role="button"
+                    :aria-pressed="usingNetwork"
+                    aria-label="启用或禁用网络搜索"
+                    tabindex="0"
+                  >
+                    <Sphere size="15" />
+                    <span v-if="shouldShowButtonText" class="ml-1">搜索</span>
+                  </div>
+                  <div v-if="!isMobile" class="tooltip tooltip-top">启用网络搜索，获取最新信息</div>
+                </div>
+
+                <div v-if="shouldShowMermaidTool" class="group relative">
+                  <div
+                    class="btn-pill btn-md mx-1"
+                    :class="[usingMermaid ? 'btn-pill-active' : '']"
+                    @click="usingMermaid = !usingMermaid"
+                    role="button"
+                    :aria-pressed="usingMermaid"
+                    aria-label="启用或禁用流程图功能"
+                    tabindex="0"
+                  >
+                    <TreeDiagram size="15" />
+                    <span v-if="shouldShowButtonText" class="ml-1">图表</span>
+                  </div>
+                  <div v-if="!isMobile" class="tooltip tooltip-top">
+                    启用图表功能，支持Mermaid图表绘制
+                  </div>
                 </div>
               </div>
             </div>
