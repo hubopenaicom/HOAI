@@ -16,6 +16,7 @@ import { CramiEntity } from '../crami/crami.entity';
 import { CramiPackageEntity } from '../crami/cramiPackage.entity';
 import { ConfigEntity } from '../globalConfig/config.entity';
 import { ModelsEntity } from '../models/models.entity';
+import { ModelTokenCatalogEntity } from '../models/model-token-catalog.entity';
 import { OrderEntity } from '../order/order.entity';
 import { PluginEntity } from '../plugin/plugin.entity';
 import { Share } from '../share/share.entity';
@@ -51,6 +52,7 @@ import { VerificationEntity } from '../verification/verification.entity';
             SigninEntity,
             ViolationLogEntity,
             ModelsEntity,
+            ModelTokenCatalogEntity,
             UserEntity,
             AccountLogEntity,
             FingerprintLogEntity,
