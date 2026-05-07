@@ -114,7 +114,7 @@ export class DatabaseService implements OnModuleInit {
         },
         {
           configKey: 'openaiBaseUrl',
-          configVal: 'https://api.lightai.io',
+          configVal: 'https://api.xifanai.com',
           public: 0,
           encrypt: 0,
         },
