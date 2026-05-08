@@ -3,7 +3,7 @@ import { Column, Entity } from 'typeorm';
 
 @Entity({ name: 'models' })
 export class ModelsEntity extends BaseEntity {
-  @Column({ comment: '模型类型 1: 普通对话 2: 绘画  3:高级对话' })
+  @Column({ comment: '模型类型 1: 基础对话 2: 创意模型(绘画/音乐等插件) 3: 特殊模型' })
   keyType: number;
 
   @Column({ comment: '模型名称' })
