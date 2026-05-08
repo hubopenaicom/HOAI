@@ -334,9 +334,10 @@ export const TYPEORIGINLIST = [
   { value: '自定义检测', label: '自定义检测' },
 ];
 
+/** 与后端 models.keyType 一致：1 基础对话 2 创意/绘画等插件模型 3 特殊模型（TTS、GPTs 等） */
 export const MODELTYPELIST = [
   { value: 1, label: '基础对话' },
-  // { value: 2, label: '创意模型' },
+  { value: 2, label: '创意模型' },
   { value: 3, label: '特殊模型' },
 ];
 
