@@ -1,8 +1,0 @@
-
-/**
- * 由 Fantastic-admin 提供技术支持
- * Powered by Fantastic-admin
- * https://fantastic-admin.hurui.me
- */
-  
-import{At as e,C as t,O as n,S as r,an as i,b as a,q as o,rn as s,w as c,x as l}from"./vue.runtime.esm-bundler-C3TPsVo8.js";import{r as u}from"./defu-gTigNlcc.js";var d={key:1,class:`h-[1em] w-[1em]`,"aria-hidden":`true`},f=[`xlink:href`],p=[`src`],m=n({name:`SvgIcon`,__name:`index`,props:{name:{},flip:{},rotate:{},color:{},size:{}},setup(n){let m=n,h=a(()=>/^https?:\/\//.test(m.name)?`img`:/i-[^:]+:[^:]+/.test(m.name)?`unocss`:m.name.includes(`:`)?`iconify`:`svg`),g=a(()=>{let e=[];if(m.flip)switch(m.flip){case`horizontal`:e.push(`rotateY(180deg)`);break;case`vertical`:e.push(`rotateX(180deg)`);break;case`both`:e.push(`rotateX(180deg)`),e.push(`rotateY(180deg)`);break}return m.rotate&&e.push(`rotate(${m.rotate%360}deg)`),{...m.color&&{color:m.color},...m.size&&{fontSize:typeof m.size==`number`?`${m.size}px`:m.size},...e.length&&{transform:e.join(` `)}}});return(a,m)=>(o(),c(`i`,{class:s([`relative h-[1em] w-[1em] flex-inline items-center justify-center fill-current leading-[1em]`,{[n.name]:e(h)===`unocss`}]),style:i(e(g))},[e(h)===`iconify`?(o(),r(e(u),{key:0,icon:n.name},null,8,[`icon`])):e(h)===`svg`?(o(),c(`svg`,d,[l(`use`,{"xlink:href":`#icon-${n.name}`},null,8,f)])):e(h)===`img`?(o(),c(`img`,{key:2,src:n.name,class:`h-[1em] w-[1em]`},null,8,p)):t(``,!0)],6))}});export{m as t};

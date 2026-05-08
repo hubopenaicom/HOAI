@@ -3455,7 +3455,7 @@ let ModelsService = class ModelsService {
             }
             else {
                 const { keyType, key } = params;
-                if (Number(keyType !== 1)) {
+                if (Number(keyType) !== 1) {
                     const res = await this.modelsEntity.save(params);
                     await this.initCalcKey();
                     return res;
@@ -3650,7 +3650,7 @@ var VerificationUseStatusEnum;
 })(VerificationUseStatusEnum || (exports.VerificationUseStatusEnum = VerificationUseStatusEnum = {}));
 exports.ModelsMapCn = {
     1: '普通模型',
-    2: '绘画模型',
+    2: '创意模型',
     3: '特殊模型',
 };
 
@@ -3707,7 +3707,7 @@ let ModelsEntity = class ModelsEntity extends baseEntity_1.BaseEntity {
 };
 exports.ModelsEntity = ModelsEntity;
 __decorate([
-    (0, typeorm_1.Column)({ comment: '模型类型 1: 普通对话 2: 绘画  3:高级对话' }),
+    (0, typeorm_1.Column)({ comment: '模型类型 1: 基础对话 2: 创意模型(绘画/音乐等插件) 3: 特殊模型' }),
     __metadata("design:type", Number)
 ], ModelsEntity.prototype, "keyType", void 0);
 __decorate([
