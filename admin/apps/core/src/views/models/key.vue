@@ -556,7 +556,7 @@
         </div>
       </template>
       <HButton outline type="success" @click="visible = true">
-        <SvgIcon name="i-mdi:content-save-outline" />
+        <FaIcon name="i-mdi:plus" class="size-4" />
         添加模型
       </HButton>
     </PageHeader>
@@ -724,7 +724,10 @@
         <el-table-column fixed="right" label="操作" width="200">
           <template #default="scope">
             <el-button link type="primary" size="small" @click="handleEditKey(scope.row)">
-              变更
+              <span class="inline-flex items-center gap-1">
+                <FaIcon name="i-mdi:pencil-outline" class="size-4" />
+                变更
+              </span>
             </el-button>
             <el-popconfirm
               title="确认删除此秘钥么?"
@@ -733,7 +736,12 @@
               @confirm="handleDeleteKey(scope.row)"
             >
               <template #reference>
-                <el-button link type="danger" size="small"> 删除秘钥 </el-button>
+                <el-button link type="danger" size="small">
+                  <span class="inline-flex items-center gap-1">
+                    <FaIcon name="i-mdi:delete-outline" class="size-4" />
+                    删除秘钥
+                  </span>
+                </el-button>
               </template>
             </el-popconfirm>
           </template>
@@ -768,6 +776,7 @@
         label-width="120px"
         :model="formPackage"
         :rules="rules"
+        class="pt-4 sm:pt-5"
       >
         <el-form-item label="模型类型选择" prop="keyType">
           <el-select v-model="formPackage.keyType" placeholder="请选择模型类型" style="width: 100%">
@@ -778,6 +787,13 @@
               :value="item.value"
             />
           </el-select>
+          <p
+            v-if="Number(formPackage.keyType) === 2"
+            class="mt-2 text-xs leading-relaxed text-muted-foreground"
+          >
+            创意模型不会在用户端对话里展示，用于 Midjourney / DALL·E / Suno
+            等插件调用；请务必选择「绘画类型」，并与上游 API 一致填写「账号关联模型」。
+          </p>
         </el-form-item>
 
         <el-form-item
@@ -1062,7 +1078,7 @@
           />
         </el-form-item>
         <el-form-item
-          v-if="[1 || 3].includes(Number(formPackage.keyType))"
+          v-if="[1, 3].includes(Number(formPackage.keyType))"
           label="上下文Tokens"
           prop="maxModelTokens"
         >
@@ -1073,7 +1089,7 @@
         </el-form-item>
 
         <el-form-item
-          v-if="[1 || 3].includes(Number(formPackage.keyType))"
+          v-if="[1, 3].includes(Number(formPackage.keyType))"
           label="回复Tokens"
           prop="max_tokens"
         >
