@@ -16,13 +16,21 @@
   const outputType = computed(() => {
     if (/^https?:\/\//.test(props.name)) {
       return 'img';
-    } else if (/i-[^:]+:[^:]+/.test(props.name)) {
-      return 'unocss';
-    } else if (props.name.includes(':')) {
-      return 'iconify';
-    } else {
-      return 'svg';
     }
+    // 与 FaIcon 一致：`i-集合:图标` 若走 Uno presetIcons，易被漏扫导致生产环境无 CSS、图标空白；统一走 Iconify 运行时。
+    if (/^i-[^:]+:.+/.test(props.name) || props.name.includes(':')) {
+      return 'iconify';
+    }
+    return 'svg';
+  });
+
+  /** 如 i-mdi:home → mdi:home */
+  const iconifyIconId = computed(() => {
+    const n = props.name;
+    if (!n) {
+      return '';
+    }
+    return /^i-[^:]+:.+/.test(n) ? n.slice(2) : n;
   });
 
   const style = computed(() => {
@@ -56,11 +64,14 @@
 
 <template>
   <i
-    class="relative h-[1em] w-[1em] flex-inline items-center justify-center fill-current leading-[1em]"
-    :class="{ [name]: outputType === 'unocss' }"
+    class="relative inline-flex h-[1em] w-[1em] items-center justify-center fill-current leading-[1em]"
     :style="style"
   >
-    <Icon v-if="outputType === 'iconify'" :icon="name" />
+    <Icon
+      v-if="outputType === 'iconify'"
+      :icon="iconifyIconId"
+      class="block h-[1em] w-[1em] shrink-0"
+    />
     <svg v-else-if="outputType === 'svg'" class="h-[1em] w-[1em]" aria-hidden="true">
       <use :xlink:href="`#icon-${name}`" />
     </svg>
