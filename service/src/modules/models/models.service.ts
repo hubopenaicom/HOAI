@@ -202,7 +202,7 @@ export class ModelsService {
         return res.affected > 0;
       } else {
         const { keyType, key } = params;
-        if (Number(keyType !== 1)) {
+        if (Number(keyType) !== 1) {
           const res = await this.modelsEntity.save(params);
           await this.initCalcKey();
           return res;
