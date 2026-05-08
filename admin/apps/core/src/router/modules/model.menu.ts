@@ -32,7 +32,7 @@ const routes: RouteRecordRaw = {
       component: () => import('@/views/models/baseSetting.vue'),
       meta: {
         title: '基础配置',
-        icon: 'i-ep:setting',
+        icon: 'i-mdi:cog-outline',
       },
     },
   ],
