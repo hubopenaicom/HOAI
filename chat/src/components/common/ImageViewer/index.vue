@@ -2,126 +2,216 @@
   <Teleport to="body">
     <div
       v-if="visible"
-      class="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-90 backdrop-blur-sm"
-      @click="handleBackgroundClick"
-      @wheel.prevent="handleWheel"
+      class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/75 px-3 py-6 backdrop-blur-md sm:px-5"
+      @click.self="close"
     >
-      <!-- 工具栏 -->
       <div
-        class="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 flex items-center space-x-2 bg-black bg-opacity-50 rounded-lg px-4 py-2"
+        class="flex h-[min(92vh,900px)] max-h-[min(92vh,900px)] w-full max-w-[min(96vw,1180px)] min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-600/60 bg-[#0b1018] shadow-[0_28px_90px_rgba(0,0,0,0.55)] ring-1 ring-white/10"
+        role="dialog"
+        aria-modal="true"
+        @click.stop
       >
-        <!-- 缩小 -->
-        <button
-          class="toolbar-btn"
-          @click="zoomOut"
-          :disabled="scale <= minScale"
-          title="缩小 (Ctrl + -)"
+        <div
+          class="relative shrink-0 border-b border-slate-700/80 bg-gradient-to-b from-[#131b28]/98 to-[#0c121c]"
         >
-          <Minus size="20" />
-        </button>
+          <button
+            type="button"
+            class="absolute right-3 top-3 z-[2] rounded-full bg-black/35 p-2 text-white ring-1 ring-white/10 backdrop-blur-sm transition hover:bg-black/55"
+            :title="t('drawing.viewerClose')"
+            @click="close"
+          >
+            <Close size="22" />
+          </button>
 
-        <!-- 缩放比例显示 -->
-        <span class="text-white text-sm min-w-[60px] text-center">
-          {{ Math.round(scale * 100) }}%
-        </span>
+          <div class="max-h-[38vh] overflow-y-auto pr-14 pl-4 pb-4 pt-4 custom-scrollbar">
+            <div class="space-y-4">
+              <div class="flex gap-3">
+                <span
+                  class="mt-0.5 w-[4.75rem] shrink-0 text-[11px] font-semibold uppercase tracking-wide text-sky-400/95"
+                  >{{ t('drawing.viewerCaptionOriginal') }}</span
+                >
+                <p
+                  class="min-w-0 flex-1 whitespace-pre-wrap break-words text-[13px] leading-relaxed text-slate-100"
+                >
+                  {{ captionOriginalDisplay }}
+                </p>
+                <button
+                  type="button"
+                  class="viewer-icon-btn mt-0.5 shrink-0"
+                  :disabled="!trimOriginal"
+                  :title="t('chat.copy')"
+                  @click="copyCaption('original')"
+                >
+                  <Copy size="18" />
+                </button>
+              </div>
 
-        <!-- 放大 -->
-        <button
-          class="toolbar-btn"
-          @click="zoomIn"
-          :disabled="scale >= maxScale"
-          title="放大 (Ctrl + +)"
-        >
-          <Plus size="20" />
-        </button>
-
-        <!-- 分割线 -->
-        <div class="w-px h-6 bg-gray-400"></div>
-
-        <!-- 逆时针旋转 -->
-        <button class="toolbar-btn" @click="rotateLeft" title="逆时针旋转 (Ctrl + ←)">
-          <span class="text-lg">↺</span>
-        </button>
-
-        <!-- 顺时针旋转 -->
-        <button class="toolbar-btn" @click="rotateRight" title="顺时针旋转 (Ctrl + →)">
-          <span class="text-lg">↻</span>
-        </button>
-
-        <!-- 分割线 -->
-        <div class="w-px h-6 bg-gray-400"></div>
-
-        <!-- 重置 -->
-        <button class="toolbar-btn" @click="reset" title="重置 (Ctrl + 0)">
-          <Refresh size="20" />
-        </button>
-
-        <!-- 保存 -->
-        <button class="toolbar-btn" @click="save" title="保存 (Ctrl + S)">
-          <Download size="20" />
-        </button>
-      </div>
-
-      <!-- 关闭按钮 -->
-      <button
-        class="absolute top-4 right-4 z-10 p-2 rounded-full bg-black bg-opacity-50 text-white hover:bg-opacity-70 transition-all duration-200"
-        @click="close"
-        title="关闭 (ESC)"
-      >
-        <Close size="24" />
-      </button>
-
-      <!-- 图片容器 -->
-      <div
-        ref="imageContainer"
-        class="relative w-full h-full flex items-center justify-center overflow-hidden cursor-grab"
-        :class="{ 'cursor-grabbing': isDragging }"
-        @mousedown="startDrag"
-        @mousemove="drag"
-        @mouseup="stopDrag"
-        @mouseleave="stopDrag"
-      >
-        <!-- 图片 -->
-        <img
-          ref="imageRef"
-          :src="imageUrl"
-          class="max-w-none max-h-none transition-transform duration-300 ease-out select-none"
-          :style="imageStyle"
-          alt="预览图片"
-          @load="handleImageLoad"
-          @error="handleImageError"
-          @dragstart.prevent
-        />
-
-        <!-- 加载状态 -->
-        <div v-if="loading" class="absolute inset-0 flex items-center justify-center">
-          <div class="text-white text-lg">加载中...</div>
+              <div v-if="showTranslatedRow" class="flex gap-3 border-t border-slate-700/60 pt-4">
+                <span
+                  class="mt-0.5 w-[4.75rem] shrink-0 text-[11px] font-semibold uppercase tracking-wide text-violet-400/95"
+                  >{{ t('drawing.viewerCaptionTranslated') }}</span
+                >
+                <p
+                  class="min-w-0 flex-1 whitespace-pre-wrap break-words text-[13px] leading-relaxed text-slate-200/95"
+                >
+                  {{ captionTranslatedDisplay }}
+                </p>
+                <button
+                  type="button"
+                  class="viewer-icon-btn mt-0.5 shrink-0"
+                  :disabled="!trimTranslated"
+                  :title="t('chat.copy')"
+                  @click="copyCaption('translated')"
+                >
+                  <Copy size="18" />
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <!-- 错误状态 -->
-        <div v-if="error" class="absolute inset-0 flex items-center justify-center">
-          <div class="text-white text-lg">图片加载失败</div>
-        </div>
-      </div>
+        <div
+          class="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-800/90 bg-[#070b11]/95 px-3 py-2"
+        >
+          <div class="flex flex-wrap items-center gap-1">
+            <button
+              class="viewer-toolbar-btn"
+              type="button"
+              @click="zoomOut"
+              :disabled="scale <= minScale"
+              :title="t('drawing.viewerZoomOut')"
+            >
+              <Minus size="20" />
+            </button>
 
-      <!-- 底部提示 -->
-      <div
-        class="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white text-sm bg-black bg-opacity-50 px-3 py-1 rounded-full"
-      >
-        拖拽移动 • 滚轮缩放 • ESC 关闭
+            <span class="min-w-[52px] px-1 text-center text-xs text-slate-300">
+              {{ Math.round(scale * 100) }}%
+            </span>
+
+            <button
+              class="viewer-toolbar-btn"
+              type="button"
+              @click="zoomIn"
+              :disabled="scale >= maxScale"
+              :title="t('drawing.viewerZoomIn')"
+            >
+              <Plus size="20" />
+            </button>
+
+            <div class="mx-1 h-5 w-px bg-slate-600/80" />
+
+            <button
+              class="viewer-toolbar-btn"
+              type="button"
+              @click="rotateLeft"
+              :title="t('drawing.viewerRotateLeft')"
+            >
+              <span class="text-base">↺</span>
+            </button>
+            <button
+              class="viewer-toolbar-btn"
+              type="button"
+              @click="rotateRight"
+              :title="t('drawing.viewerRotateRight')"
+            >
+              <span class="text-base">↻</span>
+            </button>
+
+            <div class="mx-1 h-5 w-px bg-slate-600/80" />
+
+            <button
+              class="viewer-toolbar-btn"
+              type="button"
+              @click="reset"
+              :title="t('drawing.viewerReset')"
+            >
+              <Refresh size="20" />
+            </button>
+          </div>
+
+          <div class="flex shrink-0 flex-wrap items-center justify-end gap-2">
+            <button
+              type="button"
+              class="inline-flex shrink-0 items-center gap-2 rounded-lg border border-slate-500/55 bg-slate-800/90 px-3 py-2 text-xs font-medium text-slate-100 shadow-sm transition hover:bg-slate-700/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/70"
+              :title="t('drawing.viewerOpenInNewTabTitle')"
+              :disabled="!props.imageUrl"
+              @click="openInNewTab"
+            >
+              <Link size="17" />
+              {{ t('drawing.viewerOpenInNewTab') }}
+            </button>
+            <button
+              type="button"
+              class="inline-flex shrink-0 items-center gap-2 rounded-lg border border-sky-500/50 bg-sky-600/95 px-3.5 py-2 text-xs font-medium text-white shadow-md transition hover:bg-sky-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/80"
+              @click="save"
+            >
+              <Download size="17" />
+              {{ t('drawing.viewerSaveAs') }}
+            </button>
+          </div>
+        </div>
+
+        <div
+          ref="imageContainer"
+          class="relative min-h-0 flex-1 basis-0 overflow-hidden bg-gradient-to-b from-slate-950/80 to-black"
+          :class="{ 'cursor-grab': !isDragging, 'cursor-grabbing': isDragging }"
+          @mousedown="startDrag"
+          @mousemove="drag"
+          @mouseup="stopDrag"
+          @mouseleave="stopDrag"
+          @wheel.prevent="handleWheel"
+        >
+          <!-- 绝对定位避免大图固有尺寸撑破 flex，transform 不再参与布局占位 -->
+          <img
+            ref="imageRef"
+            :src="imageUrl"
+            class="pointer-events-auto absolute left-1/2 top-1/2 max-w-none select-none will-change-transform"
+            :style="imageStyle"
+            :alt="t('drawing.viewerImageAlt')"
+            @load="handleImageLoad"
+            @error="handleImageError"
+            @dragstart.prevent
+          />
+
+          <div
+            v-if="loading"
+            class="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/35"
+          >
+            <span class="text-sm text-slate-200">{{ t('drawing.viewerLoading') }}</span>
+          </div>
+
+          <div
+            v-if="error"
+            class="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/45"
+          >
+            <span class="text-sm text-rose-300">{{ t('drawing.viewerLoadError') }}</span>
+          </div>
+        </div>
+
+        <div
+          class="shrink-0 border-t border-slate-800/80 bg-black/35 px-4 py-2 text-center text-[11px] text-slate-500"
+        >
+          {{ t('drawing.viewerShortcutHint') }}
+        </div>
       </div>
     </div>
   </Teleport>
 </template>
 
 <script setup lang="ts">
-import { Close, Download, Minus, Plus, Refresh } from '@icon-park/vue-next'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { Close, Copy, Download, Link, Minus, Plus, Refresh } from '@icon-park/vue-next'
+import { fetchMjProxyImageBlob } from '@/api/drawingMj'
+import { t } from '@/locales'
+import { buildDownloadFileName } from '@/utils/imageFileName'
+import { message as messageApi } from '@/utils/message'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 
 interface Props {
   visible: boolean
   imageUrl: string
   fileName?: string
+  captionOriginal?: string
+  captionTranslated?: string
 }
 
 interface Emits {
@@ -131,42 +221,89 @@ interface Emits {
 
 const props = withDefaults(defineProps<Props>(), {
   fileName: 'image',
+  captionOriginal: '',
+  captionTranslated: '',
 })
 
 const emit = defineEmits<Emits>()
 
-// 图片状态
 const imageRef = ref<HTMLImageElement>()
 const imageContainer = ref<HTMLDivElement>()
 const loading = ref(true)
 const error = ref(false)
 
-// 变换状态
 const scale = ref(1)
 const rotation = ref(0)
 const translateX = ref(0)
 const translateY = ref(0)
 
-// 缩放限制
 const minScale = 0.1
 const maxScale = 5
 
-// 拖拽状态
 const isDragging = ref(false)
 const dragStart = ref({ x: 0, y: 0 })
 const dragOffset = ref({ x: 0, y: 0 })
 
-// 图片原始尺寸
 const originalSize = ref({ width: 0, height: 0 })
 
-// 计算图片样式
+const EM_DASH = '—'
+
+const trimOriginal = computed(() => props.captionOriginal?.trim() ?? '')
+const trimTranslated = computed(() => props.captionTranslated?.trim() ?? '')
+
+const captionOriginalDisplay = computed(() => trimOriginal.value || EM_DASH)
+const captionTranslatedDisplay = computed(() => trimTranslated.value)
+
+const showTranslatedRow = computed(() => {
+  const tr = trimTranslated.value
+  const or = trimOriginal.value
+  return !!tr && tr !== or
+})
+
 const imageStyle = computed(() => ({
-  transform: `translate(${translateX.value}px, ${translateY.value}px) scale(${scale.value}) rotate(${rotation.value}deg)`,
+  transform: `translate(-50%, -50%) translate(${translateX.value}px, ${translateY.value}px) scale(${scale.value}) rotate(${rotation.value}deg)`,
   transformOrigin: 'center center',
 }))
 
-// 处理图片加载
-function handleImageLoad() {
+function msg() {
+  return messageApi()
+}
+
+function copyViaFallbackDom(text: string): boolean {
+  try {
+    const ta = document.createElement('textarea')
+    ta.value = text
+    ta.setAttribute('readonly', '')
+    ta.style.position = 'fixed'
+    ta.style.left = '-9999px'
+    ta.style.top = '0'
+    document.body.appendChild(ta)
+    ta.select()
+    const ok = document.execCommand('copy')
+    document.body.removeChild(ta)
+    return ok
+  } catch {
+    return false
+  }
+}
+
+async function copyCaption(which: 'original' | 'translated') {
+  const text = which === 'original' ? trimOriginal.value : trimTranslated.value
+  if (!text) return
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+      msg().success(t('drawing.viewerCopied'))
+      return
+    }
+  } catch {
+    /* fallback below */
+  }
+  if (copyViaFallbackDom(text)) msg().success(t('drawing.viewerCopied'))
+  else msg().error(t('drawing.viewerCopyFailed'))
+}
+
+async function handleImageLoad() {
   loading.value = false
   error.value = false
 
@@ -176,170 +313,236 @@ function handleImageLoad() {
       height: imageRef.value.naturalHeight,
     }
 
-    // 自动适配屏幕尺寸
+    await nextTick()
     autoFit()
   }
 }
 
-// 处理图片加载错误
 function handleImageError() {
   loading.value = false
   error.value = true
 }
 
-// 自动适配屏幕尺寸
 function autoFit() {
   if (!imageRef.value || !imageContainer.value) return
 
-  const containerRect = imageContainer.value.getBoundingClientRect()
   const imageWidth = originalSize.value.width
   const imageHeight = originalSize.value.height
+  if (!imageWidth || !imageHeight) return
 
-  // 计算适合的缩放比例
-  const scaleX = (containerRect.width * 0.9) / imageWidth
-  const scaleY = (containerRect.height * 0.9) / imageHeight
-  const fitScale = Math.min(scaleX, scaleY, 1) // 不超过原始尺寸
+  const containerRect = imageContainer.value.getBoundingClientRect()
+  if (containerRect.width < 16 || containerRect.height < 16) return
+
+  const scaleX = (containerRect.width * 0.92) / imageWidth
+  const scaleY = (containerRect.height * 0.92) / imageHeight
+  const fitScale = Math.min(scaleX, scaleY, 1)
 
   scale.value = fitScale
 }
 
-// 放大
 function zoomIn() {
-  const newScale = Math.min(scale.value * 1.2, maxScale)
-  scale.value = newScale
+  scale.value = Math.min(scale.value * 1.2, maxScale)
 }
 
-// 缩小
 function zoomOut() {
-  const newScale = Math.max(scale.value / 1.2, minScale)
-  scale.value = newScale
+  scale.value = Math.max(scale.value / 1.2, minScale)
 }
 
-// 顺时针旋转
 function rotateRight() {
   rotation.value = (rotation.value + 90) % 360
 }
 
-// 逆时针旋转
 function rotateLeft() {
   rotation.value = (rotation.value - 90 + 360) % 360
 }
 
-// 重置
 function reset() {
-  scale.value = 1
   rotation.value = 0
   translateX.value = 0
   translateY.value = 0
-  autoFit()
+  const iw = originalSize.value.width
+  const ih = originalSize.value.height
+  if (iw && ih) {
+    void nextTick(() => autoFit())
+  } else {
+    scale.value = 1
+  }
 }
 
-// 保存图片
+/** 从已显示的 img 绘制到 canvas（同源或未污染时可导出） */
+async function blobFromCanvasImage(img: HTMLImageElement): Promise<Blob | null> {
+  if (!img.complete || !img.naturalWidth) return null
+  try {
+    const canvas = document.createElement('canvas')
+    canvas.width = img.naturalWidth
+    canvas.height = img.naturalHeight
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return null
+    ctx.drawImage(img, 0, 0)
+    return await new Promise<Blob | null>(resolve => {
+      canvas.toBlob(b => resolve(b && b.size > 0 ? b : null), 'image/png')
+    })
+  } catch {
+    return null
+  }
+}
+
+function isHttpRemoteImageUrl(url: string): boolean {
+  const u = url.trim().toLowerCase()
+  if (!u.startsWith('http://') && !u.startsWith('https://')) return false
+  return true
+}
+
+/** 新标签页打开图片地址（等价于用户自行打开链接再右键「图片另存为」）；脚本无法触发系统右键菜单 */
+function resolveImageUrlForNewTab(): string {
+  const u = props.imageUrl?.trim() ?? ''
+  if (!u) return ''
+  if (u.startsWith('blob:') || u.startsWith('data:')) return u
+  try {
+    return new URL(
+      u,
+      typeof window !== 'undefined' ? window.location.href : 'https://invalid.invalid/'
+    ).href
+  } catch {
+    return u
+  }
+}
+
+function openInNewTab() {
+  const href = resolveImageUrlForNewTab()
+  if (!href) return
+  window.open(href, '_blank', 'noopener,noreferrer')
+}
+
+/**
+ * 获取可保存的 Blob：浏览器 fetch → 同源接口代理 → 当前预览图 canvas → 临时 Image+crossOrigin。
+ * 禁止用 <a href=远程URL download> 降级：跨域时浏览器会忽略 download 并新开标签页。
+ */
+async function getImageBlobForSave(): Promise<Blob | null> {
+  if (!props.imageUrl) return null
+
+  try {
+    const response = await fetch(props.imageUrl, {
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'no-cache',
+    })
+    if (response.ok) {
+      const blob = await response.blob()
+      if (blob.size > 0) return blob
+    }
+  } catch {
+    /* continue */
+  }
+
+  if (isHttpRemoteImageUrl(props.imageUrl)) {
+    try {
+      const blob = await fetchMjProxyImageBlob(props.imageUrl)
+      if (blob.size > 0) return blob
+    } catch {
+      /* continue */
+    }
+  }
+
+  const shown = imageRef.value
+  if (shown) {
+    const fromShown = await blobFromCanvasImage(shown)
+    if (fromShown) return fromShown
+  }
+
+  try {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve()
+      img.onerror = () => reject(new Error('img load'))
+      img.src = props.imageUrl
+    })
+
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    canvas.width = img.naturalWidth
+    canvas.height = img.naturalHeight
+    ctx?.drawImage(img, 0, 0)
+
+    return await new Promise<Blob | null>(resolve => {
+      canvas.toBlob(b => resolve(b && b.size > 0 ? b : null), 'image/png')
+    })
+  } catch {
+    return null
+  }
+}
+
+async function trySaveWithFilePicker(blob: Blob, suggestedName: string): Promise<boolean> {
+  const w = window as Window & {
+    showSaveFilePicker?: (options: {
+      suggestedName?: string
+      types?: Array<{ description: string; accept: Record<string, string[]> }>
+    }) => Promise<FileSystemFileHandle>
+  }
+
+  if (typeof w.showSaveFilePicker !== 'function') return false
+
+  try {
+    const handle = await w.showSaveFilePicker({
+      suggestedName,
+      types: [
+        {
+          description: 'Image',
+          accept: {
+            'image/*': ['.png', '.jpg', '.jpeg', '.webp', '.gif'],
+          },
+        },
+      ],
+    })
+    const writable = await handle.createWritable()
+    await writable.write(blob)
+    await writable.close()
+    msg().success(t('drawing.viewerSaveSuccess'))
+    return true
+  } catch (e) {
+    if ((e as DOMException)?.name === 'AbortError') return true
+    console.warn('[ImageViewer] showSaveFilePicker failed', e)
+    return false
+  }
+}
+
+function fallbackDownloadBlob(blob: Blob, fileName: string) {
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = fileName
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  window.URL.revokeObjectURL(url)
+}
+
 async function save() {
   if (!props.imageUrl) return
 
   try {
-    console.log('全局预览器开始下载图片:', props.imageUrl)
+    const blob = await getImageBlobForSave()
+    const suggestedName = buildDownloadFileName(props.fileName || 'image', props.imageUrl, blob)
 
-    // 尝试直接下载（适用于同域或支持CORS的图片）
-    try {
-      const response = await fetch(props.imageUrl, {
-        mode: 'cors',
-        credentials: 'omit',
-      })
-      console.log('全局预览器fetch响应状态:', response.status, response.statusText)
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const blob = await response.blob()
-      console.log('全局预览器blob大小:', blob.size, 'blob类型:', blob.type)
-
-      const url = window.URL.createObjectURL(blob)
-
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `${props.fileName}.${getFileExtension(props.imageUrl)}`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-
-      window.URL.revokeObjectURL(url)
-      console.log('全局预览器图片下载完成')
+    if (blob && blob.size > 0) {
+      if (await trySaveWithFilePicker(blob, suggestedName)) return
+      fallbackDownloadBlob(blob, suggestedName)
       return
-    } catch (fetchError) {
-      console.log('全局预览器fetch下载失败，尝试canvas方法:', fetchError)
-
-      // 如果fetch失败，尝试使用canvas方法（适用于跨域图片）
-      const img = new Image()
-      img.crossOrigin = 'anonymous'
-
-      await new Promise((resolve, reject) => {
-        img.onload = () => {
-          try {
-            const canvas = document.createElement('canvas')
-            const ctx = canvas.getContext('2d')
-
-            canvas.width = img.naturalWidth
-            canvas.height = img.naturalHeight
-
-            ctx?.drawImage(img, 0, 0)
-
-            canvas.toBlob(blob => {
-              if (blob) {
-                const url = window.URL.createObjectURL(blob)
-                const a = document.createElement('a')
-                a.href = url
-                a.download = `${props.fileName}.${getFileExtension(props.imageUrl)}`
-                document.body.appendChild(a)
-                a.click()
-                document.body.removeChild(a)
-                window.URL.revokeObjectURL(url)
-                console.log('全局预览器canvas下载完成')
-                resolve(true)
-              } else {
-                reject(new Error('无法生成图片blob'))
-              }
-            }, 'image/png')
-          } catch (canvasError) {
-            reject(canvasError)
-          }
-        }
-
-        img.onerror = () => {
-          reject(new Error('图片加载失败'))
-        }
-
-        img.src = props.imageUrl
-      })
     }
-  } catch (error: any) {
-    console.error('保存图片失败:', error)
 
-    // 最后的备用方案：直接打开图片链接
     try {
-      const a = document.createElement('a')
-      a.href = props.imageUrl
-      a.download = `${props.fileName}.${getFileExtension(props.imageUrl)}`
-      a.target = '_blank'
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      console.log('全局预览器已在新窗口打开图片')
-    } catch (linkError) {
-      console.error('全局预览器所有下载方法都失败了:', linkError)
+      await navigator.clipboard.writeText(props.imageUrl)
+      msg().warning(t('drawing.viewerSaveBlockedWithLink'))
+    } catch {
+      msg().warning(t('drawing.viewerSaveBlockedManual'))
     }
+  } catch (e) {
+    console.error('[ImageViewer] save failed', e)
+    msg().error(t('drawing.viewerSaveFailed'))
   }
 }
 
-// 获取文件扩展名
-function getFileExtension(url: string): string {
-  const match = url.match(/\.([^.]+)$/)
-  return match ? match[1] : 'png'
-}
-
-// 处理鼠标滚轮缩放
 function handleWheel(event: WheelEvent) {
   event.preventDefault()
 
@@ -353,16 +556,14 @@ function handleWheel(event: WheelEvent) {
   scale.value = newScale
 }
 
-// 开始拖拽
 function startDrag(event: MouseEvent) {
-  if (event.button !== 0) return // 只响应左键
+  if (event.button !== 0) return
 
   isDragging.value = true
   dragStart.value = { x: event.clientX, y: event.clientY }
   dragOffset.value = { x: translateX.value, y: translateY.value }
 }
 
-// 拖拽中
 function drag(event: MouseEvent) {
   if (!isDragging.value) return
 
@@ -373,25 +574,15 @@ function drag(event: MouseEvent) {
   translateY.value = dragOffset.value.y + deltaY
 }
 
-// 停止拖拽
 function stopDrag() {
   isDragging.value = false
 }
 
-// 处理背景点击
-function handleBackgroundClick(event: MouseEvent) {
-  if (event.target === event.currentTarget) {
-    close()
-  }
-}
-
-// 关闭预览
 function close() {
   emit('update:visible', false)
   emit('close')
 }
 
-// 键盘事件处理
 function handleKeyDown(event: KeyboardEvent) {
   if (!props.visible) return
 
@@ -436,13 +627,16 @@ function handleKeyDown(event: KeyboardEvent) {
     case 's':
       if (isCtrl) {
         event.preventDefault()
-        save()
+        void save()
       }
+      break
+    default:
       break
   }
 }
 
-// 监听visible变化，重置状态
+let bodyOverflowBackup = ''
+
 watch(
   () => props.visible,
   newVisible => {
@@ -450,11 +644,16 @@ watch(
       loading.value = true
       error.value = false
       reset()
+      if (typeof document !== 'undefined') {
+        bodyOverflowBackup = document.body.style.overflow
+        document.body.style.overflow = 'hidden'
+      }
+    } else if (typeof document !== 'undefined') {
+      document.body.style.overflow = bodyOverflowBackup
     }
   }
 )
 
-// 监听imageUrl变化
 watch(
   () => props.imageUrl,
   () => {
@@ -472,19 +671,28 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeyDown)
+  document.body.style.overflow = bodyOverflowBackup
 })
 </script>
 
 <style scoped>
-.toolbar-btn {
-  @apply p-2 rounded-md text-white hover:bg-white hover:bg-opacity-20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+.viewer-icon-btn {
+  @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-600/70 bg-slate-800/80 text-slate-200 transition hover:border-sky-500/50 hover:bg-slate-700/90 hover:text-white disabled:cursor-not-allowed disabled:opacity-35;
 }
 
-.toolbar-btn:not(:disabled):hover {
-  @apply bg-white bg-opacity-20;
+.viewer-toolbar-btn {
+  @apply flex h-9 w-9 items-center justify-center rounded-lg text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40;
 }
 
-.toolbar-btn:not(:disabled):active {
-  @apply bg-white bg-opacity-30;
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(71 85 105 / 0.7) transparent;
+}
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgb(71 85 105 / 0.75);
+  border-radius: 9999px;
 }
 </style>
