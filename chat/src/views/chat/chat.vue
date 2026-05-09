@@ -84,9 +84,15 @@ async function createNewChatGroup() {
 //   }
 // }
 
+function isAllowedRootHistoryPath(path: string) {
+  if (path === '/' || path === '/drawing') return true
+  if (path.startsWith('/drawing/')) return true
+  return false
+}
+
 onMounted(() => {
-  // 如果当前路径不是根路径，则重定向到根路径
-  if (window.location.pathname !== '/' && !window.location.pathname.includes('.')) {
+  const path = window.location.pathname
+  if (!isAllowedRootHistoryPath(path) && !path.includes('.')) {
     window.history.replaceState({}, document.title, '/')
   }
 })
