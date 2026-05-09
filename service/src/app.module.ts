@@ -12,6 +12,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { AutoReplyModule } from './modules/autoReply/autoReply.module';
 import { BadWordsModule } from './modules/badWords/badWords.module';
 import { ChatModule } from './modules/chat/chat.module';
+import { DrawingMjModule } from './modules/drawingMj/drawing-mj.module';
 import { ChatGroupModule } from './modules/chatGroup/chatGroup.module';
 import { ChatLogModule } from './modules/chatLog/chatLog.module';
 import { CramiModule } from './modules/crami/crami.module';
@@ -76,6 +77,7 @@ import { VerificationModule } from './modules/verification/verification.module';
     AuthModule,
     VerificationModule,
     ChatModule,
+    DrawingMjModule,
     ApplicationModule,
     CramiModule,
     UserBalanceModule,
