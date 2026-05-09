@@ -6,8 +6,9 @@ import { fetchGetBalanceQueryAPI } from '@/api/balance'
 import { fetchQueryConfigAPI } from '@/api/config'
 import type { ResData } from '@/api/types'
 import { store } from '@/store'
+import { clearDrawingClientStorage } from '@/utils/drawingClientStorage'
 import type { AuthState, GlobalConfig, UserBalance } from './helper'
-import { getToken, removeToken, setToken } from './helper'
+import { getToken, removeToken as removeTokenFromStorage, setToken } from './helper'
 
 export const useAuthStore = defineStore('auth-store', {
   state: (): AuthState => ({
@@ -29,12 +30,24 @@ export const useAuthStore = defineStore('auth-store', {
       try {
         if (!this.loadInit) await this.getGlobalConfig()
 
+        const prevUserId = this.userInfo?.id
+
         const res = await fetchGetInfo()
         if (!res) return Promise.resolve(res)
         const { data } = res
         const { userInfo, userBalance } = data
         this.userInfo = { ...userInfo }
         this.userBalance = { ...userBalance }
+
+        const nextUserId = this.userInfo?.id
+        if (
+          prevUserId != null &&
+          nextUserId != null &&
+          prevUserId !== nextUserId
+        ) {
+          clearDrawingClientStorage()
+        }
+
         return Promise.resolve(data)
       } catch (error) {
         return Promise.reject(error)
@@ -65,7 +78,8 @@ export const useAuthStore = defineStore('auth-store', {
 
     removeToken() {
       this.token = undefined
-      removeToken()
+      removeTokenFromStorage()
+      clearDrawingClientStorage()
     },
 
     setLoginDialog(bool: boolean) {
@@ -73,8 +87,7 @@ export const useAuthStore = defineStore('auth-store', {
     },
 
     logOut() {
-      this.token = undefined
-      removeToken()
+      this.removeToken()
       this.userInfo = {}
       this.userBalance = {}
       // message().success('登出账户成功！')
@@ -84,8 +97,7 @@ export const useAuthStore = defineStore('auth-store', {
     },
 
     updatePasswordSuccess() {
-      this.token = undefined
-      removeToken()
+      this.removeToken()
       this.userInfo = {}
       this.userBalance = {}
       this.loginDialog = true
