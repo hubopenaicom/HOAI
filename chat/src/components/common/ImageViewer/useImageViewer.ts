@@ -5,17 +5,25 @@ import ImageViewer from './index.vue'
 const isVisible = ref(false)
 const currentImageUrl = ref('')
 const currentFileName = ref('image')
+const currentCaptionOriginal = ref('')
+const currentCaptionTranslated = ref('')
 
 // 图片预览器实例
 export interface ImageViewerOptions {
   imageUrl: string
   fileName?: string
+  /** 画面描述（用户提示） */
+  captionOriginal?: string
+  /** 翻译 / 英文等副文案 */
+  captionTranslated?: string
 }
 
 // 打开图片预览器
 export function openImageViewer(options: ImageViewerOptions) {
   currentImageUrl.value = options.imageUrl
   currentFileName.value = options.fileName || 'image'
+  currentCaptionOriginal.value = options.captionOriginal?.trim() ?? ''
+  currentCaptionTranslated.value = options.captionTranslated?.trim() ?? ''
   isVisible.value = true
 }
 
@@ -24,6 +32,8 @@ export function closeImageViewer() {
   isVisible.value = false
   currentImageUrl.value = ''
   currentFileName.value = 'image'
+  currentCaptionOriginal.value = ''
+  currentCaptionTranslated.value = ''
 }
 
 // 图片预览器状态
@@ -32,6 +42,8 @@ export function useImageViewer() {
     isVisible,
     currentImageUrl,
     currentFileName,
+    currentCaptionOriginal,
+    currentCaptionTranslated,
     openImageViewer,
     closeImageViewer,
   }
