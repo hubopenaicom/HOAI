@@ -416,4 +416,31 @@ export class ModelsService {
       throw new HttpException('获取模型详情失败', HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
+
+  /** 绘画独立页：返回已启用且 drawingType>0 的模型（不含敏感字段） */
+  async drawingModelsList() {
+    const rows = await this.modelsEntity.find({
+      order: { modelOrder: 'ASC' },
+    });
+    const list = rows
+      .filter(t => t.status === true && t.drawingType != null && Number(t.drawingType) > 0)
+      .map(t => ({
+        modelName: t.modelName,
+        keyType: t.keyType,
+        model: t.model,
+        deduct: t.deduct,
+        deductType: t.deductType,
+        maxRounds: t.maxRounds,
+        modelAvatar: t.modelAvatar,
+        modelDescription: t.modelDescription,
+        isFileUpload: t.isFileUpload,
+        isImageUpload: t.isImageUpload,
+        isNetworkSearch: t.isNetworkSearch,
+        deepThinkingType: t.deepThinkingType,
+        deductDeepThink: t.deductDeepThink,
+        isMcpTool: t.isMcpTool,
+        drawingType: t.drawingType,
+      }));
+    return { list };
+  }
 }
