@@ -7,6 +7,11 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('@/views/chat/chat.vue'),
   },
   {
+    path: '/drawing',
+    name: 'Drawing',
+    component: () => import('@/views/drawing/index.vue'),
+  },
+  {
     path: '/:catchAll(.*)',
     redirect: '/',
   },
