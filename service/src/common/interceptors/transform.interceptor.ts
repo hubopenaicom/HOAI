@@ -5,6 +5,7 @@ import {
   HttpException,
   Injectable,
   NestInterceptor,
+  StreamableFile,
 } from '@nestjs/common';
 import { catchError, throwError } from 'rxjs';
 import { map } from 'rxjs/operators';
@@ -19,6 +20,10 @@ export class TransformInterceptor implements NestInterceptor {
         response.statusCode = 200;
         /* 微信类支付类通知接口需要原样输出 */
         if (request.path.includes('notify')) {
+          return data;
+        }
+        /* 二进制流（如图片代理下载）不能包进 JSON，否则前端会存到损坏的“假图片” */
+        if (data instanceof StreamableFile) {
           return data;
         }
         const message = response.status < 400 ? null : response.statusText;
