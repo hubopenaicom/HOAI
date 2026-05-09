@@ -50,6 +50,12 @@ export class ModelsController {
     return this.modelsService.modelsList();
   }
 
+  @Get('drawingList')
+  @ApiOperation({ summary: '客户端查询绘画独立页可用模型（后台配置 drawingType>0）' })
+  drawingModelsList() {
+    return this.modelsService.drawingModelsList();
+  }
+
   @Get('baseConfig')
   @ApiOperation({ summary: '客户端查询当前已经配置模型的基础配置' })
   baseConfig() {
