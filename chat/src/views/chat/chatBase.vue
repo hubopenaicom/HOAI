@@ -7,6 +7,7 @@ import { useBasicLayout } from '@/hooks/useBasicLayout'
 import { t } from '@/locales'
 import { useAuthStore, useChatStore, useGlobalStoreWithOut } from '@/store'
 import { dialog } from '@/utils/dialog'
+import { safeImageFileStem } from '@/utils/imageFileName'
 import { message } from '@/utils/message'
 import { Close, DropDownList } from '@icon-park/vue-next'
 import DownSmall from '@icon-park/vue-next/es/icons/DownSmall'
@@ -1266,11 +1267,37 @@ provide('handleRegenerate', handleRegenerate)
 // Expose the toggleAppList function
 defineExpose({ toggleAppList, toggleTextEditor })
 
-// 打开图片预览器
-function openImagePreviewer(imageUrls: string[], initialIndex: number, mjData?: any) {
+// 打开图片预览器（支持多图索引、安全文件名、可选 MJ/扩展文案）
+function openImagePreviewer(
+  imageUrls: string[],
+  initialIndex: number,
+  mjData?: Record<string, unknown>
+) {
+  if (!imageUrls?.length) return
+  const ix = Math.min(Math.max(0, Math.floor(initialIndex)), imageUrls.length - 1)
+  const url = imageUrls[ix]
+  if (!url) return
+
+  let captionOriginal = ''
+  let captionTranslated = ''
+  if (mjData && typeof mjData === 'object') {
+    const o = mjData.prompt ?? mjData.promptLabel ?? mjData.description
+    const tr =
+      mjData.enPrompt ??
+      mjData.translatedPrompt ??
+      mjData.translation ??
+      mjData.promptEn ??
+      mjData.prompt_en
+    if (typeof o === 'string') captionOriginal = o.trim()
+    if (typeof tr === 'string') captionTranslated = tr.trim()
+    if (captionTranslated && captionTranslated === captionOriginal) captionTranslated = ''
+  }
+
   openImageViewer({
-    imageUrl: imageUrls[0],
-    fileName: imageUrls[0],
+    imageUrl: url,
+    fileName: safeImageFileStem(url, ix),
+    captionOriginal: captionOriginal || undefined,
+    captionTranslated: captionTranslated || undefined,
   })
 }
 // 提供打开图片预览器方法给子组件
