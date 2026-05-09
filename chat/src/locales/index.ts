@@ -22,9 +22,11 @@ const i18n = createI18n({
   },
 })
 
-// 导出t函数以便在组件外部使用
-export function t(key: string) {
-  return i18n.global.t(key)
+// 导出 t：支持 vue-i18n 命名插值，如 t('drawing.mjProgressPercent', { n: 42 })
+export function t(key: string, named?: Record<string, unknown>): string {
+  return named !== undefined
+    ? String(i18n.global.t(key, named as Record<string, string | number | boolean>))
+    : String(i18n.global.t(key))
 }
 
 export function setLocale(locale: Language) {
