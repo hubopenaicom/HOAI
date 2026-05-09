@@ -31,6 +31,7 @@ import { t } from '@/locales'
 import { useAppStore, useAuthStore, useChatStore, useGlobalStoreWithOut } from '@/store'
 import { copyText } from '@/utils/format'
 import { message } from '@/utils/message'
+import { STORAGE_KEY_DRAWING_BIND_GROUP } from '@/utils/drawingClientStorage'
 import {
   collectMjImageUrls,
   extractMjViewerCaptions,
@@ -998,10 +999,34 @@ watch(mjSeed, v => {
   }
 })
 
+watch(drawingSessionGroupId, v => {
+  try {
+    if (v != null && v > 0)
+      sessionStorage.setItem(STORAGE_KEY_DRAWING_BIND_GROUP, String(v))
+    else sessionStorage.removeItem(STORAGE_KEY_DRAWING_BIND_GROUP)
+  } catch {
+    /* ignore */
+  }
+})
+
 onMounted(async () => {
   loadMjCustomParamsPref()
   loadMjVersionSeedPrefs()
   await loadDrawingModels()
+  await chatStore.queryMyGroup()
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY_DRAWING_BIND_GROUP)
+    if (raw) {
+      const bid = Number(raw)
+      if (!Number.isNaN(bid) && bid > 0) {
+        const exists = chatStore.groupList.some(g => Number(g.uuid) === bid)
+        if (exists) drawingSessionGroupId.value = bid
+        else sessionStorage.removeItem(STORAGE_KEY_DRAWING_BIND_GROUP)
+      }
+    }
+  } catch {
+    /* ignore */
+  }
   if (authStore.isLogin) await loadMjJobsFromApi()
   else {
     const restored = loadMjJobsFromStorage()
@@ -1024,6 +1049,10 @@ watch(
      */
     const hydrateFirst = prevId === undefined && id !== undefined
     if (hydrateFirst) return
+
+    if (prevId != null && id != null && prevId !== id) {
+      drawingSessionGroupId.value = null
+    }
 
     if (authStore.isLogin) await loadMjJobsFromApi()
     else {
