@@ -12,6 +12,7 @@ import { ChatGroupEntity } from '../chatGroup/chatGroup.entity';
 import { ChatLogEntity } from '../chatLog/chatLog.entity';
 import { CramiEntity } from '../crami/crami.entity';
 import { CramiPackageEntity } from '../crami/cramiPackage.entity';
+import { DrawingMjJobEntity } from '../drawingMj/drawing-mj-job.entity';
 import { ConfigEntity } from '../globalConfig/config.entity';
 import { ModelsEntity } from '../models/models.entity';
 import { ModelTokenCatalogEntity } from '../models/model-token-catalog.entity';
@@ -59,6 +60,7 @@ const dataSourceOptions: DataSourceOptions = {
     AppCatsEntity,
     AppEntity,
     OrderEntity,
+    DrawingMjJobEntity,
   ],
   synchronize: false, // 禁用自动同步，改为根据情况动态开启
   charset: 'utf8mb4',
