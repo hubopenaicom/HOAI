@@ -1,9 +1,13 @@
 <script lang="ts" setup>
 import { fetchQueryOneCatAPI } from '@/api/appStore'
+import { DropdownMenu, MenuItem } from '@/components/common/DropdownMenu'
 import { useBasicLayout } from '@/hooks/useBasicLayout'
+import { t } from '@/locales'
 import { useAppStore, useChatStore, useGlobalStoreWithOut } from '@/store'
 import { Brightness, Close, DarkMode, EditTwo, ExpandLeft } from '@icon-park/vue-next'
+import DownSmall from '@icon-park/vue-next/es/icons/DownSmall'
 import { computed, inject, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 interface ExternalLink {
   icon?: string
@@ -14,6 +18,9 @@ interface ExternalLink {
 const useGlobalStore = useGlobalStoreWithOut()
 const appStore = useAppStore()
 const chatStore = useChatStore()
+const route = useRoute()
+const router = useRouter()
+const navMenuOpen = ref(false)
 const appDetail: any = ref(null)
 const dataSources = computed(() => chatStore.groupList)
 const collapsed = computed(() => appStore.siderCollapsed)
@@ -95,6 +102,26 @@ function openSettings(tab?: number) {
     useGlobalStore.updateSettingsDialog(true, tab)
   }
 }
+
+const headerTitle = computed(() => {
+  if (route.path === '/drawing') return t('nav.drawingPageTitle')
+  return activeGroupInfo.value?.title || t('chat.newConversation')
+})
+
+const isChatRoute = computed(() => route.path === '/' || route.name === 'Chat')
+const isDrawingRoute = computed(() => route.path === '/drawing' || route.name === 'Drawing')
+
+function goChat(close?: () => void) {
+  navMenuOpen.value = false
+  close?.()
+  if (!isChatRoute.value) router.push({ name: 'Chat' })
+}
+
+function goDrawing(close?: () => void) {
+  navMenuOpen.value = false
+  close?.()
+  if (!isDrawingRoute.value) router.push({ name: 'Drawing' })
+}
 </script>
 
 <template>
@@ -142,15 +169,41 @@ function openSettings(tab?: number) {
             </div>
           </div>
 
-          <!-- 模型选择在输入区；顶栏展示对话标题 -->
+          <!-- 模型选择在输入区；顶栏：导航菜单 + 当前标题 -->
           <div v-else class="flex-1 flex items-center min-w-0">
-            <div class="menu menu-md relative min-w-0">
-              <button type="button" class="menu-trigger max-w-full" aria-label="当前对话" disabled>
-                <span class="truncate whitespace-nowrap overflow-hidden max-w-[50vw]">
-                  {{ activeGroupInfo?.title || '新对话' }}
-                </span>
-              </button>
-            </div>
+            <DropdownMenu
+              v-model="navMenuOpen"
+              position="bottom-left"
+              min-width="220px"
+              class="min-w-0 max-w-full"
+            >
+              <template #trigger="{ isOpen }">
+                <button
+                  type="button"
+                  class="menu-trigger max-w-full flex items-center gap-1 text-left"
+                  :aria-expanded="isOpen"
+                  aria-haspopup="menu"
+                  :aria-label="t('nav.openMenu')"
+                >
+                  <span class="truncate whitespace-nowrap overflow-hidden max-w-[50vw]">
+                    {{ headerTitle }}
+                  </span>
+                  <DownSmall
+                    class="shrink-0 w-4 h-4 opacity-70 transition-transform duration-200"
+                    :class="{ 'rotate-180': isOpen }"
+                    aria-hidden="true"
+                  />
+                </button>
+              </template>
+              <template #menu="{ close }">
+                <MenuItem :title="t('nav.chat')" :active="isChatRoute" @click="goChat(close)" />
+                <MenuItem
+                  :title="t('nav.drawing')"
+                  :active="isDrawingRoute"
+                  @click="goDrawing(close)"
+                />
+              </template>
+            </DropdownMenu>
           </div>
 
           <div class="flex items-center">
