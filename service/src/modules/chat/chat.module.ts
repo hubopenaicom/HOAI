@@ -33,12 +33,14 @@ import { UserBalanceEntity } from '../userBalance/userBalance.entity';
 import { UserBalanceService } from '../userBalance/userBalance.service';
 import { VerificationEntity } from '../verification/verification.entity';
 import { VerificationService } from '../verification/verification.service';
+import { DrawingMjModule } from '../drawingMj/drawing-mj.module';
 import { ChatController } from './chat.controller';
 import { ChatService } from './chat.service';
 
 @Global()
 @Module({
   imports: [
+    DrawingMjModule,
     TypeOrmModule.forFeature([
       BalanceEntity,
       UserEntity,
