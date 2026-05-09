@@ -18,6 +18,7 @@ import { AutoReplyService } from '../autoReply/autoReply.service';
 import { BadWordsService } from '../badWords/badWords.service';
 import { ChatGroupService } from '../chatGroup/chatGroup.service';
 import { ChatLogService } from '../chatLog/chatLog.service';
+import { DrawingMjService, MjSpeedMode } from '../drawingMj/drawing-mj.service';
 import { GlobalConfigService } from '../globalConfig/globalConfig.service';
 import { ModelsService } from '../models/models.service';
 import { PluginEntity } from '../plugin/plugin.entity';
@@ -43,6 +44,7 @@ export class ChatService {
     private readonly chatGroupService: ChatGroupService,
     private readonly modelsService: ModelsService,
     private readonly appService: AppService,
+    private readonly drawingMjService: DrawingMjService,
   ) {}
 
   async chatProcess(body: any, req?: Request, res?: Response) {
@@ -356,6 +358,30 @@ export class ChatService {
       drawingType,
     } = currentRequestModelKey;
 
+    if (Number(drawingType) === 3) {
+      if (!proxyUrl || !String(proxyUrl).trim()) {
+        throw new HttpException(
+          'Midjourney 模型未配置上游代理地址 proxyUrl，请在模型管理中填写（与独立绘画页一致）',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+    }
+
+    let charge = deduct * (usingDeepThinking ? deductDeepThink : 1);
+    if (
+      action !== 'UPSCALE' &&
+      (Number(drawingType) === 3 ||
+        String(useModel).toLowerCase() === 'midjourney')
+    ) {
+      if (prompt.includes('--v 7')) {
+        charge = deduct * 8;
+      } else if (prompt.includes('--draft')) {
+        charge = deduct * 2;
+      } else {
+        charge = deduct * 4;
+      }
+    }
+
     if (await this.chatLogService.checkModelLimits(req.user, useModel)) {
       res.write(
         `\n${JSON.stringify({
@@ -368,12 +394,8 @@ export class ChatService {
       return;
     }
 
-    // 检测用户余额
-    await this.userBalanceService.validateBalance(
-      req,
-      deductType,
-      deduct * (usingDeepThinking ? deductDeepThink : 1),
-    );
+    // 检测用户余额（含 MJ 倍数）
+    await this.userBalanceService.validateBalance(req, deductType, charge);
 
     // 整理对话参数
     const useModeName = modelName;
@@ -471,20 +493,6 @@ export class ChatService {
       this.chatLogService,
     );
 
-    /* 单独处理 MJ 积分的扣费 */
-    let charge;
-    if (action !== 'UPSCALE' && useModel === 'midjourney') {
-      if (prompt.includes('--v 7')) {
-        charge = deduct * 8;
-      } else if (prompt.includes('--draft')) {
-        charge = deduct * 2;
-      } else {
-        charge = deduct * 4;
-      }
-    } else {
-      charge = deduct * (usingDeepThinking ? deductDeepThink : 1);
-    }
-
     const abortController = new AbortController();
     /* 处理对话  */
     try {
@@ -500,6 +508,32 @@ export class ChatService {
           };
 
           res.write(`\n${JSON.stringify(chatId)}`);
+
+          /* Midjourney：走模型配置的 proxyUrl 上游，不再经 OpenAI 聚合（避免 503 无通道） */
+          const useMjUpstream =
+            proxyUrl &&
+            String(proxyUrl).trim() &&
+            (Number(drawingType) === 3 ||
+              String(useModel).toLowerCase() === 'midjourney');
+          if (useMjUpstream) {
+            await this.runMidjourneyUpstreamChat({
+              req,
+              res,
+              useModel,
+              prompt,
+              extraParam,
+              charge,
+              deductType,
+              keyId,
+              userLogId,
+              assistantLogId,
+              useModeName,
+              model,
+              isSensitiveWordFilter,
+              abortController,
+            });
+            return;
+          }
 
           /* 普通对话 */
           response = await this.openAIChatService.chat(messagesHistory, {
@@ -666,6 +700,277 @@ export class ChatService {
     } finally {
       res && res.end();
     }
+  }
+
+  /** 对话里使用后台 Midjourney（proxyUrl），与绘画独立页同一上游 */
+  private async runMidjourneyUpstreamChat(opts: {
+    req: Request;
+    res: Response;
+    useModel: string;
+    prompt: string;
+    extraParam: any;
+    charge: number;
+    deductType: number;
+    keyId: number;
+    userLogId: number;
+    assistantLogId: number;
+    useModeName: string;
+    model: string;
+    isSensitiveWordFilter: string;
+    abortController: AbortController;
+  }) {
+    const {
+      req,
+      res,
+      useModel,
+      prompt,
+      extraParam,
+      charge,
+      deductType,
+      keyId,
+      userLogId,
+      assistantLogId,
+      useModeName,
+      model,
+      isSensitiveWordFilter,
+      abortController,
+    } = opts;
+
+    let mjRow;
+    try {
+      mjRow = await this.drawingMjService.resolveMjModelForChat(useModel);
+    } catch (e: any) {
+      const msg = e?.message || 'Midjourney 模型不可用';
+      Logger.error(`MJ 对话路由失败: ${msg}`, 'ChatService');
+      await this.chatLogService.updateChatLog(assistantLogId, { content: msg, status: 4 });
+      res.write(
+        `\n${JSON.stringify({
+          errMsg: msg,
+          full_content: '',
+          content: [{ type: 'text', text: msg }],
+        })}`,
+      );
+      return;
+    }
+
+    let mode: MjSpeedMode = 'fast';
+    const em = extraParam?.mjMode;
+    if (em === 'turbo' || em === 'relax' || em === 'fast') {
+      mode = em;
+    }
+
+    const builtPrompt = this.buildMjChatPrompt(prompt, extraParam);
+    Logger.log(
+      `MJ 对话直连上游 imagine model=${useModel} mode=${mode}`,
+      'ChatService',
+    );
+
+    let submitOut;
+    try {
+      submitOut = await this.drawingMjService.requestUpstream(mjRow, mode, '/submit/imagine', {
+        data: { prompt: builtPrompt },
+      });
+    } catch (e: any) {
+      const msg = e?.message || 'Midjourney 上游请求失败';
+      await this.chatLogService.updateChatLog(assistantLogId, { content: msg, status: 4 });
+      res.write(`\n${JSON.stringify({ errMsg: msg, content: [{ type: 'text', text: msg }] })}`);
+      return;
+    }
+
+    const payload = submitOut?.data;
+    const code = typeof payload?.code === 'number' ? payload.code : null;
+    if (code !== 1 && code !== 21 && code !== 22) {
+      const msg =
+        (payload && (payload.description || payload.msg)) || 'Midjourney 提交失败';
+      await this.chatLogService.updateChatLog(assistantLogId, { content: String(msg), status: 4 });
+      res.write(`\n${JSON.stringify({ errMsg: msg, content: [{ type: 'text', text: String(msg) }] })}`);
+      return;
+    }
+
+    const taskId = this.extractMjTaskIdFromPayload(payload);
+    if (!taskId) {
+      const msg = '未获取到 Midjourney 任务 ID';
+      await this.chatLogService.updateChatLog(assistantLogId, { content: msg, status: 4 });
+      res.write(`\n${JSON.stringify({ errMsg: msg, content: [{ type: 'text', text: msg }] })}`);
+      return;
+    }
+
+    await this.userBalanceService.deductFromBalance(req.user.id, deductType, charge, 0);
+    await this.modelsService.saveUseLog(keyId, 0);
+
+    const writeProgress = (text: string) => {
+      res.write(
+        `\n${JSON.stringify({
+          content: [{ type: 'text', text }],
+        })}`,
+      );
+    };
+
+    writeProgress(`任务已提交（${taskId}），正在生成…\n`);
+
+    for (let i = 0; i < 120; i++) {
+      if (abortController.signal.aborted) {
+        await this.chatLogService.updateChatLog(assistantLogId, {
+          content: '已取消',
+          status: 5,
+        });
+        return;
+      }
+      await new Promise(r => setTimeout(r, 2500));
+
+      let fetchOut;
+      try {
+        fetchOut = await this.drawingMjService.requestUpstream(
+          mjRow,
+          mode,
+          `/task/${encodeURIComponent(taskId)}/fetch`,
+          { method: 'GET' },
+        );
+      } catch {
+        writeProgress('查询进度暂时失败，重试中…\n');
+        continue;
+      }
+
+      const task = fetchOut?.data as Record<string, unknown>;
+      if (!task || typeof task !== 'object') {
+        continue;
+      }
+
+      const progress = task.progress ?? task.percentage;
+      if (progress != null && String(progress).trim()) {
+        writeProgress(`进度：${progress}\n`);
+      }
+
+      const st = String(task.status ?? (task as any).Status ?? '')
+        .trim()
+        .toUpperCase();
+
+      if (['SUCCESS', 'COMPLETE', 'DONE'].includes(st)) {
+        const imageUrl =
+          (task.imageUrl as string) ||
+          (task.image_url as string) ||
+          ((task.properties as any)?.imageUrl as string);
+        const desc = (task.description || task.prompt || '') as string;
+        let fullText = '';
+        if (imageUrl) {
+          fullText += `![Generated](${imageUrl})\n\n`;
+        }
+        if (desc) {
+          fullText += String(desc);
+        }
+        if (!fullText.trim()) {
+          fullText = '生成完成（上游未返回图片链接）';
+        }
+
+        let sanitizedAnswer = fullText;
+        if (isSensitiveWordFilter === '1') {
+          const triggeredWords = await this.badWordsService.checkBadWords(fullText, req.user.id);
+          if (triggeredWords.length > 0) {
+            const regex = new RegExp(triggeredWords.join('|'), 'gi');
+            sanitizedAnswer = fullText.replace(regex, m => '*'.repeat(m.length));
+          }
+        }
+
+        const promptTokens = await getTokenCount(prompt);
+        const completionTokens = await getTokenCount(sanitizedAnswer);
+        await this.chatLogService.updateChatLog(userLogId, {
+          promptTokens,
+          completionTokens,
+          totalTokens: promptTokens + completionTokens,
+        });
+
+        await this.chatLogService.updateChatLog(assistantLogId, {
+          content: sanitizedAnswer,
+          reasoning_content: '',
+          promptTokens,
+          completionTokens,
+          totalTokens: promptTokens + completionTokens,
+          status: 3,
+        });
+
+        const userBalance = await this.userBalanceService.queryUserBalance(req.user.id);
+        const response = {
+          full_content: sanitizedAnswer,
+          full_reasoning_content: '',
+          content: [{ type: 'text', text: sanitizedAnswer }],
+          userBalance,
+          chatId: assistantLogId,
+          promptReference: '',
+        };
+        res.write(`\n${JSON.stringify(response)}`);
+        Logger.log(
+          `MJ 对话完成 user=${req.user.id} model=${useModeName}(${model}) task=${taskId}`,
+          'ChatService',
+        );
+        return;
+      }
+
+      if (['FAILURE', 'FAILED', 'ERROR', 'CANCELLED'].includes(st)) {
+        const errMsg = String(
+          task.failReason ||
+            task.description ||
+            task.error ||
+            task.message ||
+            '生成失败',
+        );
+        await this.chatLogService.updateChatLog(assistantLogId, {
+          content: errMsg,
+          status: 4,
+        });
+        res.write(
+          `\n${JSON.stringify({
+            errMsg,
+            full_content: errMsg,
+            content: [{ type: 'text', text: errMsg }],
+          })}`,
+        );
+        return;
+      }
+    }
+
+    const timeoutMsg = '生成超时，请稍后在记录中查看或重试';
+    await this.chatLogService.updateChatLog(assistantLogId, {
+      content: timeoutMsg,
+      status: 4,
+    });
+    res.write(`\n${JSON.stringify({ errMsg: timeoutMsg, content: [{ type: 'text', text: timeoutMsg }] })}`);
+  }
+
+  private buildMjChatPrompt(prompt: string, extraParam: any): string {
+    let p = String(prompt || '').trim();
+    const size = extraParam?.size as string | undefined;
+    const arMap: Record<string, string> = {
+      '1024x1024': '--ar 1:1',
+      '1024x768': '--ar 4:3',
+      '1792x1024': '--ar 16:9',
+      '1024x1792': '--ar 3:4',
+      '1024x1536': '--ar 9:16',
+    };
+    if (size && arMap[size]) {
+      p = `${p} ${arMap[size]}`.trim();
+    }
+    if (!/\b--v\s+\d+/i.test(p) && !/\b--niji\b/i.test(p)) {
+      p = `${p} --v 6`.trim();
+    }
+    return p;
+  }
+
+  private extractMjTaskIdFromPayload(payload: any): string {
+    if (!payload || typeof payload !== 'object') {
+      return '';
+    }
+    let inner: any = payload;
+    if (
+      inner.data &&
+      typeof inner.data === 'object' &&
+      typeof inner.code === 'undefined' &&
+      typeof (inner.data as any).code === 'number'
+    ) {
+      inner = inner.data;
+    }
+    const r =
+      inner.result ?? inner.properties?.result ?? (inner.properties as any)?.taskId;
+    return r != null ? String(r) : '';
   }
 
   async updateChatTitle(groupId, groupInfo, modelType, prompt, req) {
