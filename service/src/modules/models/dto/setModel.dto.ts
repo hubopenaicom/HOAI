@@ -63,6 +63,15 @@ export class SetModelDto {
   @ApiProperty({ example: true, description: '单次扣除金额', required: false })
   deduct: number;
 
+  @ApiProperty({ example: 1, description: 'MJ慢速(relax)单次扣除，空则同deduct', required: false })
+  deductMjRelax?: number | null;
+
+  @ApiProperty({ example: 1, description: 'MJ快速(fast)单次扣除，空则同deduct', required: false })
+  deductMjFast?: number | null;
+
+  @ApiProperty({ example: 1, description: 'MJ极速(turbo)单次扣除，空则同deduct', required: false })
+  deductMjTurbo?: number | null;
+
   @ApiProperty({
     example: true,
     description: '最大上下文轮次',
