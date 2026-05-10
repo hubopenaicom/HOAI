@@ -112,6 +112,13 @@ interface MjJobItem {
 const MJ_TYPE = 3
 const MJ_JOBS_STORAGE_VER = 1
 const MAX_MJ_JOBS_STORED = 80
+
+/** 避免同一毫秒内多条任务共用 localId，导致 loadMjJobsFromApi 的 Map 覆盖、serverJobId 错乱 */
+let mjClientKeySeq = 0
+function nextMjClientKey(): number {
+  mjClientKeySeq += 1
+  return Date.now() * 10000 + (mjClientKeySeq % 10000)
+}
 const STORAGE_KEY_MJ_FOLLOWUP_LAYOUT = 'hoai_mj_followup_layout'
 
 type MjFollowUpLayout = 'tiled' | 'dropdown'
@@ -331,28 +338,52 @@ async function loadMjJobsFromApi(): Promise<void> {
     const incoming = (wrap.data?.list ?? []).map(mjDrawingJobDtoToLocal)
     const map = new Map<number, MjJobItem>()
     for (const j of incoming) map.set(j.localId, j)
+    /**
+     * 仅以服务端列表为「成员」来源：仅当该行仍在云端时才合并本地更丰富的 task。
+     * 旧逻辑在 hit 为空时 map.set(cur.localId, cur)，会把已 DELETE 的任务从内存复活（刷新/二次拉列表常见）。
+     */
     for (const cur of [...mjJobs.value]) {
       const hit = map.get(cur.localId)
-      map.set(cur.localId, hit ? mergeMjJobWithRemote(cur, hit) : cur)
+      if (hit) map.set(cur.localId, mergeMjJobWithRemote(cur, hit))
     }
     mjJobs.value = [...map.values()].sort((a, b) => b.localId - a.localId)
+    persistMjJobsToStorage()
   } catch {
     mjJobs.value = loadMjJobsFromStorage()
   }
 }
 
+/** 并发 batch-upsert 若乱序完成，较慢的旧请求会把已删除任务重新写入库，刷新后「只删掉第一条」 */
+let mjPersistInFlight = false
+let mjPersistDirty = false
+
 async function persistMjJobsHybrid() {
   if (!persistMjJobsReady.value) return
-  if (authStore.isLogin) {
-    try {
-      await batchUpsertMjDrawingJobs({
-        jobs: mjJobs.value.slice(0, MAX_MJ_JOBS_STORED).map(mjJobToSnapshot),
-      })
-    } catch {
-      persistMjJobsToStorage()
+  if (mjPersistInFlight) {
+    mjPersistDirty = true
+    return
+  }
+  mjPersistInFlight = true
+  try {
+    do {
+      mjPersistDirty = false
+      if (authStore.isLogin) {
+        try {
+          const jobs = mjJobs.value.slice(0, MAX_MJ_JOBS_STORED).map(mjJobToSnapshot)
+          await batchUpsertMjDrawingJobs({ jobs })
+        } catch {
+          persistMjJobsToStorage()
+        }
+      } else {
+        persistMjJobsToStorage()
+      }
+    } while (mjPersistDirty)
+  } finally {
+    mjPersistInFlight = false
+    if (mjPersistDirty) {
+      mjPersistDirty = false
+      void persistMjJobsHybrid()
     }
-  } else {
-    persistMjJobsToStorage()
   }
 }
 
@@ -659,7 +690,7 @@ async function handleMjImagine() {
   }
   const fullPrompt = buildMjPrompt(msg)
   const job: MjJobItem = {
-    localId: Date.now(),
+    localId: nextMjClientKey(),
     taskId: '',
     promptLabel: msg,
     loading: true,
@@ -693,7 +724,7 @@ async function handleMjDescribe() {
     return
   }
   const job: MjJobItem = {
-    localId: Date.now(),
+    localId: nextMjClientKey(),
     taskId: '',
     promptLabel: 'Describe',
     loading: true,
@@ -727,7 +758,7 @@ async function handleMjShorten() {
     return
   }
   const job: MjJobItem = {
-    localId: Date.now(),
+    localId: nextMjClientKey(),
     taskId: '',
     promptLabel: msg,
     loading: true,
@@ -757,7 +788,7 @@ async function onMjButtonClick(taskId: string, customId: string) {
   const m = selectedModel.value
   if (!m) return
   const job: MjJobItem = {
-    localId: Date.now(),
+    localId: nextMjClientKey(),
     taskId: '',
     promptLabel: t('drawing.mjFollowUp'),
     loading: true,
@@ -1346,7 +1377,7 @@ async function beginVaryRegionFlow(job: MjJobItem, customId: string) {
     if ((code === 1 || code === 22) && modalTid) {
       ms.info(t('drawing.mjVaryRegionDirectQueued'))
       const newJob: MjJobItem = {
-        localId: Date.now(),
+        localId: nextMjClientKey(),
         taskId: modalTid,
         promptLabel: t('drawing.mjFollowUp'),
         loading: true,
@@ -1395,7 +1426,7 @@ async function onMjVaryRegionSubmitted(res: unknown) {
   const m = (srcJob && resolveMjJobModelRow(srcJob)) || selectedModel.value
   if (!m) return
   const job: MjJobItem = {
-    localId: Date.now(),
+    localId: nextMjClientKey(),
     taskId: '',
     promptLabel: t('drawing.mjFollowUp'),
     loading: true,
@@ -1448,6 +1479,7 @@ async function removeMjJob(job: MjJobItem) {
   }
   mjJobs.value = mjJobs.value.filter(j => j.localId !== job.localId)
   pruneMjJobSeedState(job.localId)
+  void persistMjJobsHybrid()
 }
 
 function mjJobSeedToolbarVisible(job: MjJobItem): boolean {
