@@ -5,6 +5,7 @@ import { FastXmlMiddleware } from '@/common/middleware/fast-xml-middleware';
 import { Logger, RequestMethod, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import * as bodyParser from 'body-parser';
 import * as compression from 'compression';
 import { randomBytes } from 'crypto';
 import * as Dotenv from 'dotenv';
@@ -68,7 +69,12 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     bufferLogs: true,
     logger: ['log', 'error', 'warn', 'debug', 'verbose'],
+    /** 默认 JSON 约 100KB，局部重绘蒙版 base64 动辄数 MB，截断后上游常报「无效参数」 */
+    bodyParser: false,
   });
+
+  app.use(bodyParser.json({ limit: '32mb' }));
+  app.use(bodyParser.urlencoded({ extended: true, limit: '32mb' }));
 
   // 在应用配置后，但在监听端口前初始化数据库表结构
   try {
