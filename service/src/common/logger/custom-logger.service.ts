@@ -127,10 +127,9 @@ export class CustomLoggerService extends ConsoleLogger {
   }
 
   warn(message: any, context?: string) {
-    if (this.isDev) {
-      const sanitized = this.sanitizeLogMessage(message);
-      super.warn(sanitized, context);
-    }
+    /** 生产环境也需输出 warn（原仅在 ISDEV 下输出，导致运维/排障日志丢失） */
+    const sanitized = this.sanitizeLogMessage(message);
+    super.warn(sanitized, context);
   }
 
   debug(message: any, context?: string) {
