@@ -2,7 +2,7 @@
   "apps": [
     {
       "name": "HOAI",
-      "cwd": "/www/wwwroot/ai.hubopenai.com/service",
+      "cwd": "/www/wwwroot/ai.hubopenai.com/HOAI/service",
       "script": "./dist/main.js",
       "exec_mode": "fork",
       "instances": 1,

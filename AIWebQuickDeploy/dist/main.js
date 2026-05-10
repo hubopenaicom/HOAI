@@ -11681,11 +11681,34 @@ let DrawingMjJobService = class DrawingMjJobService {
         this.userRepo = userRepo;
     }
     async listForUser(userId, limit) {
-        return this.repo.find({
+        const cap = Math.min(Math.max(limit * 4, limit), 400);
+        const rows = await this.repo.find({
             where: { userId },
             order: { id: 'DESC' },
-            take: limit,
+            take: cap,
         });
+        const seen = new Set();
+        const out = [];
+        for (const r of rows) {
+            const ck = r.clientKey != null ? String(r.clientKey).trim() : '';
+            const k = ck !== '' ? `ck:${ck}` : `id:${r.id}`;
+            if (seen.has(k))
+                continue;
+            seen.add(k);
+            out.push(r);
+            if (out.length >= limit)
+                break;
+        }
+        return out;
+    }
+    async dedupeByClientKey(userId, clientKey, keepId) {
+        const ck = clientKey.trim();
+        if (!ck)
+            return;
+        const rows = await this.repo.find({ where: { userId, clientKey: ck } });
+        const toRemove = rows.filter(r => r.id !== keepId);
+        if (toRemove.length)
+            await this.repo.remove(toRemove);
     }
     async create(userId, dto) {
         const row = this.repo.create({
@@ -11722,6 +11745,7 @@ let DrawingMjJobService = class DrawingMjJobService {
     }
     async upsert(userId, dto) {
         const ck = dto.clientKey != null ? String(dto.clientKey) : null;
+        let saved;
         if (ck) {
             const existing = await this.repo.findOne({ where: { userId, clientKey: ck } });
             if (existing) {
@@ -11742,8 +11766,13 @@ let DrawingMjJobService = class DrawingMjJobService {
                 if (dto.task !== undefined) {
                     existing.taskJson = dto.task ? JSON.stringify(dto.task) : null;
                 }
-                return this.repo.save(existing);
+                saved = await this.repo.save(existing);
             }
+            else {
+                saved = await this.create(userId, dto);
+            }
+            await this.dedupeByClientKey(userId, ck, saved.id);
+            return saved;
         }
         return this.create(userId, dto);
     }
@@ -11763,7 +11792,13 @@ let DrawingMjJobService = class DrawingMjJobService {
         if (!row) {
             throw new common_1.NotFoundException('任务不存在');
         }
+        const ck = row.clientKey != null ? String(row.clientKey).trim() : '';
         await this.repo.remove(row);
+        if (ck !== '') {
+            const rest = await this.repo.find({ where: { userId, clientKey: ck } });
+            if (rest.length)
+                await this.repo.remove(rest);
+        }
     }
     async adminQueryJobs(params, req) {
         const page = Math.max(1, Number(params.page) || 1);
