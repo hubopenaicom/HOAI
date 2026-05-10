@@ -33,6 +33,15 @@ const routes: RouteRecordRaw = {
       },
     },
     {
+      path: 'drawing-mj',
+      name: 'drawingMjAdmin',
+      component: () => import('@/views/chat/drawingMj.vue'),
+      meta: {
+        title: '绘画管理',
+        icon: 'i-mdi:palette-outline',
+      },
+    },
+    {
       path: 'auto-reply',
       name: 'ReplyMenuList',
       component: () => import('@/views/sensitive/autpReply.vue'),
