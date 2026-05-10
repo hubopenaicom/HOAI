@@ -75,6 +75,9 @@
     systemPrompt: '',
     systemPromptType: 0,
     drawingType: 0,
+    deductMjRelax: null as number | null,
+    deductMjFast: null as number | null,
+    deductMjTurbo: null as number | null,
   });
 
   /**
@@ -242,6 +245,11 @@
     return activeModelKeyId.value ? '确认更新' : '确认新增';
   });
 
+  /** 创意模型 + 绘画类型为 Midjourney */
+  const isMjDrawingKey = computed(
+    () => [2].includes(Number(formPackage.keyType)) && Number(formPackage.drawingType) === 3,
+  );
+
   const tableData = ref([]);
 
   async function queryModelsList() {
@@ -297,6 +305,9 @@
       systemPrompt,
       systemPromptType,
       drawingType,
+      deductMjRelax,
+      deductMjFast,
+      deductMjTurbo,
     } = row;
     nextTick(() => {
       Object.assign(formPackage, {
@@ -327,6 +338,9 @@
         systemPrompt,
         systemPromptType,
         drawingType: Number(drawingType) || 0,
+        deductMjRelax: deductMjRelax != null ? Number(deductMjRelax) : null,
+        deductMjFast: deductMjFast != null ? Number(deductMjFast) : null,
+        deductMjTurbo: deductMjTurbo != null ? Number(deductMjTurbo) : null,
       });
     });
     visible.value = true;
@@ -446,6 +460,15 @@
           const key = JSON.parse(JSON.stringify(formPackage.key));
           const formatKeyArr = key.split('\n');
           params.key = formatKeyArr;
+        }
+        for (const k of ['deductMjRelax', 'deductMjFast', 'deductMjTurbo'] as const) {
+          const v = params[k];
+          if (v === undefined || v === '') params[k] = null;
+        }
+        if (!isMjDrawingKey.value) {
+          params.deductMjRelax = null;
+          params.deductMjFast = null;
+          params.deductMjTurbo = null;
         }
         await ApiModels.setModels(params);
         ElMessage({ type: 'success', message: '操作成功！' });
@@ -685,9 +708,21 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="deduct" align="center" label="单次扣除" width="90">
+        <el-table-column prop="deduct" align="center" label="单次扣除" width="128">
           <template #default="scope">
-            <el-tag :type="scope.row.deductType === 1 ? 'success' : 'warning'">
+            <div v-if="Number(scope.row.drawingType) === 3" class="text-left text-xs leading-snug">
+              <div class="font-medium">默认 {{ scope.row.deduct }}</div>
+              <div v-if="scope.row.deductMjRelax != null" class="text-gray-600">
+                慢 {{ scope.row.deductMjRelax }}
+              </div>
+              <div v-if="scope.row.deductMjFast != null" class="text-gray-600">
+                快 {{ scope.row.deductMjFast }}
+              </div>
+              <div v-if="scope.row.deductMjTurbo != null" class="text-gray-600">
+                极 {{ scope.row.deductMjTurbo }}
+              </div>
+            </div>
+            <el-tag v-else :type="scope.row.deductType === 1 ? 'success' : 'warning'">
               {{ `${scope.row.deduct} 积分` }}
             </el-tag>
           </template>
@@ -966,16 +1001,10 @@
             style="width: 400px"
             placeholder="请填写单次调用此key的扣费金额！"
           />
-          <!-- <el-tooltip class="box-item" effect="dark" placement="right">
-            <template #content>
-              <div style="width: 250px">
-                设置当前key的单次调用扣除积分、建议同模型或名称key设置相同的金额、避免扣费发生异常！
-              </div>
-            </template>
-            <el-icon class="ml-3 cursor-pointer">
-              <QuestionFilled />
-            </el-icon>
-          </el-tooltip> -->
+          <p v-if="isMjDrawingKey" class="mt-1 max-w-[520px] text-xs text-gray-500 leading-relaxed">
+            Midjourney：此项为<strong>默认基准</strong>；下方「分速度」留空时，该速度按此处扣费。Imagine
+            等仍会按提示词乘以系统倍数（如 --v 7 / --draft 等），与独立绘画页一致。
+          </p>
         </el-form-item>
 
         <el-form-item
@@ -1008,6 +1037,55 @@
             </el-tooltip>
           </div>
         </el-form-item>
+
+        <template v-if="isMjDrawingKey">
+          <el-divider content-position="left">Midjourney 分速度单次扣除（积分）</el-divider>
+          <el-form-item label="慢速 RELAX">
+            <el-input-number
+              :model-value="formPackage.deductMjRelax ?? undefined"
+              class="!w-[280px]"
+              :min="0"
+              :precision="2"
+              controls-position="right"
+              placeholder="留空则使用上方默认"
+              @update:model-value="
+                (v: number | undefined) => {
+                  formPackage.deductMjRelax = v === undefined ? null : v;
+                }
+              "
+            />
+          </el-form-item>
+          <el-form-item label="快速 FAST">
+            <el-input-number
+              :model-value="formPackage.deductMjFast ?? undefined"
+              class="!w-[280px]"
+              :min="0"
+              :precision="2"
+              controls-position="right"
+              placeholder="留空则使用上方默认"
+              @update:model-value="
+                (v: number | undefined) => {
+                  formPackage.deductMjFast = v === undefined ? null : v;
+                }
+              "
+            />
+          </el-form-item>
+          <el-form-item label="极速 TURBO">
+            <el-input-number
+              :model-value="formPackage.deductMjTurbo ?? undefined"
+              class="!w-[280px]"
+              :min="0"
+              :precision="2"
+              controls-position="right"
+              placeholder="留空则使用上方默认"
+              @update:model-value="
+                (v: number | undefined) => {
+                  formPackage.deductMjTurbo = v === undefined ? null : v;
+                }
+              "
+            />
+          </el-form-item>
+        </template>
 
         <el-form-item
           v-if="[1].includes(Number(formPackage.keyType))"
