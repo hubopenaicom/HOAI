@@ -37,12 +37,41 @@ export class DrawingMjJobService {
     private readonly userRepo: Repository<UserEntity>,
   ) {}
 
+  /**
+   * 同一 userId + clientKey 历史上可能有多行（并发 upsert / 旧版逻辑），列表只保留 id 最新的一条，
+   * 避免删一条后刷新仍看到「同任务」的另一行。
+   */
   async listForUser(userId: number, limit: number): Promise<DrawingMjJobEntity[]> {
-    return this.repo.find({
+    const cap = Math.min(Math.max(limit * 4, limit), 400);
+    const rows = await this.repo.find({
       where: { userId },
       order: { id: 'DESC' },
-      take: limit,
+      take: cap,
     });
+    const seen = new Set<string>();
+    const out: DrawingMjJobEntity[] = [];
+    for (const r of rows) {
+      const ck = r.clientKey != null ? String(r.clientKey).trim() : '';
+      const k = ck !== '' ? `ck:${ck}` : `id:${r.id}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push(r);
+      if (out.length >= limit) break;
+    }
+    return out;
+  }
+
+  /** 保留 keepId 对应行，删掉同 userId+clientKey 的其余行（避免误删刚 upsert 的那条） */
+  private async dedupeByClientKey(
+    userId: number,
+    clientKey: string,
+    keepId: number,
+  ): Promise<void> {
+    const ck = clientKey.trim();
+    if (!ck) return;
+    const rows = await this.repo.find({ where: { userId, clientKey: ck } });
+    const toRemove = rows.filter(r => r.id !== keepId);
+    if (toRemove.length) await this.repo.remove(toRemove);
   }
 
   async create(userId: number, dto: CreateDrawingMjJobDto): Promise<DrawingMjJobEntity> {
@@ -83,6 +112,7 @@ export class DrawingMjJobService {
   /** 按 userId + clientKey 幂等更新；无则插入 */
   async upsert(userId: number, dto: CreateDrawingMjJobDto): Promise<DrawingMjJobEntity> {
     const ck = dto.clientKey != null ? String(dto.clientKey) : null;
+    let saved: DrawingMjJobEntity;
     if (ck) {
       const existing = await this.repo.findOne({ where: { userId, clientKey: ck } });
       if (existing) {
@@ -97,8 +127,12 @@ export class DrawingMjJobService {
         if (dto.task !== undefined) {
           existing.taskJson = dto.task ? JSON.stringify(dto.task) : null;
         }
-        return this.repo.save(existing);
+        saved = await this.repo.save(existing);
+      } else {
+        saved = await this.create(userId, dto);
       }
+      await this.dedupeByClientKey(userId, ck, saved.id);
+      return saved;
     }
     return this.create(userId, dto);
   }
@@ -120,7 +154,12 @@ export class DrawingMjJobService {
     if (!row) {
       throw new NotFoundException('任务不存在');
     }
+    const ck = row.clientKey != null ? String(row.clientKey).trim() : '';
     await this.repo.remove(row);
+    if (ck !== '') {
+      const rest = await this.repo.find({ where: { userId, clientKey: ck } });
+      if (rest.length) await this.repo.remove(rest);
+    }
   }
 
   /** 后台分页：关联用户、解析任务 JSON、提取预览图 URL */
