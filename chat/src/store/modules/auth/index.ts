@@ -40,11 +40,7 @@ export const useAuthStore = defineStore('auth-store', {
         this.userBalance = { ...userBalance }
 
         const nextUserId = this.userInfo?.id
-        if (
-          prevUserId != null &&
-          nextUserId != null &&
-          prevUserId !== nextUserId
-        ) {
+        if (prevUserId != null && nextUserId != null && prevUserId !== nextUserId) {
           clearDrawingClientStorage()
         }
 
