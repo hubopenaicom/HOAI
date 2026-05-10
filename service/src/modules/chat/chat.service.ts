@@ -368,18 +368,14 @@ export class ChatService {
     }
 
     let charge = deduct * (usingDeepThinking ? deductDeepThink : 1);
-    if (
-      action !== 'UPSCALE' &&
-      (Number(drawingType) === 3 ||
-        String(useModel).toLowerCase() === 'midjourney')
-    ) {
-      if (prompt.includes('--v 7')) {
-        charge = deduct * 8;
-      } else if (prompt.includes('--draft')) {
-        charge = deduct * 2;
-      } else {
-        charge = deduct * 4;
-      }
+    const isMjChatModel =
+      Number(drawingType) === 3 || String(useModel).toLowerCase() === 'midjourney';
+    if (action !== 'UPSCALE' && isMjChatModel) {
+      const em = extraParam?.mjMode;
+      const mjMode: MjSpeedMode = em === 'turbo' || em === 'relax' || em === 'fast' ? em : 'fast';
+      const base = this.drawingMjService.mjBaseDeductPerUnit(currentRequestModelKey, mjMode);
+      const mult = this.drawingMjService.guessChargeMultiplier(prompt);
+      charge = base * mult;
     }
 
     if (await this.chatLogService.checkModelLimits(req.user, useModel)) {
@@ -513,8 +509,7 @@ export class ChatService {
           const useMjUpstream =
             proxyUrl &&
             String(proxyUrl).trim() &&
-            (Number(drawingType) === 3 ||
-              String(useModel).toLowerCase() === 'midjourney');
+            (Number(drawingType) === 3 || String(useModel).toLowerCase() === 'midjourney');
           if (useMjUpstream) {
             await this.runMidjourneyUpstreamChat({
               req,
@@ -760,10 +755,7 @@ export class ChatService {
     }
 
     const builtPrompt = this.buildMjChatPrompt(prompt, extraParam);
-    Logger.log(
-      `MJ 对话直连上游 imagine model=${useModel} mode=${mode}`,
-      'ChatService',
-    );
+    Logger.log(`MJ 对话直连上游 imagine model=${useModel} mode=${mode}`, 'ChatService');
 
     let submitOut;
     try {
@@ -780,10 +772,11 @@ export class ChatService {
     const payload = submitOut?.data;
     const code = typeof payload?.code === 'number' ? payload.code : null;
     if (code !== 1 && code !== 21 && code !== 22) {
-      const msg =
-        (payload && (payload.description || payload.msg)) || 'Midjourney 提交失败';
+      const msg = (payload && (payload.description || payload.msg)) || 'Midjourney 提交失败';
       await this.chatLogService.updateChatLog(assistantLogId, { content: String(msg), status: 4 });
-      res.write(`\n${JSON.stringify({ errMsg: msg, content: [{ type: 'text', text: String(msg) }] })}`);
+      res.write(
+        `\n${JSON.stringify({ errMsg: msg, content: [{ type: 'text', text: String(msg) }] })}`,
+      );
       return;
     }
 
@@ -907,11 +900,7 @@ export class ChatService {
 
       if (['FAILURE', 'FAILED', 'ERROR', 'CANCELLED'].includes(st)) {
         const errMsg = String(
-          task.failReason ||
-            task.description ||
-            task.error ||
-            task.message ||
-            '生成失败',
+          task.failReason || task.description || task.error || task.message || '生成失败',
         );
         await this.chatLogService.updateChatLog(assistantLogId, {
           content: errMsg,
@@ -933,7 +922,9 @@ export class ChatService {
       content: timeoutMsg,
       status: 4,
     });
-    res.write(`\n${JSON.stringify({ errMsg: timeoutMsg, content: [{ type: 'text', text: timeoutMsg }] })}`);
+    res.write(
+      `\n${JSON.stringify({ errMsg: timeoutMsg, content: [{ type: 'text', text: timeoutMsg }] })}`,
+    );
   }
 
   private buildMjChatPrompt(prompt: string, extraParam: any): string {
@@ -968,8 +959,7 @@ export class ChatService {
     ) {
       inner = inner.data;
     }
-    const r =
-      inner.result ?? inner.properties?.result ?? (inner.properties as any)?.taskId;
+    const r = inner.result ?? inner.properties?.result ?? (inner.properties as any)?.taskId;
     return r != null ? String(r) : '';
   }
 
