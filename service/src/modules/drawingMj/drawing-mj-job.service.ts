@@ -1,7 +1,12 @@
+import { maskEmail } from '@/common/utils';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Request } from 'express';
+import { Brackets, In, Repository } from 'typeorm';
+import { UserEntity } from '../user/user.entity';
+import { QueryAdminDrawingMjJobsDto } from './dto/queryAdminDrawingMjJobs.dto';
 import { DrawingMjJobEntity } from './drawing-mj-job.entity';
+import { collectMjImageUrls } from './mj-task-image-urls';
 
 export interface CreateDrawingMjJobDto {
   clientKey?: number;
@@ -28,6 +33,8 @@ export class DrawingMjJobService {
   constructor(
     @InjectRepository(DrawingMjJobEntity)
     private readonly repo: Repository<DrawingMjJobEntity>,
+    @InjectRepository(UserEntity)
+    private readonly userRepo: Repository<UserEntity>,
   ) {}
 
   async listForUser(userId: number, limit: number): Promise<DrawingMjJobEntity[]> {
@@ -85,7 +92,8 @@ export class DrawingMjJobService {
         if (dto.promptLabel !== undefined) existing.promptLabel = dto.promptLabel;
         if (dto.modelKey !== undefined) existing.modelKey = dto.modelKey;
         if (dto.mjMode !== undefined) existing.mjMode = dto.mjMode;
-        if (dto.mjStyleSnapshot !== undefined) existing.mjStyleSnapshot = dto.mjStyleSnapshot ?? null;
+        if (dto.mjStyleSnapshot !== undefined)
+          existing.mjStyleSnapshot = dto.mjStyleSnapshot ?? null;
         if (dto.task !== undefined) {
           existing.taskJson = dto.task ? JSON.stringify(dto.task) : null;
         }
@@ -105,5 +113,103 @@ export class DrawingMjJobService {
       n += 1;
     }
     return n;
+  }
+
+  async delete(userId: number, id: number): Promise<void> {
+    const row = await this.repo.findOne({ where: { id, userId } });
+    if (!row) {
+      throw new NotFoundException('任务不存在');
+    }
+    await this.repo.remove(row);
+  }
+
+  /** 后台分页：关联用户、解析任务 JSON、提取预览图 URL */
+  async adminQueryJobs(params: QueryAdminDrawingMjJobsDto, req: Request) {
+    const page = Math.max(1, Number(params.page) || 1);
+    const size = Math.min(100, Math.max(1, Number(params.size) || 20));
+    const { userId, keyword, modelKey, taskId } = params;
+    const loadingRaw = params.loading;
+    let loadingFilter: boolean | undefined;
+    if (loadingRaw === '1' || loadingRaw === 'true') loadingFilter = true;
+    else if (loadingRaw === '0' || loadingRaw === 'false') loadingFilter = false;
+
+    const qb = this.repo.createQueryBuilder('j');
+    if (userId != null && String(userId).trim() !== '') {
+      const uid = Number(userId);
+      if (Number.isFinite(uid)) qb.andWhere('j.userId = :userId', { userId: uid });
+    }
+    if (modelKey != null && String(modelKey).trim() !== '') {
+      qb.andWhere('j.modelKey = :modelKey', { modelKey: String(modelKey).trim() });
+    }
+    if (taskId != null && String(taskId).trim() !== '') {
+      qb.andWhere('j.taskId = :taskId', { taskId: String(taskId).trim() });
+    }
+    if (loadingFilter !== undefined) {
+      qb.andWhere('j.loading = :loading', { loading: loadingFilter });
+    }
+    const kw = keyword != null ? String(keyword).trim() : '';
+    if (kw) {
+      const like = `%${kw}%`;
+      qb.andWhere(
+        new Brackets(w => {
+          w.where('j.promptLabel LIKE :mjKw', { mjKw: like }).orWhere('j.taskId LIKE :mjKw', {
+            mjKw: like,
+          });
+        }),
+      );
+    }
+    qb.orderBy('j.id', 'DESC')
+      .skip((page - 1) * size)
+      .take(size);
+    const [rows, count] = await qb.getManyAndCount();
+
+    const userIds = [...new Set(rows.map(r => r.userId))];
+    const users =
+      userIds.length > 0
+        ? await this.userRepo.find({
+            where: { id: In(userIds) },
+            select: ['id', 'username', 'email', 'nickname'],
+          })
+        : [];
+    const isSuper = req.user?.role === 'super';
+
+    const mapped = rows.map(item => {
+      let task: Record<string, unknown> | undefined;
+      try {
+        if (item.taskJson) task = JSON.parse(item.taskJson) as Record<string, unknown>;
+      } catch {
+        task = undefined;
+      }
+      const u = users.find(x => x.id === item.userId);
+      let email = u?.email;
+      if (!isSuper && email) email = maskEmail(email);
+      const ck = item.clientKey ? Number(item.clientKey) : undefined;
+      return {
+        id: item.id,
+        userId: item.userId,
+        username: u?.username,
+        nickname: u?.nickname,
+        email: email ?? (!u ? `${item.userId}@aiweb.com` : email),
+        clientKey: Number.isFinite(ck as number) ? ck : undefined,
+        taskId: item.taskId ?? '',
+        modelKey: item.modelKey,
+        mjMode: item.mjMode,
+        mjStyleSnapshot: item.mjStyleSnapshot ?? undefined,
+        promptLabel: item.promptLabel,
+        loading: !!item.loading,
+        error: item.error ?? undefined,
+        task,
+        imageUrls: collectMjImageUrls(task),
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+      };
+    });
+
+    mapped.forEach(t => {
+      if (!t.email && t.userId) t.email = `${t.userId}@aiweb.com`;
+      if (!t.username && t.userId) t.username = `游客${t.userId}`;
+    });
+
+    return { rows: mapped, count };
   }
 }
