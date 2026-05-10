@@ -79,6 +79,9 @@ let TransformInterceptor = class TransformInterceptor {
             if (request.path.includes('notify')) {
                 return data;
             }
+            if (data instanceof common_1.StreamableFile) {
+                return data;
+            }
             const message = response.status < 400 ? null : response.statusText;
             return result_1.Result.success(data, message);
         }), (0, rxjs_1.catchError)(error => {
@@ -237,10 +240,8 @@ let CustomLoggerService = class CustomLoggerService extends common_1.ConsoleLogg
         super.error(sanitized, trace, context);
     }
     warn(message, context) {
-        if (this.isDev) {
-            const sanitized = this.sanitizeLogMessage(message);
-            super.warn(sanitized, context);
-        }
+        const sanitized = this.sanitizeLogMessage(message);
+        super.warn(sanitized, context);
     }
     debug(message, context) {
         if (this.isDev) {
@@ -367,46 +368,52 @@ module.exports = require("@nestjs/swagger");
 /* 15 */
 /***/ ((module) => {
 
-module.exports = require("compression");
+module.exports = require("body-parser");
 
 /***/ }),
 /* 16 */
 /***/ ((module) => {
 
-module.exports = require("crypto");
+module.exports = require("compression");
 
 /***/ }),
 /* 17 */
 /***/ ((module) => {
 
-module.exports = require("dotenv");
+module.exports = require("crypto");
 
 /***/ }),
 /* 18 */
 /***/ ((module) => {
 
-module.exports = require("fs");
+module.exports = require("dotenv");
 
 /***/ }),
 /* 19 */
 /***/ ((module) => {
 
-module.exports = require("ioredis");
+module.exports = require("fs");
 
 /***/ }),
 /* 20 */
 /***/ ((module) => {
 
-module.exports = require("path");
+module.exports = require("ioredis");
 
 /***/ }),
 /* 21 */
 /***/ ((module) => {
 
-module.exports = require("reflect-metadata");
+module.exports = require("path");
 
 /***/ }),
 /* 22 */
+/***/ ((module) => {
+
+module.exports = require("reflect-metadata");
+
+/***/ }),
+/* 23 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -418,38 +425,39 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AppModule = void 0;
-const abort_interceptor_1 = __webpack_require__(23);
+const abort_interceptor_1 = __webpack_require__(24);
 const custom_logger_service_1 = __webpack_require__(8);
-const rate_limit_module_1 = __webpack_require__(25);
+const rate_limit_module_1 = __webpack_require__(26);
 const common_1 = __webpack_require__(2);
 const core_1 = __webpack_require__(13);
-const serve_static_1 = __webpack_require__(31);
-const path_1 = __webpack_require__(20);
-const app_module_1 = __webpack_require__(32);
-const auth_module_1 = __webpack_require__(119);
-const autoReply_module_1 = __webpack_require__(133);
-const badWords_module_1 = __webpack_require__(141);
-const chat_module_1 = __webpack_require__(151);
-const chatGroup_module_1 = __webpack_require__(172);
-const chatLog_module_1 = __webpack_require__(177);
-const crami_module_1 = __webpack_require__(188);
-const database_module_1 = __webpack_require__(200);
-const globalConfig_module_1 = __webpack_require__(206);
-const models_module_1 = __webpack_require__(210);
-const official_module_1 = __webpack_require__(222);
-const order_module_1 = __webpack_require__(227);
-const pay_module_1 = __webpack_require__(234);
-const plugin_module_1 = __webpack_require__(236);
-const redisCache_module_1 = __webpack_require__(26);
-const share_module_1 = __webpack_require__(239);
-const signin_module_1 = __webpack_require__(242);
-const spa_module_1 = __webpack_require__(245);
-const statistic_module_1 = __webpack_require__(247);
-const task_module_1 = __webpack_require__(251);
-const upload_module_1 = __webpack_require__(254);
-const user_module_1 = __webpack_require__(122);
-const userBalance_module_1 = __webpack_require__(257);
-const verification_module_1 = __webpack_require__(259);
+const serve_static_1 = __webpack_require__(32);
+const path_1 = __webpack_require__(21);
+const app_module_1 = __webpack_require__(33);
+const auth_module_1 = __webpack_require__(120);
+const autoReply_module_1 = __webpack_require__(134);
+const badWords_module_1 = __webpack_require__(142);
+const chat_module_1 = __webpack_require__(152);
+const drawing_mj_module_1 = __webpack_require__(169);
+const chatGroup_module_1 = __webpack_require__(181);
+const chatLog_module_1 = __webpack_require__(186);
+const crami_module_1 = __webpack_require__(197);
+const database_module_1 = __webpack_require__(209);
+const globalConfig_module_1 = __webpack_require__(215);
+const models_module_1 = __webpack_require__(219);
+const official_module_1 = __webpack_require__(231);
+const order_module_1 = __webpack_require__(236);
+const pay_module_1 = __webpack_require__(243);
+const plugin_module_1 = __webpack_require__(245);
+const redisCache_module_1 = __webpack_require__(27);
+const share_module_1 = __webpack_require__(248);
+const signin_module_1 = __webpack_require__(251);
+const spa_module_1 = __webpack_require__(254);
+const statistic_module_1 = __webpack_require__(256);
+const task_module_1 = __webpack_require__(260);
+const upload_module_1 = __webpack_require__(263);
+const user_module_1 = __webpack_require__(123);
+const userBalance_module_1 = __webpack_require__(266);
+const verification_module_1 = __webpack_require__(268);
 let AppModule = class AppModule {
     configure(consumer) {
         consumer;
@@ -496,6 +504,7 @@ exports.AppModule = AppModule = __decorate([
             auth_module_1.AuthModule,
             verification_module_1.VerificationModule,
             chat_module_1.ChatModule,
+            drawing_mj_module_1.DrawingMjModule,
             app_module_1.AppModule,
             crami_module_1.CramiModule,
             userBalance_module_1.UserBalanceModule,
@@ -529,7 +538,7 @@ exports.AppModule = AppModule = __decorate([
 
 
 /***/ }),
-/* 23 */
+/* 24 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -542,7 +551,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AbortInterceptor = void 0;
 const common_1 = __webpack_require__(2);
-const abort_controller_1 = __webpack_require__(24);
+const abort_controller_1 = __webpack_require__(25);
 let AbortInterceptor = class AbortInterceptor {
     intercept(context, next) {
         const request = context.switchToHttp().getRequest();
@@ -558,13 +567,13 @@ exports.AbortInterceptor = AbortInterceptor = __decorate([
 
 
 /***/ }),
-/* 24 */
+/* 25 */
 /***/ ((module) => {
 
 module.exports = require("abort-controller");
 
 /***/ }),
-/* 25 */
+/* 26 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -581,9 +590,9 @@ var _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.RateLimitModule = void 0;
 const common_1 = __webpack_require__(2);
-const redisCache_module_1 = __webpack_require__(26);
-const rate_limit_middleware_1 = __webpack_require__(29);
-const rate_limit_service_1 = __webpack_require__(30);
+const redisCache_module_1 = __webpack_require__(27);
+const rate_limit_middleware_1 = __webpack_require__(30);
+const rate_limit_service_1 = __webpack_require__(31);
 let RateLimitModule = class RateLimitModule {
     rateLimitService;
     constructor(rateLimitService) {
@@ -609,7 +618,7 @@ exports.RateLimitModule = RateLimitModule = __decorate([
 
 
 /***/ }),
-/* 26 */
+/* 27 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -622,8 +631,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.RedisCacheModule = void 0;
 const common_1 = __webpack_require__(2);
-const redis_1 = __webpack_require__(27);
-const redisCache_service_1 = __webpack_require__(28);
+const redis_1 = __webpack_require__(28);
+const redisCache_service_1 = __webpack_require__(29);
 let RedisCacheModule = class RedisCacheModule {
 };
 exports.RedisCacheModule = RedisCacheModule;
@@ -671,13 +680,13 @@ exports.RedisCacheModule = RedisCacheModule = __decorate([
 
 
 /***/ }),
-/* 27 */
+/* 28 */
 /***/ ((module) => {
 
 module.exports = require("redis");
 
 /***/ }),
-/* 28 */
+/* 29 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -697,7 +706,7 @@ var _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.RedisCacheService = void 0;
 const common_1 = __webpack_require__(2);
-const redis_1 = __webpack_require__(27);
+const redis_1 = __webpack_require__(28);
 let RedisCacheService = class RedisCacheService {
     redisClient;
     constructor(redisClient) {
@@ -800,7 +809,7 @@ exports.RedisCacheService = RedisCacheService = __decorate([
 
 
 /***/ }),
-/* 29 */
+/* 30 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -817,8 +826,8 @@ var _a, _b;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.RateLimitMiddleware = void 0;
 const common_1 = __webpack_require__(2);
-const redisCache_service_1 = __webpack_require__(28);
-const rate_limit_service_1 = __webpack_require__(30);
+const redisCache_service_1 = __webpack_require__(29);
+const rate_limit_service_1 = __webpack_require__(31);
 let RateLimitMiddleware = class RateLimitMiddleware {
     redisCacheService;
     rateLimitService;
@@ -904,7 +913,7 @@ exports.RateLimitMiddleware = RateLimitMiddleware = __decorate([
 
 
 /***/ }),
-/* 30 */
+/* 31 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -986,13 +995,13 @@ exports.RateLimitService = RateLimitService = __decorate([
 
 
 /***/ }),
-/* 31 */
+/* 32 */
 /***/ ((module) => {
 
 module.exports = require("@nestjs/serve-static");
 
 /***/ }),
-/* 32 */
+/* 33 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -1005,13 +1014,13 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AppModule = void 0;
 const common_1 = __webpack_require__(2);
-const typeorm_1 = __webpack_require__(33);
-const userBalance_service_1 = __webpack_require__(34);
-const app_controller_1 = __webpack_require__(85);
-const app_entity_1 = __webpack_require__(106);
-const app_service_1 = __webpack_require__(105);
-const appCats_entity_1 = __webpack_require__(107);
-const userApps_entity_1 = __webpack_require__(108);
+const typeorm_1 = __webpack_require__(34);
+const userBalance_service_1 = __webpack_require__(35);
+const app_controller_1 = __webpack_require__(86);
+const app_entity_1 = __webpack_require__(107);
+const app_service_1 = __webpack_require__(106);
+const appCats_entity_1 = __webpack_require__(108);
+const userApps_entity_1 = __webpack_require__(109);
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -1025,13 +1034,13 @@ exports.AppModule = AppModule = __decorate([
 
 
 /***/ }),
-/* 33 */
+/* 34 */
 /***/ ((module) => {
 
 module.exports = require("@nestjs/typeorm");
 
 /***/ }),
-/* 34 */
+/* 35 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -1050,22 +1059,22 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UserBalanceService = void 0;
-const balance_constant_1 = __webpack_require__(35);
-const utils_1 = __webpack_require__(36);
+const balance_constant_1 = __webpack_require__(36);
+const utils_1 = __webpack_require__(37);
 const common_1 = __webpack_require__(2);
-const typeorm_1 = __webpack_require__(33);
+const typeorm_1 = __webpack_require__(34);
 const typeorm_2 = __webpack_require__(3);
-const cramiPackage_entity_1 = __webpack_require__(71);
-const config_entity_1 = __webpack_require__(73);
-const globalConfig_service_1 = __webpack_require__(74);
-const accountLog_entity_1 = __webpack_require__(79);
-const balance_entity_1 = __webpack_require__(80);
-const userBalance_entity_1 = __webpack_require__(81);
-const date_1 = __webpack_require__(47);
-const chatGroup_entity_1 = __webpack_require__(82);
-const chatLog_entity_1 = __webpack_require__(75);
-const user_entity_1 = __webpack_require__(83);
-const fingerprint_entity_1 = __webpack_require__(84);
+const cramiPackage_entity_1 = __webpack_require__(72);
+const config_entity_1 = __webpack_require__(74);
+const globalConfig_service_1 = __webpack_require__(75);
+const accountLog_entity_1 = __webpack_require__(80);
+const balance_entity_1 = __webpack_require__(81);
+const userBalance_entity_1 = __webpack_require__(82);
+const date_1 = __webpack_require__(48);
+const chatGroup_entity_1 = __webpack_require__(83);
+const chatLog_entity_1 = __webpack_require__(76);
+const user_entity_1 = __webpack_require__(84);
+const fingerprint_entity_1 = __webpack_require__(85);
 let UserBalanceService = class UserBalanceService {
     balanceEntity;
     userBalanceEntity;
@@ -1647,7 +1656,7 @@ exports.UserBalanceService = UserBalanceService = __decorate([
 
 
 /***/ }),
-/* 35 */
+/* 36 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -1671,7 +1680,7 @@ exports.RechargeType = {
 
 
 /***/ }),
-/* 36 */
+/* 37 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -1690,15 +1699,14 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-__exportStar(__webpack_require__(37), exports);
 __exportStar(__webpack_require__(38), exports);
-__exportStar(__webpack_require__(40), exports);
-__exportStar(__webpack_require__(42), exports);
+__exportStar(__webpack_require__(39), exports);
+__exportStar(__webpack_require__(41), exports);
 __exportStar(__webpack_require__(43), exports);
 __exportStar(__webpack_require__(44), exports);
 __exportStar(__webpack_require__(45), exports);
-__exportStar(__webpack_require__(47), exports);
-__exportStar(__webpack_require__(52), exports);
+__exportStar(__webpack_require__(46), exports);
+__exportStar(__webpack_require__(48), exports);
 __exportStar(__webpack_require__(53), exports);
 __exportStar(__webpack_require__(54), exports);
 __exportStar(__webpack_require__(55), exports);
@@ -1706,7 +1714,7 @@ __exportStar(__webpack_require__(56), exports);
 __exportStar(__webpack_require__(57), exports);
 __exportStar(__webpack_require__(58), exports);
 __exportStar(__webpack_require__(59), exports);
-__exportStar(__webpack_require__(61), exports);
+__exportStar(__webpack_require__(60), exports);
 __exportStar(__webpack_require__(62), exports);
 __exportStar(__webpack_require__(63), exports);
 __exportStar(__webpack_require__(64), exports);
@@ -1716,17 +1724,18 @@ __exportStar(__webpack_require__(67), exports);
 __exportStar(__webpack_require__(68), exports);
 __exportStar(__webpack_require__(69), exports);
 __exportStar(__webpack_require__(70), exports);
+__exportStar(__webpack_require__(71), exports);
 
 
 /***/ }),
-/* 37 */
+/* 38 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.encrypt = encrypt;
 exports.decrypt = decrypt;
-const crypto = __webpack_require__(16);
+const crypto = __webpack_require__(17);
 const encryptionKey = 'bf3c116f2470cb4che9071240917c171';
 const initializationVector = '518363fh72eec1v4';
 const algorithm = 'aes-256-cbc';
@@ -1750,14 +1759,14 @@ function decrypt(text) {
 
 
 /***/ }),
-/* 38 */
+/* 39 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.convertUrlToBase64 = convertUrlToBase64;
 const common_1 = __webpack_require__(2);
-const axios_1 = __webpack_require__(39);
+const axios_1 = __webpack_require__(40);
 async function convertUrlToBase64(url) {
     try {
         const response = await axios_1.default.get(url, { responseType: 'arraybuffer' });
@@ -1773,32 +1782,32 @@ async function convertUrlToBase64(url) {
 
 
 /***/ }),
-/* 39 */
+/* 40 */
 /***/ ((module) => {
 
 module.exports = require("axios");
 
 /***/ }),
-/* 40 */
+/* 41 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.createOrderId = createOrderId;
-const uuid_1 = __webpack_require__(41);
+const uuid_1 = __webpack_require__(42);
 function createOrderId() {
     return (0, uuid_1.v1)().toString().replace(/-/g, '');
 }
 
 
 /***/ }),
-/* 41 */
+/* 42 */
 /***/ ((module) => {
 
 module.exports = require("uuid");
 
 /***/ }),
-/* 42 */
+/* 43 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -1812,7 +1821,7 @@ function createRandomCode() {
 
 
 /***/ }),
-/* 43 */
+/* 44 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -1831,7 +1840,7 @@ function generateRandomString() {
 
 
 /***/ }),
-/* 44 */
+/* 45 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -1848,13 +1857,13 @@ function createRandomNonceStr(len) {
 
 
 /***/ }),
-/* 45 */
+/* 46 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.createRandomUid = createRandomUid;
-const guid_typescript_1 = __webpack_require__(46);
+const guid_typescript_1 = __webpack_require__(47);
 function createRandomUid() {
     const uuid = guid_typescript_1.Guid.create();
     return uuid.toString().substr(0, 10).replace('-', '');
@@ -1862,13 +1871,13 @@ function createRandomUid() {
 
 
 /***/ }),
-/* 46 */
+/* 47 */
 /***/ ((module) => {
 
 module.exports = require("guid-typescript");
 
 /***/ }),
-/* 47 */
+/* 48 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -1876,10 +1885,10 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.formatDate = formatDate;
 exports.formatCreateOrUpdateDate = formatCreateOrUpdateDate;
 exports.isExpired = isExpired;
-const dayjs = __webpack_require__(48);
-__webpack_require__(49);
-const b = __webpack_require__(50);
-const a = __webpack_require__(51);
+const dayjs = __webpack_require__(49);
+__webpack_require__(50);
+const b = __webpack_require__(51);
+const a = __webpack_require__(52);
 dayjs.locale('zh-cn');
 dayjs.extend(a);
 dayjs.extend(b);
@@ -1915,31 +1924,31 @@ exports["default"] = dayjs;
 
 
 /***/ }),
-/* 48 */
+/* 49 */
 /***/ ((module) => {
 
 module.exports = require("dayjs");
 
 /***/ }),
-/* 49 */
+/* 50 */
 /***/ ((module) => {
 
 module.exports = require("dayjs/locale/zh-cn");
 
 /***/ }),
-/* 50 */
+/* 51 */
 /***/ ((module) => {
 
 module.exports = require("dayjs/plugin/timezone");
 
 /***/ }),
-/* 51 */
+/* 52 */
 /***/ ((module) => {
 
 module.exports = require("dayjs/plugin/utc");
 
 /***/ }),
-/* 52 */
+/* 53 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -1959,7 +1968,7 @@ exports.copyRightMsg = [
 
 
 /***/ }),
-/* 53 */
+/* 54 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -1975,13 +1984,13 @@ function formatUrl(url) {
 
 
 /***/ }),
-/* 54 */
+/* 55 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.generateCramiCode = generateCramiCode;
-const uuid_1 = __webpack_require__(41);
+const uuid_1 = __webpack_require__(42);
 function generateCramiCode() {
     const code = (0, uuid_1.v4)().replace(/-/g, '').slice(0, 16);
     return code;
@@ -1989,7 +1998,7 @@ function generateCramiCode() {
 
 
 /***/ }),
-/* 55 */
+/* 56 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -2016,7 +2025,7 @@ function getClientIp(req) {
 
 
 /***/ }),
-/* 56 */
+/* 57 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -2036,7 +2045,7 @@ function getDiffArray(aLength, bLength, str) {
 
 
 /***/ }),
-/* 57 */
+/* 58 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -2049,7 +2058,7 @@ function getRandomItem(array) {
 
 
 /***/ }),
-/* 58 */
+/* 59 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -2065,13 +2074,13 @@ function getRandomItemFromArray(array) {
 
 
 /***/ }),
-/* 59 */
+/* 60 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getTokenCount = void 0;
-const gpt_tokenizer_1 = __webpack_require__(60);
+const gpt_tokenizer_1 = __webpack_require__(61);
 const getTokenCount = async (input) => {
     let text = '';
     if (Array.isArray(input)) {
@@ -2101,19 +2110,19 @@ exports.getTokenCount = getTokenCount;
 
 
 /***/ }),
-/* 60 */
+/* 61 */
 /***/ ((module) => {
 
 module.exports = require("gpt-tokenizer");
 
 /***/ }),
-/* 61 */
+/* 62 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.handleError = handleError;
-const axios_1 = __webpack_require__(39);
+const axios_1 = __webpack_require__(40);
 function handleError(error) {
     let message = '发生未知错误，请稍后再试';
     if (axios_1.default.isAxiosError(error) && error.response) {
@@ -2153,7 +2162,7 @@ function handleError(error) {
 
 
 /***/ }),
-/* 62 */
+/* 63 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -2172,7 +2181,7 @@ function hideString(input, str) {
 
 
 /***/ }),
-/* 63 */
+/* 64 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -2188,7 +2197,7 @@ function maskCrami(str) {
 
 
 /***/ }),
-/* 64 */
+/* 65 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -2209,7 +2218,7 @@ function maskEmail(email) {
 
 
 /***/ }),
-/* 65 */
+/* 66 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -2225,7 +2234,7 @@ function maskIpAddress(ipAddress) {
 
 
 /***/ }),
-/* 66 */
+/* 67 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -2237,7 +2246,7 @@ function removeSpecialCharacters(inputString) {
 
 
 /***/ }),
-/* 67 */
+/* 68 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -2263,7 +2272,7 @@ function removeThinkTags(content) {
 
 
 /***/ }),
-/* 68 */
+/* 69 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -2277,7 +2286,7 @@ exports.importDynamic = new Function('modulePath', 'return import(modulePath)');
 
 
 /***/ }),
-/* 69 */
+/* 70 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -2298,7 +2307,7 @@ function utcToShanghaiTime(utcTime, format = 'YYYY/MM/DD hh:mm:ss') {
 
 
 /***/ }),
-/* 70 */
+/* 71 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -2319,7 +2328,7 @@ async function correctApiBaseUrl(baseUrl) {
 
 
 /***/ }),
-/* 71 */
+/* 72 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -2334,7 +2343,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CramiPackageEntity = void 0;
-const baseEntity_1 = __webpack_require__(72);
+const baseEntity_1 = __webpack_require__(73);
 const typeorm_1 = __webpack_require__(3);
 let CramiPackageEntity = class CramiPackageEntity extends baseEntity_1.BaseEntity {
     name;
@@ -2408,7 +2417,7 @@ exports.CramiPackageEntity = CramiPackageEntity = __decorate([
 
 
 /***/ }),
-/* 72 */
+/* 73 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -2472,7 +2481,7 @@ exports.BaseEntity = BaseEntity = __decorate([
 
 
 /***/ }),
-/* 73 */
+/* 74 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -2487,7 +2496,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ConfigEntity = void 0;
-const baseEntity_1 = __webpack_require__(72);
+const baseEntity_1 = __webpack_require__(73);
 const typeorm_1 = __webpack_require__(3);
 let ConfigEntity = class ConfigEntity extends baseEntity_1.BaseEntity {
     configKey;
@@ -2529,7 +2538,7 @@ exports.ConfigEntity = ConfigEntity = __decorate([
 
 
 /***/ }),
-/* 74 */
+/* 75 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -2548,15 +2557,15 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var _a, _b, _c;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.GlobalConfigService = void 0;
-const utils_1 = __webpack_require__(36);
+const utils_1 = __webpack_require__(37);
 const common_1 = __webpack_require__(2);
-const typeorm_1 = __webpack_require__(33);
-const axios_1 = __webpack_require__(39);
-const fs = __webpack_require__(18);
+const typeorm_1 = __webpack_require__(34);
+const axios_1 = __webpack_require__(40);
+const fs = __webpack_require__(19);
 const typeorm_2 = __webpack_require__(3);
-const chatLog_entity_1 = __webpack_require__(75);
-const models_service_1 = __webpack_require__(76);
-const config_entity_1 = __webpack_require__(73);
+const chatLog_entity_1 = __webpack_require__(76);
+const models_service_1 = __webpack_require__(77);
+const config_entity_1 = __webpack_require__(74);
 const packageJsonContent = fs.readFileSync('package.json', 'utf-8');
 const packageJson = JSON.parse(packageJsonContent);
 const version = packageJson.version;
@@ -3091,7 +3100,7 @@ exports.GlobalConfigService = GlobalConfigService = __decorate([
 
 
 /***/ }),
-/* 75 */
+/* 76 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -3106,7 +3115,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ChatLogEntity = void 0;
-const baseEntity_1 = __webpack_require__(72);
+const baseEntity_1 = __webpack_require__(73);
 const typeorm_1 = __webpack_require__(3);
 let ChatLogEntity = class ChatLogEntity extends baseEntity_1.BaseEntity {
     userId;
@@ -3306,7 +3315,7 @@ exports.ChatLogEntity = ChatLogEntity = __decorate([
 
 
 /***/ }),
-/* 76 */
+/* 77 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -3325,12 +3334,12 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ModelsService = void 0;
-const status_constant_1 = __webpack_require__(77);
-const utils_1 = __webpack_require__(36);
+const status_constant_1 = __webpack_require__(78);
+const utils_1 = __webpack_require__(37);
 const common_1 = __webpack_require__(2);
-const typeorm_1 = __webpack_require__(33);
+const typeorm_1 = __webpack_require__(34);
 const typeorm_2 = __webpack_require__(3);
-const models_entity_1 = __webpack_require__(78);
+const models_entity_1 = __webpack_require__(79);
 let ModelsService = class ModelsService {
     modelsEntity;
     constructor(modelsEntity) {
@@ -3617,6 +3626,9 @@ let ModelsService = class ModelsService {
                 systemPrompt: modelDetail.systemPrompt,
                 systemPromptType: modelDetail.systemPromptType,
                 drawingType: modelDetail.drawingType,
+                deductMjRelax: modelDetail.deductMjRelax,
+                deductMjFast: modelDetail.deductMjFast,
+                deductMjTurbo: modelDetail.deductMjTurbo,
             };
         }
         catch (error) {
@@ -3626,6 +3638,34 @@ let ModelsService = class ModelsService {
             common_1.Logger.error(`获取模型详情失败: ${error.message}`, 'ModelsService');
             throw new common_1.HttpException('获取模型详情失败', common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
+    }
+    async drawingModelsList() {
+        const rows = await this.modelsEntity.find({
+            order: { modelOrder: 'ASC' },
+        });
+        const list = rows
+            .filter(t => t.status === true && t.drawingType != null && Number(t.drawingType) > 0)
+            .map(t => ({
+            modelName: t.modelName,
+            keyType: t.keyType,
+            model: t.model,
+            deduct: t.deduct,
+            deductMjRelax: t.deductMjRelax,
+            deductMjFast: t.deductMjFast,
+            deductMjTurbo: t.deductMjTurbo,
+            deductType: t.deductType,
+            maxRounds: t.maxRounds,
+            modelAvatar: t.modelAvatar,
+            modelDescription: t.modelDescription,
+            isFileUpload: t.isFileUpload,
+            isImageUpload: t.isImageUpload,
+            isNetworkSearch: t.isNetworkSearch,
+            deepThinkingType: t.deepThinkingType,
+            deductDeepThink: t.deductDeepThink,
+            isMcpTool: t.isMcpTool,
+            drawingType: t.drawingType,
+        }));
+        return { list };
     }
 };
 exports.ModelsService = ModelsService;
@@ -3637,7 +3677,7 @@ exports.ModelsService = ModelsService = __decorate([
 
 
 /***/ }),
-/* 77 */
+/* 78 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -3656,7 +3696,7 @@ exports.ModelsMapCn = {
 
 
 /***/ }),
-/* 78 */
+/* 79 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -3671,7 +3711,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ModelsEntity = void 0;
-const baseEntity_1 = __webpack_require__(72);
+const baseEntity_1 = __webpack_require__(73);
 const typeorm_1 = __webpack_require__(3);
 let ModelsEntity = class ModelsEntity extends baseEntity_1.BaseEntity {
     keyType;
@@ -3684,6 +3724,9 @@ let ModelsEntity = class ModelsEntity extends baseEntity_1.BaseEntity {
     maxRounds;
     timeout;
     deduct;
+    deductMjRelax;
+    deductMjFast;
+    deductMjTurbo;
     deductDeepThink;
     deductType;
     isTokenBased;
@@ -3750,6 +3793,18 @@ __decorate([
     (0, typeorm_1.Column)({ comment: '模型单次调用扣除的次数', default: 1 }),
     __metadata("design:type", Number)
 ], ModelsEntity.prototype, "deduct", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'double', comment: 'MJ慢速(relax)单次扣除，空则同deduct', nullable: true }),
+    __metadata("design:type", Number)
+], ModelsEntity.prototype, "deductMjRelax", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'double', comment: 'MJ快速(fast)单次扣除，空则同deduct', nullable: true }),
+    __metadata("design:type", Number)
+], ModelsEntity.prototype, "deductMjFast", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'double', comment: 'MJ极速(turbo)单次扣除，空则同deduct', nullable: true }),
+    __metadata("design:type", Number)
+], ModelsEntity.prototype, "deductMjTurbo", void 0);
 __decorate([
     (0, typeorm_1.Column)({ comment: '模型开启深度思考后积分扣除的系数', default: 1 }),
     __metadata("design:type", Number)
@@ -3850,7 +3905,7 @@ exports.ModelsEntity = ModelsEntity = __decorate([
 
 
 /***/ }),
-/* 79 */
+/* 80 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -3865,7 +3920,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AccountLogEntity = void 0;
-const baseEntity_1 = __webpack_require__(72);
+const baseEntity_1 = __webpack_require__(73);
 const typeorm_1 = __webpack_require__(3);
 let AccountLogEntity = class AccountLogEntity extends baseEntity_1.BaseEntity {
     userId;
@@ -3936,7 +3991,7 @@ exports.AccountLogEntity = AccountLogEntity = __decorate([
 
 
 /***/ }),
-/* 80 */
+/* 81 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -3952,7 +4007,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BalanceEntity = void 0;
 const typeorm_1 = __webpack_require__(3);
-const baseEntity_1 = __webpack_require__(72);
+const baseEntity_1 = __webpack_require__(73);
 let BalanceEntity = class BalanceEntity extends baseEntity_1.BaseEntity {
     userId;
     balance;
@@ -3997,7 +4052,7 @@ exports.BalanceEntity = BalanceEntity = __decorate([
 
 
 /***/ }),
-/* 81 */
+/* 82 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -4013,7 +4068,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UserBalanceEntity = void 0;
-const baseEntity_1 = __webpack_require__(72);
+const baseEntity_1 = __webpack_require__(73);
 const typeorm_1 = __webpack_require__(3);
 let UserBalanceEntity = class UserBalanceEntity extends baseEntity_1.BaseEntity {
     userId;
@@ -4104,7 +4159,7 @@ exports.UserBalanceEntity = UserBalanceEntity = __decorate([
 
 
 /***/ }),
-/* 82 */
+/* 83 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -4119,7 +4174,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ChatGroupEntity = void 0;
-const baseEntity_1 = __webpack_require__(72);
+const baseEntity_1 = __webpack_require__(73);
 const typeorm_1 = __webpack_require__(3);
 let ChatGroupEntity = class ChatGroupEntity extends baseEntity_1.BaseEntity {
     userId;
@@ -4175,7 +4230,7 @@ exports.ChatGroupEntity = ChatGroupEntity = __decorate([
 
 
 /***/ }),
-/* 83 */
+/* 84 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -4190,7 +4245,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UserEntity = void 0;
-const baseEntity_1 = __webpack_require__(72);
+const baseEntity_1 = __webpack_require__(73);
 const typeorm_1 = __webpack_require__(3);
 let UserEntity = class UserEntity extends baseEntity_1.BaseEntity {
     username;
@@ -4321,7 +4376,7 @@ exports.UserEntity = UserEntity = __decorate([
 
 
 /***/ }),
-/* 84 */
+/* 85 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -4337,7 +4392,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FingerprintLogEntity = void 0;
 const typeorm_1 = __webpack_require__(3);
-const baseEntity_1 = __webpack_require__(72);
+const baseEntity_1 = __webpack_require__(73);
 let FingerprintLogEntity = class FingerprintLogEntity extends baseEntity_1.BaseEntity {
     fingerprint;
     model3Count;
@@ -4367,7 +4422,7 @@ exports.FingerprintLogEntity = FingerprintLogEntity = __decorate([
 
 
 /***/ }),
-/* 85 */
+/* 86 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -4386,22 +4441,22 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AppController = void 0;
-const adminAuth_guard_1 = __webpack_require__(86);
-const jwtAuth_guard_1 = __webpack_require__(87);
-const superAuth_guard_1 = __webpack_require__(103);
+const adminAuth_guard_1 = __webpack_require__(87);
+const jwtAuth_guard_1 = __webpack_require__(88);
+const superAuth_guard_1 = __webpack_require__(104);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
-const express_1 = __webpack_require__(104);
-const app_service_1 = __webpack_require__(105);
-const collectApp_dto_1 = __webpack_require__(109);
-const createApp_dto_1 = __webpack_require__(111);
-const createCats_dto_1 = __webpack_require__(112);
-const deleteApp_dto_1 = __webpack_require__(113);
-const deleteCats_dto_1 = __webpack_require__(114);
-const queryApp_dto_1 = __webpack_require__(115);
-const queryCats_dto_1 = __webpack_require__(116);
-const updateApp_dto_1 = __webpack_require__(117);
-const updateCats_dto_1 = __webpack_require__(118);
+const express_1 = __webpack_require__(105);
+const app_service_1 = __webpack_require__(106);
+const collectApp_dto_1 = __webpack_require__(110);
+const createApp_dto_1 = __webpack_require__(112);
+const createCats_dto_1 = __webpack_require__(113);
+const deleteApp_dto_1 = __webpack_require__(114);
+const deleteCats_dto_1 = __webpack_require__(115);
+const queryApp_dto_1 = __webpack_require__(116);
+const queryCats_dto_1 = __webpack_require__(117);
+const updateApp_dto_1 = __webpack_require__(118);
+const updateCats_dto_1 = __webpack_require__(119);
 let AppController = class AppController {
     appService;
     constructor(appService) {
@@ -4607,7 +4662,7 @@ exports.AppController = AppController = __decorate([
 
 
 /***/ }),
-/* 86 */
+/* 87 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -4620,7 +4675,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AdminAuthGuard = void 0;
 const common_1 = __webpack_require__(2);
-const jwtAuth_guard_1 = __webpack_require__(87);
+const jwtAuth_guard_1 = __webpack_require__(88);
 let AdminAuthGuard = class AdminAuthGuard extends jwtAuth_guard_1.JwtAuthGuard {
     async canActivate(context) {
         const isAuthorized = await super.canActivate(context);
@@ -4644,7 +4699,7 @@ exports.AdminAuthGuard = AdminAuthGuard = __decorate([
 
 
 /***/ }),
-/* 87 */
+/* 88 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -4660,13 +4715,13 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var _a, _b, _c, _d;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.JwtAuthGuard = void 0;
-const globalConfig_service_1 = __webpack_require__(74);
-const redisCache_service_1 = __webpack_require__(28);
+const globalConfig_service_1 = __webpack_require__(75);
+const redisCache_service_1 = __webpack_require__(29);
 const common_1 = __webpack_require__(2);
 const core_1 = __webpack_require__(13);
-const passport_1 = __webpack_require__(88);
-const jwt = __webpack_require__(89);
-const auth_service_1 = __webpack_require__(90);
+const passport_1 = __webpack_require__(89);
+const jwt = __webpack_require__(90);
+const auth_service_1 = __webpack_require__(91);
 let JwtAuthGuard = class JwtAuthGuard extends (0, passport_1.AuthGuard)('jwt') {
     redisCacheService;
     moduleRef;
@@ -4738,19 +4793,19 @@ exports.JwtAuthGuard = JwtAuthGuard = __decorate([
 
 
 /***/ }),
-/* 88 */
+/* 89 */
 /***/ ((module) => {
 
 module.exports = require("@nestjs/passport");
 
 /***/ }),
-/* 89 */
+/* 90 */
 /***/ ((module) => {
 
 module.exports = require("jsonwebtoken");
 
 /***/ }),
-/* 90 */
+/* 91 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -4769,21 +4824,21 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var _a, _b, _c, _d, _e, _f, _g, _h;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AuthService = void 0;
-const user_constant_1 = __webpack_require__(91);
-const utils_1 = __webpack_require__(36);
-const globalConfig_service_1 = __webpack_require__(74);
+const user_constant_1 = __webpack_require__(92);
+const utils_1 = __webpack_require__(37);
+const globalConfig_service_1 = __webpack_require__(75);
 const common_1 = __webpack_require__(2);
-const jwt_1 = __webpack_require__(92);
-const typeorm_1 = __webpack_require__(33);
-const bcrypt = __webpack_require__(93);
-const os = __webpack_require__(94);
+const jwt_1 = __webpack_require__(93);
+const typeorm_1 = __webpack_require__(34);
+const bcrypt = __webpack_require__(94);
+const os = __webpack_require__(95);
 const typeorm_2 = __webpack_require__(3);
-const config_entity_1 = __webpack_require__(73);
-const mailer_service_1 = __webpack_require__(95);
-const redisCache_service_1 = __webpack_require__(28);
-const user_service_1 = __webpack_require__(97);
-const userBalance_service_1 = __webpack_require__(34);
-const verification_service_1 = __webpack_require__(100);
+const config_entity_1 = __webpack_require__(74);
+const mailer_service_1 = __webpack_require__(96);
+const redisCache_service_1 = __webpack_require__(29);
+const user_service_1 = __webpack_require__(98);
+const userBalance_service_1 = __webpack_require__(35);
+const verification_service_1 = __webpack_require__(101);
 let AuthService = class AuthService {
     configEntity;
     userService;
@@ -5151,7 +5206,7 @@ exports.AuthService = AuthService = __decorate([
 
 
 /***/ }),
-/* 91 */
+/* 92 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -5173,25 +5228,25 @@ exports.UserStatusErrMsg = {
 
 
 /***/ }),
-/* 92 */
+/* 93 */
 /***/ ((module) => {
 
 module.exports = require("@nestjs/jwt");
 
 /***/ }),
-/* 93 */
+/* 94 */
 /***/ ((module) => {
 
 module.exports = require("bcryptjs");
 
 /***/ }),
-/* 94 */
+/* 95 */
 /***/ ((module) => {
 
 module.exports = require("os");
 
 /***/ }),
-/* 95 */
+/* 96 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -5208,8 +5263,8 @@ var _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.MailerService = void 0;
 const common_1 = __webpack_require__(2);
-const nodemailer = __webpack_require__(96);
-const globalConfig_service_1 = __webpack_require__(74);
+const nodemailer = __webpack_require__(97);
+const globalConfig_service_1 = __webpack_require__(75);
 let MailerService = class MailerService {
     globalConfigService;
     constructor(globalConfigService) {
@@ -5267,13 +5322,13 @@ exports.MailerService = MailerService = __decorate([
 
 
 /***/ }),
-/* 96 */
+/* 97 */
 /***/ ((module) => {
 
 module.exports = require("nodemailer");
 
 /***/ }),
-/* 97 */
+/* 98 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -5292,21 +5347,21 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var _a, _b, _c, _d, _e, _f, _g;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UserService = void 0;
-const balance_constant_1 = __webpack_require__(35);
-const verification_constant_1 = __webpack_require__(98);
-const utils_1 = __webpack_require__(36);
-const mailer_service_1 = __webpack_require__(95);
+const balance_constant_1 = __webpack_require__(36);
+const verification_constant_1 = __webpack_require__(99);
+const utils_1 = __webpack_require__(37);
+const mailer_service_1 = __webpack_require__(96);
 const common_1 = __webpack_require__(2);
-const typeorm_1 = __webpack_require__(33);
-const bcrypt = __webpack_require__(93);
-const _ = __webpack_require__(99);
+const typeorm_1 = __webpack_require__(34);
+const bcrypt = __webpack_require__(94);
+const _ = __webpack_require__(100);
 const typeorm_2 = __webpack_require__(3);
-const config_entity_1 = __webpack_require__(73);
-const userBalance_service_1 = __webpack_require__(34);
-const user_constant_1 = __webpack_require__(91);
-const globalConfig_service_1 = __webpack_require__(74);
-const verification_service_1 = __webpack_require__(100);
-const user_entity_1 = __webpack_require__(83);
+const config_entity_1 = __webpack_require__(74);
+const userBalance_service_1 = __webpack_require__(35);
+const user_constant_1 = __webpack_require__(92);
+const globalConfig_service_1 = __webpack_require__(75);
+const verification_service_1 = __webpack_require__(101);
+const user_entity_1 = __webpack_require__(84);
 let UserService = class UserService {
     userEntity;
     connection;
@@ -5865,7 +5920,7 @@ exports.UserService = UserService = __decorate([
 
 
 /***/ }),
-/* 98 */
+/* 99 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -5880,13 +5935,13 @@ var VerificationEnum;
 
 
 /***/ }),
-/* 99 */
+/* 100 */
 /***/ ((module) => {
 
 module.exports = require("lodash");
 
 /***/ }),
-/* 100 */
+/* 101 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -5905,16 +5960,16 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var _a, _b, _c;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VerificationService = void 0;
-const utils_1 = __webpack_require__(36);
-const globalConfig_service_1 = __webpack_require__(74);
+const utils_1 = __webpack_require__(37);
+const globalConfig_service_1 = __webpack_require__(75);
 const common_1 = __webpack_require__(2);
-const typeorm_1 = __webpack_require__(33);
+const typeorm_1 = __webpack_require__(34);
 const typeorm_2 = __webpack_require__(3);
-const redisCache_service_1 = __webpack_require__(28);
-const status_constant_1 = __webpack_require__(77);
-const verification_entity_1 = __webpack_require__(101);
-const Core = __webpack_require__(102);
-const axios_1 = __webpack_require__(39);
+const redisCache_service_1 = __webpack_require__(29);
+const status_constant_1 = __webpack_require__(78);
+const verification_entity_1 = __webpack_require__(102);
+const Core = __webpack_require__(103);
+const axios_1 = __webpack_require__(40);
 let VerificationService = class VerificationService {
     verificationEntity;
     globalConfigService;
@@ -6042,7 +6097,7 @@ exports.VerificationService = VerificationService = __decorate([
 
 
 /***/ }),
-/* 101 */
+/* 102 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -6058,7 +6113,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VerificationEntity = void 0;
-const baseEntity_1 = __webpack_require__(72);
+const baseEntity_1 = __webpack_require__(73);
 const typeorm_1 = __webpack_require__(3);
 let VerificationEntity = class VerificationEntity extends baseEntity_1.BaseEntity {
     userId;
@@ -6099,13 +6154,13 @@ exports.VerificationEntity = VerificationEntity = __decorate([
 
 
 /***/ }),
-/* 102 */
+/* 103 */
 /***/ ((module) => {
 
 module.exports = require("@alicloud/pop-core");
 
 /***/ }),
-/* 103 */
+/* 104 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -6118,7 +6173,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.SuperAuthGuard = void 0;
 const common_1 = __webpack_require__(2);
-const jwtAuth_guard_1 = __webpack_require__(87);
+const jwtAuth_guard_1 = __webpack_require__(88);
 let SuperAuthGuard = class SuperAuthGuard extends jwtAuth_guard_1.JwtAuthGuard {
     async canActivate(context) {
         const isAuthorized = await super.canActivate(context);
@@ -6142,13 +6197,13 @@ exports.SuperAuthGuard = SuperAuthGuard = __decorate([
 
 
 /***/ }),
-/* 104 */
+/* 105 */
 /***/ ((module) => {
 
 module.exports = require("express");
 
 /***/ }),
-/* 105 */
+/* 106 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -6168,12 +6223,12 @@ var _a, _b, _c, _d;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AppService = void 0;
 const common_1 = __webpack_require__(2);
-const typeorm_1 = __webpack_require__(33);
+const typeorm_1 = __webpack_require__(34);
 const typeorm_2 = __webpack_require__(3);
-const userBalance_service_1 = __webpack_require__(34);
-const app_entity_1 = __webpack_require__(106);
-const appCats_entity_1 = __webpack_require__(107);
-const userApps_entity_1 = __webpack_require__(108);
+const userBalance_service_1 = __webpack_require__(35);
+const app_entity_1 = __webpack_require__(107);
+const appCats_entity_1 = __webpack_require__(108);
+const userApps_entity_1 = __webpack_require__(109);
 let AppService = class AppService {
     appCatsEntity;
     appEntity;
@@ -6733,7 +6788,7 @@ exports.AppService = AppService = __decorate([
 
 
 /***/ }),
-/* 106 */
+/* 107 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -6748,7 +6803,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AppEntity = void 0;
-const baseEntity_1 = __webpack_require__(72);
+const baseEntity_1 = __webpack_require__(73);
 const typeorm_1 = __webpack_require__(3);
 let AppEntity = class AppEntity extends baseEntity_1.BaseEntity {
     name;
@@ -6864,7 +6919,7 @@ exports.AppEntity = AppEntity = __decorate([
 
 
 /***/ }),
-/* 107 */
+/* 108 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -6879,7 +6934,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AppCatsEntity = void 0;
-const baseEntity_1 = __webpack_require__(72);
+const baseEntity_1 = __webpack_require__(73);
 const typeorm_1 = __webpack_require__(3);
 let AppCatsEntity = class AppCatsEntity extends baseEntity_1.BaseEntity {
     name;
@@ -6915,7 +6970,7 @@ exports.AppCatsEntity = AppCatsEntity = __decorate([
 
 
 /***/ }),
-/* 108 */
+/* 109 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -6930,7 +6985,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UserAppsEntity = void 0;
-const baseEntity_1 = __webpack_require__(72);
+const baseEntity_1 = __webpack_require__(73);
 const typeorm_1 = __webpack_require__(3);
 let UserAppsEntity = class UserAppsEntity extends baseEntity_1.BaseEntity {
     userId;
@@ -6971,7 +7026,7 @@ exports.UserAppsEntity = UserAppsEntity = __decorate([
 
 
 /***/ }),
-/* 109 */
+/* 110 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -6987,7 +7042,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CollectAppDto = void 0;
 const swagger_1 = __webpack_require__(14);
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 class CollectAppDto {
     appId;
 }
@@ -7000,13 +7055,13 @@ __decorate([
 
 
 /***/ }),
-/* 110 */
+/* 111 */
 /***/ ((module) => {
 
 module.exports = require("class-validator");
 
 /***/ }),
-/* 111 */
+/* 112 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -7022,7 +7077,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CreateAppDto = void 0;
 const swagger_1 = __webpack_require__(14);
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 class CreateAppDto {
     name;
     catId;
@@ -7166,7 +7221,7 @@ __decorate([
 
 
 /***/ }),
-/* 112 */
+/* 113 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -7182,7 +7237,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CreateCatsDto = void 0;
 const swagger_1 = __webpack_require__(14);
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 class CreateCatsDto {
     name;
     order;
@@ -7242,7 +7297,7 @@ __decorate([
 
 
 /***/ }),
-/* 113 */
+/* 114 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -7258,7 +7313,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.OperateAppDto = void 0;
 const swagger_1 = __webpack_require__(14);
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 class OperateAppDto {
     id;
 }
@@ -7268,35 +7323,6 @@ __decorate([
     (0, class_validator_1.IsNumber)({}, { message: 'ID必须是Number' }),
     __metadata("design:type", Number)
 ], OperateAppDto.prototype, "id", void 0);
-
-
-/***/ }),
-/* 114 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.DeleteCatsDto = void 0;
-const swagger_1 = __webpack_require__(14);
-const class_validator_1 = __webpack_require__(110);
-class DeleteCatsDto {
-    id;
-}
-exports.DeleteCatsDto = DeleteCatsDto;
-__decorate([
-    (0, swagger_1.ApiProperty)({ example: 1, description: '要删除app分类Id', required: true }),
-    (0, class_validator_1.IsNumber)({}, { message: 'ID必须是Number' }),
-    __metadata("design:type", Number)
-], DeleteCatsDto.prototype, "id", void 0);
 
 
 /***/ }),
@@ -7314,9 +7340,38 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DeleteCatsDto = void 0;
+const swagger_1 = __webpack_require__(14);
+const class_validator_1 = __webpack_require__(111);
+class DeleteCatsDto {
+    id;
+}
+exports.DeleteCatsDto = DeleteCatsDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 1, description: '要删除app分类Id', required: true }),
+    (0, class_validator_1.IsNumber)({}, { message: 'ID必须是Number' }),
+    __metadata("design:type", Number)
+], DeleteCatsDto.prototype, "id", void 0);
+
+
+/***/ }),
+/* 116 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.QuerAppDto = void 0;
 const swagger_1 = __webpack_require__(14);
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 class QuerAppDto {
     page;
     size;
@@ -7373,7 +7428,7 @@ __decorate([
 
 
 /***/ }),
-/* 116 */
+/* 117 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -7388,7 +7443,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.QuerCatsDto = void 0;
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 const swagger_1 = __webpack_require__(14);
 class QuerCatsDto {
     page;
@@ -7424,36 +7479,6 @@ __decorate([
 
 
 /***/ }),
-/* 117 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.UpdateAppDto = void 0;
-const class_validator_1 = __webpack_require__(110);
-const swagger_1 = __webpack_require__(14);
-const createApp_dto_1 = __webpack_require__(111);
-class UpdateAppDto extends createApp_dto_1.CreateAppDto {
-    id;
-}
-exports.UpdateAppDto = UpdateAppDto;
-__decorate([
-    (0, swagger_1.ApiProperty)({ example: 1, description: '要修改的分类Id', required: true }),
-    (0, class_validator_1.IsNumber)({}, { message: '分类ID必须是Number' }),
-    __metadata("design:type", Number)
-], UpdateAppDto.prototype, "id", void 0);
-
-
-/***/ }),
 /* 118 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
@@ -7468,19 +7493,19 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.UpdateCatsDto = void 0;
-const class_validator_1 = __webpack_require__(110);
+exports.UpdateAppDto = void 0;
+const class_validator_1 = __webpack_require__(111);
 const swagger_1 = __webpack_require__(14);
-const createCats_dto_1 = __webpack_require__(112);
-class UpdateCatsDto extends createCats_dto_1.CreateCatsDto {
+const createApp_dto_1 = __webpack_require__(112);
+class UpdateAppDto extends createApp_dto_1.CreateAppDto {
     id;
 }
-exports.UpdateCatsDto = UpdateCatsDto;
+exports.UpdateAppDto = UpdateAppDto;
 __decorate([
     (0, swagger_1.ApiProperty)({ example: 1, description: '要修改的分类Id', required: true }),
     (0, class_validator_1.IsNumber)({}, { message: '分类ID必须是Number' }),
     __metadata("design:type", Number)
-], UpdateCatsDto.prototype, "id", void 0);
+], UpdateAppDto.prototype, "id", void 0);
 
 
 /***/ }),
@@ -7494,32 +7519,62 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.UpdateCatsDto = void 0;
+const class_validator_1 = __webpack_require__(111);
+const swagger_1 = __webpack_require__(14);
+const createCats_dto_1 = __webpack_require__(113);
+class UpdateCatsDto extends createCats_dto_1.CreateCatsDto {
+    id;
+}
+exports.UpdateCatsDto = UpdateCatsDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 1, description: '要修改的分类Id', required: true }),
+    (0, class_validator_1.IsNumber)({}, { message: '分类ID必须是Number' }),
+    __metadata("design:type", Number)
+], UpdateCatsDto.prototype, "id", void 0);
+
+
+/***/ }),
+/* 120 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AuthModule = void 0;
-const jwt_strategy_1 = __webpack_require__(120);
-const jwtAuth_guard_1 = __webpack_require__(87);
+const jwt_strategy_1 = __webpack_require__(121);
+const jwtAuth_guard_1 = __webpack_require__(88);
 const common_1 = __webpack_require__(2);
-const jwt_1 = __webpack_require__(92);
-const passport_1 = __webpack_require__(88);
-const typeorm_1 = __webpack_require__(33);
-const chatGroup_entity_1 = __webpack_require__(82);
-const chatLog_entity_1 = __webpack_require__(75);
-const cramiPackage_entity_1 = __webpack_require__(71);
-const config_entity_1 = __webpack_require__(73);
-const mailer_service_1 = __webpack_require__(95);
-const redisCache_module_1 = __webpack_require__(26);
-const redisCache_service_1 = __webpack_require__(28);
-const user_entity_1 = __webpack_require__(83);
-const user_module_1 = __webpack_require__(122);
-const accountLog_entity_1 = __webpack_require__(79);
-const balance_entity_1 = __webpack_require__(80);
-const fingerprint_entity_1 = __webpack_require__(84);
-const userBalance_entity_1 = __webpack_require__(81);
-const userBalance_service_1 = __webpack_require__(34);
-const verification_entity_1 = __webpack_require__(101);
-const verification_service_1 = __webpack_require__(100);
-const auth_controller_1 = __webpack_require__(129);
-const auth_service_1 = __webpack_require__(90);
+const jwt_1 = __webpack_require__(93);
+const passport_1 = __webpack_require__(89);
+const typeorm_1 = __webpack_require__(34);
+const chatGroup_entity_1 = __webpack_require__(83);
+const chatLog_entity_1 = __webpack_require__(76);
+const cramiPackage_entity_1 = __webpack_require__(72);
+const config_entity_1 = __webpack_require__(74);
+const mailer_service_1 = __webpack_require__(96);
+const redisCache_module_1 = __webpack_require__(27);
+const redisCache_service_1 = __webpack_require__(29);
+const user_entity_1 = __webpack_require__(84);
+const user_module_1 = __webpack_require__(123);
+const accountLog_entity_1 = __webpack_require__(80);
+const balance_entity_1 = __webpack_require__(81);
+const fingerprint_entity_1 = __webpack_require__(85);
+const userBalance_entity_1 = __webpack_require__(82);
+const userBalance_service_1 = __webpack_require__(35);
+const verification_entity_1 = __webpack_require__(102);
+const verification_service_1 = __webpack_require__(101);
+const auth_controller_1 = __webpack_require__(130);
+const auth_service_1 = __webpack_require__(91);
 let AuthModule = class AuthModule {
 };
 exports.AuthModule = AuthModule;
@@ -7566,7 +7621,7 @@ exports.AuthModule = AuthModule = __decorate([
 
 
 /***/ }),
-/* 120 */
+/* 121 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -7583,9 +7638,9 @@ var _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.JwtStrategy = void 0;
 const common_1 = __webpack_require__(2);
-const passport_1 = __webpack_require__(88);
-const passport_jwt_1 = __webpack_require__(121);
-const redisCache_service_1 = __webpack_require__(28);
+const passport_1 = __webpack_require__(89);
+const passport_jwt_1 = __webpack_require__(122);
+const redisCache_service_1 = __webpack_require__(29);
 let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(passport_jwt_1.Strategy) {
     redisService;
     constructor(redisService) {
@@ -7607,13 +7662,13 @@ exports.JwtStrategy = JwtStrategy = __decorate([
 
 
 /***/ }),
-/* 121 */
+/* 122 */
 /***/ ((module) => {
 
 module.exports = require("passport-jwt");
 
 /***/ }),
-/* 122 */
+/* 123 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -7626,25 +7681,25 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UserModule = void 0;
 const common_1 = __webpack_require__(2);
-const typeorm_1 = __webpack_require__(33);
-const app_entity_1 = __webpack_require__(106);
-const appCats_entity_1 = __webpack_require__(107);
-const chatGroup_entity_1 = __webpack_require__(82);
-const chatLog_entity_1 = __webpack_require__(75);
-const cramiPackage_entity_1 = __webpack_require__(71);
-const config_entity_1 = __webpack_require__(73);
-const mailer_service_1 = __webpack_require__(95);
-const redisCache_service_1 = __webpack_require__(28);
-const accountLog_entity_1 = __webpack_require__(79);
-const balance_entity_1 = __webpack_require__(80);
-const fingerprint_entity_1 = __webpack_require__(84);
-const userBalance_entity_1 = __webpack_require__(81);
-const userBalance_service_1 = __webpack_require__(34);
-const verification_entity_1 = __webpack_require__(101);
-const verification_service_1 = __webpack_require__(100);
-const user_controller_1 = __webpack_require__(123);
-const user_entity_1 = __webpack_require__(83);
-const user_service_1 = __webpack_require__(97);
+const typeorm_1 = __webpack_require__(34);
+const app_entity_1 = __webpack_require__(107);
+const appCats_entity_1 = __webpack_require__(108);
+const chatGroup_entity_1 = __webpack_require__(83);
+const chatLog_entity_1 = __webpack_require__(76);
+const cramiPackage_entity_1 = __webpack_require__(72);
+const config_entity_1 = __webpack_require__(74);
+const mailer_service_1 = __webpack_require__(96);
+const redisCache_service_1 = __webpack_require__(29);
+const accountLog_entity_1 = __webpack_require__(80);
+const balance_entity_1 = __webpack_require__(81);
+const fingerprint_entity_1 = __webpack_require__(85);
+const userBalance_entity_1 = __webpack_require__(82);
+const userBalance_service_1 = __webpack_require__(35);
+const verification_entity_1 = __webpack_require__(102);
+const verification_service_1 = __webpack_require__(101);
+const user_controller_1 = __webpack_require__(124);
+const user_entity_1 = __webpack_require__(84);
+const user_service_1 = __webpack_require__(98);
 let UserModule = class UserModule {
 };
 exports.UserModule = UserModule;
@@ -7681,7 +7736,7 @@ exports.UserModule = UserModule = __decorate([
 
 
 /***/ }),
-/* 123 */
+/* 124 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -7700,18 +7755,18 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var _a, _b, _c, _d, _e, _f, _g, _h;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UserController = void 0;
-const adminAuth_guard_1 = __webpack_require__(86);
-const jwtAuth_guard_1 = __webpack_require__(87);
-const superAuth_guard_1 = __webpack_require__(103);
+const adminAuth_guard_1 = __webpack_require__(87);
+const jwtAuth_guard_1 = __webpack_require__(88);
+const superAuth_guard_1 = __webpack_require__(104);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
-const express_1 = __webpack_require__(104);
-const queryAllUser_dto_1 = __webpack_require__(124);
-const resetUserPass_dto_1 = __webpack_require__(125);
-const updateUser_dto_1 = __webpack_require__(126);
-const updateUserStatus_dto_1 = __webpack_require__(127);
-const userRecharge_dto_1 = __webpack_require__(128);
-const user_service_1 = __webpack_require__(97);
+const express_1 = __webpack_require__(105);
+const queryAllUser_dto_1 = __webpack_require__(125);
+const resetUserPass_dto_1 = __webpack_require__(126);
+const updateUser_dto_1 = __webpack_require__(127);
+const updateUserStatus_dto_1 = __webpack_require__(128);
+const userRecharge_dto_1 = __webpack_require__(129);
+const user_service_1 = __webpack_require__(98);
 let UserController = class UserController {
     userService;
     constructor(userService) {
@@ -7794,7 +7849,7 @@ exports.UserController = UserController = __decorate([
 
 
 /***/ }),
-/* 124 */
+/* 125 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -7810,7 +7865,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.QueryAllUserDto = void 0;
 const swagger_1 = __webpack_require__(14);
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 class QueryAllUserDto {
     page;
     size;
@@ -7873,7 +7928,7 @@ __decorate([
 
 
 /***/ }),
-/* 125 */
+/* 126 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -7888,7 +7943,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ResetUserPassDto = void 0;
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 const swagger_1 = __webpack_require__(14);
 class ResetUserPassDto {
     id;
@@ -7907,7 +7962,7 @@ __decorate([
 
 
 /***/ }),
-/* 126 */
+/* 127 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -7923,7 +7978,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UpdateUserDto = void 0;
 const swagger_1 = __webpack_require__(14);
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 class UpdateUserDto {
     nickname;
     avatar;
@@ -7951,7 +8006,7 @@ __decorate([
 
 
 /***/ }),
-/* 127 */
+/* 128 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -7966,7 +8021,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UpdateUserStatusDto = void 0;
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 const swagger_1 = __webpack_require__(14);
 class UpdateUserStatusDto {
     status;
@@ -7988,7 +8043,7 @@ __decorate([
 
 
 /***/ }),
-/* 128 */
+/* 129 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -8003,7 +8058,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UserRechargeDto = void 0;
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 const swagger_1 = __webpack_require__(14);
 class UserRechargeDto {
     userId;
@@ -8043,7 +8098,7 @@ __decorate([
 
 
 /***/ }),
-/* 129 */
+/* 130 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -8062,15 +8117,15 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AuthController = void 0;
-const jwtAuth_guard_1 = __webpack_require__(87);
-const superAuth_guard_1 = __webpack_require__(103);
+const jwtAuth_guard_1 = __webpack_require__(88);
+const superAuth_guard_1 = __webpack_require__(104);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
-const express_1 = __webpack_require__(104);
-const auth_service_1 = __webpack_require__(90);
-const authLogin_dto_1 = __webpack_require__(130);
-const updatePassByOther_dto_1 = __webpack_require__(131);
-const updatePassword_dto_1 = __webpack_require__(132);
+const express_1 = __webpack_require__(105);
+const auth_service_1 = __webpack_require__(91);
+const authLogin_dto_1 = __webpack_require__(131);
+const updatePassByOther_dto_1 = __webpack_require__(132);
+const updatePassword_dto_1 = __webpack_require__(133);
 let AuthController = class AuthController {
     authService;
     constructor(authService) {
@@ -8193,7 +8248,7 @@ exports.AuthController = AuthController = __decorate([
 
 
 /***/ }),
-/* 130 */
+/* 131 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -8209,7 +8264,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UserLoginDto = void 0;
 const swagger_1 = __webpack_require__(14);
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 class UserLoginDto {
     username;
     uid;
@@ -8245,7 +8300,7 @@ __decorate([
 
 
 /***/ }),
-/* 131 */
+/* 132 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -8260,7 +8315,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UpdatePassByOtherDto = void 0;
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 const swagger_1 = __webpack_require__(14);
 class UpdatePassByOtherDto {
     password;
@@ -8276,7 +8331,7 @@ __decorate([
 
 
 /***/ }),
-/* 132 */
+/* 133 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -8292,7 +8347,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UpdatePasswordDto = void 0;
 const swagger_1 = __webpack_require__(14);
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 class UpdatePasswordDto {
     password;
 }
@@ -8307,7 +8362,7 @@ __decorate([
 
 
 /***/ }),
-/* 133 */
+/* 134 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -8320,10 +8375,10 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AutoReplyModule = void 0;
 const common_1 = __webpack_require__(2);
-const typeorm_1 = __webpack_require__(33);
-const autoReply_controller_1 = __webpack_require__(134);
-const autoReply_entity_1 = __webpack_require__(136);
-const autoReply_service_1 = __webpack_require__(135);
+const typeorm_1 = __webpack_require__(34);
+const autoReply_controller_1 = __webpack_require__(135);
+const autoReply_entity_1 = __webpack_require__(137);
+const autoReply_service_1 = __webpack_require__(136);
 let AutoReplyModule = class AutoReplyModule {
 };
 exports.AutoReplyModule = AutoReplyModule;
@@ -8339,7 +8394,7 @@ exports.AutoReplyModule = AutoReplyModule = __decorate([
 
 
 /***/ }),
-/* 134 */
+/* 135 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -8358,15 +8413,15 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var _a, _b, _c, _d, _e;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AutoReplyController = void 0;
-const adminAuth_guard_1 = __webpack_require__(86);
-const superAuth_guard_1 = __webpack_require__(103);
+const adminAuth_guard_1 = __webpack_require__(87);
+const superAuth_guard_1 = __webpack_require__(104);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
-const autoReply_service_1 = __webpack_require__(135);
-const addAutoReply_dto_1 = __webpack_require__(137);
-const delBadWords_dto_1 = __webpack_require__(138);
-const queryAutoReply_dto_1 = __webpack_require__(139);
-const updateAutoReply_dto_1 = __webpack_require__(140);
+const autoReply_service_1 = __webpack_require__(136);
+const addAutoReply_dto_1 = __webpack_require__(138);
+const delBadWords_dto_1 = __webpack_require__(139);
+const queryAutoReply_dto_1 = __webpack_require__(140);
+const updateAutoReply_dto_1 = __webpack_require__(141);
 let AutoReplyController = class AutoReplyController {
     autoReplyService;
     constructor(autoReplyService) {
@@ -8434,7 +8489,7 @@ exports.AutoReplyController = AutoReplyController = __decorate([
 
 
 /***/ }),
-/* 135 */
+/* 136 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -8454,9 +8509,9 @@ var _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AutoReplyService = void 0;
 const common_1 = __webpack_require__(2);
-const typeorm_1 = __webpack_require__(33);
+const typeorm_1 = __webpack_require__(34);
 const typeorm_2 = __webpack_require__(3);
-const autoReply_entity_1 = __webpack_require__(136);
+const autoReply_entity_1 = __webpack_require__(137);
 let AutoReplyService = class AutoReplyService {
     autoReplyEntity;
     autoReplyKes = [];
@@ -8568,7 +8623,7 @@ exports.AutoReplyService = AutoReplyService = __decorate([
 
 
 /***/ }),
-/* 136 */
+/* 137 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -8583,7 +8638,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AutoReplyEntity = void 0;
-const baseEntity_1 = __webpack_require__(72);
+const baseEntity_1 = __webpack_require__(73);
 const typeorm_1 = __webpack_require__(3);
 let AutoReplyEntity = class AutoReplyEntity extends baseEntity_1.BaseEntity {
     prompt;
@@ -8614,7 +8669,7 @@ exports.AutoReplyEntity = AutoReplyEntity = __decorate([
 
 
 /***/ }),
-/* 137 */
+/* 138 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -8650,7 +8705,7 @@ __decorate([
 
 
 /***/ }),
-/* 138 */
+/* 139 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -8677,7 +8732,7 @@ __decorate([
 
 
 /***/ }),
-/* 139 */
+/* 140 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -8692,7 +8747,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.QueryAutoReplyDto = void 0;
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 const swagger_1 = __webpack_require__(14);
 class QueryAutoReplyDto {
     page;
@@ -8724,7 +8779,7 @@ __decorate([
 
 
 /***/ }),
-/* 140 */
+/* 141 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -8740,7 +8795,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UpdateAutoReplyDto = void 0;
 const swagger_1 = __webpack_require__(14);
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 class UpdateAutoReplyDto {
     id;
     prompt;
@@ -8775,7 +8830,7 @@ __decorate([
 
 
 /***/ }),
-/* 141 */
+/* 142 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -8788,12 +8843,12 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BadWordsModule = void 0;
 const common_1 = __webpack_require__(2);
-const typeorm_1 = __webpack_require__(33);
-const user_entity_1 = __webpack_require__(83);
-const badWords_controller_1 = __webpack_require__(142);
-const badWords_entity_1 = __webpack_require__(144);
-const badWords_service_1 = __webpack_require__(143);
-const violationLog_entity_1 = __webpack_require__(145);
+const typeorm_1 = __webpack_require__(34);
+const user_entity_1 = __webpack_require__(84);
+const badWords_controller_1 = __webpack_require__(143);
+const badWords_entity_1 = __webpack_require__(145);
+const badWords_service_1 = __webpack_require__(144);
+const violationLog_entity_1 = __webpack_require__(146);
 let BadWordsModule = class BadWordsModule {
 };
 exports.BadWordsModule = BadWordsModule;
@@ -8809,7 +8864,7 @@ exports.BadWordsModule = BadWordsModule = __decorate([
 
 
 /***/ }),
-/* 142 */
+/* 143 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -8828,17 +8883,17 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var _a, _b, _c, _d, _e, _f, _g;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BadWordsController = void 0;
-const adminAuth_guard_1 = __webpack_require__(86);
-const superAuth_guard_1 = __webpack_require__(103);
+const adminAuth_guard_1 = __webpack_require__(87);
+const superAuth_guard_1 = __webpack_require__(104);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
-const express_1 = __webpack_require__(104);
-const badWords_service_1 = __webpack_require__(143);
-const addBadWords_dto_1 = __webpack_require__(146);
-const delBadWords_dto_1 = __webpack_require__(147);
-const queryBadWords_dto_1 = __webpack_require__(148);
-const queryViolation_dto_1 = __webpack_require__(149);
-const updateBadWords_dto_1 = __webpack_require__(150);
+const express_1 = __webpack_require__(105);
+const badWords_service_1 = __webpack_require__(144);
+const addBadWords_dto_1 = __webpack_require__(147);
+const delBadWords_dto_1 = __webpack_require__(148);
+const queryBadWords_dto_1 = __webpack_require__(149);
+const queryViolation_dto_1 = __webpack_require__(150);
+const updateBadWords_dto_1 = __webpack_require__(151);
 let BadWordsController = class BadWordsController {
     badWordsService;
     constructor(badWordsService) {
@@ -8918,7 +8973,7 @@ exports.BadWordsController = BadWordsController = __decorate([
 
 
 /***/ }),
-/* 143 */
+/* 144 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -8937,15 +8992,15 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var _a, _b, _c, _d;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BadWordsService = void 0;
-const utils_1 = __webpack_require__(36);
+const utils_1 = __webpack_require__(37);
 const common_1 = __webpack_require__(2);
-const typeorm_1 = __webpack_require__(33);
-const axios_1 = __webpack_require__(39);
+const typeorm_1 = __webpack_require__(34);
+const axios_1 = __webpack_require__(40);
 const typeorm_2 = __webpack_require__(3);
-const globalConfig_service_1 = __webpack_require__(74);
-const user_entity_1 = __webpack_require__(83);
-const badWords_entity_1 = __webpack_require__(144);
-const violationLog_entity_1 = __webpack_require__(145);
+const globalConfig_service_1 = __webpack_require__(75);
+const user_entity_1 = __webpack_require__(84);
+const badWords_entity_1 = __webpack_require__(145);
+const violationLog_entity_1 = __webpack_require__(146);
 let BadWordsService = class BadWordsService {
     badWordsEntity;
     violationLogEntity;
@@ -9143,7 +9198,7 @@ exports.BadWordsService = BadWordsService = __decorate([
 
 
 /***/ }),
-/* 144 */
+/* 145 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -9158,7 +9213,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BadWordsEntity = void 0;
-const baseEntity_1 = __webpack_require__(72);
+const baseEntity_1 = __webpack_require__(73);
 const typeorm_1 = __webpack_require__(3);
 let BadWordsEntity = class BadWordsEntity extends baseEntity_1.BaseEntity {
     word;
@@ -9184,7 +9239,7 @@ exports.BadWordsEntity = BadWordsEntity = __decorate([
 
 
 /***/ }),
-/* 145 */
+/* 146 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -9200,7 +9255,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ViolationLogEntity = void 0;
 const typeorm_1 = __webpack_require__(3);
-const baseEntity_1 = __webpack_require__(72);
+const baseEntity_1 = __webpack_require__(73);
 let ViolationLogEntity = class ViolationLogEntity extends baseEntity_1.BaseEntity {
     userId;
     content;
@@ -9235,7 +9290,7 @@ exports.ViolationLogEntity = ViolationLogEntity = __decorate([
 
 
 /***/ }),
-/* 146 */
+/* 147 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -9262,7 +9317,7 @@ __decorate([
 
 
 /***/ }),
-/* 147 */
+/* 148 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -9289,7 +9344,7 @@ __decorate([
 
 
 /***/ }),
-/* 148 */
+/* 149 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -9304,7 +9359,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.QueryBadWordsDto = void 0;
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 const swagger_1 = __webpack_require__(14);
 class QueryBadWordsDto {
     page;
@@ -9336,7 +9391,7 @@ __decorate([
 
 
 /***/ }),
-/* 149 */
+/* 150 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -9351,7 +9406,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.QueryViolationDto = void 0;
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 const swagger_1 = __webpack_require__(14);
 class QueryViolationDto {
     page;
@@ -9387,7 +9442,7 @@ __decorate([
 
 
 /***/ }),
-/* 150 */
+/* 151 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -9402,7 +9457,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UpdateBadWordsDto = void 0;
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 const swagger_1 = __webpack_require__(14);
 class UpdateBadWordsDto {
     id;
@@ -9428,7 +9483,7 @@ __decorate([
 
 
 /***/ }),
-/* 151 */
+/* 152 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -9441,42 +9496,43 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ChatModule = void 0;
 const common_1 = __webpack_require__(2);
-const typeorm_1 = __webpack_require__(33);
-const chat_service_1 = __webpack_require__(152);
-const netSearch_service_1 = __webpack_require__(154);
-const app_entity_1 = __webpack_require__(106);
-const app_service_1 = __webpack_require__(105);
-const appCats_entity_1 = __webpack_require__(107);
-const userApps_entity_1 = __webpack_require__(108);
-const autoReply_entity_1 = __webpack_require__(136);
-const autoReply_service_1 = __webpack_require__(135);
-const badWords_entity_1 = __webpack_require__(144);
-const badWords_service_1 = __webpack_require__(143);
-const violationLog_entity_1 = __webpack_require__(145);
-const chatGroup_entity_1 = __webpack_require__(82);
-const chatGroup_service_1 = __webpack_require__(156);
-const chatLog_entity_1 = __webpack_require__(75);
-const chatLog_service_1 = __webpack_require__(158);
-const cramiPackage_entity_1 = __webpack_require__(71);
-const config_entity_1 = __webpack_require__(73);
-const globalConfig_service_1 = __webpack_require__(74);
-const mailer_service_1 = __webpack_require__(95);
-const models_entity_1 = __webpack_require__(78);
-const models_service_1 = __webpack_require__(76);
-const plugin_entity_1 = __webpack_require__(160);
-const redisCache_service_1 = __webpack_require__(28);
-const upload_service_1 = __webpack_require__(161);
-const user_entity_1 = __webpack_require__(83);
-const user_service_1 = __webpack_require__(97);
-const accountLog_entity_1 = __webpack_require__(79);
-const balance_entity_1 = __webpack_require__(80);
-const fingerprint_entity_1 = __webpack_require__(84);
-const userBalance_entity_1 = __webpack_require__(81);
-const userBalance_service_1 = __webpack_require__(34);
-const verification_entity_1 = __webpack_require__(101);
-const verification_service_1 = __webpack_require__(100);
-const chat_controller_1 = __webpack_require__(168);
-const chat_service_2 = __webpack_require__(169);
+const typeorm_1 = __webpack_require__(34);
+const chat_service_1 = __webpack_require__(153);
+const netSearch_service_1 = __webpack_require__(155);
+const app_entity_1 = __webpack_require__(107);
+const app_service_1 = __webpack_require__(106);
+const appCats_entity_1 = __webpack_require__(108);
+const userApps_entity_1 = __webpack_require__(109);
+const autoReply_entity_1 = __webpack_require__(137);
+const autoReply_service_1 = __webpack_require__(136);
+const badWords_entity_1 = __webpack_require__(145);
+const badWords_service_1 = __webpack_require__(144);
+const violationLog_entity_1 = __webpack_require__(146);
+const chatGroup_entity_1 = __webpack_require__(83);
+const chatGroup_service_1 = __webpack_require__(157);
+const chatLog_entity_1 = __webpack_require__(76);
+const chatLog_service_1 = __webpack_require__(159);
+const cramiPackage_entity_1 = __webpack_require__(72);
+const config_entity_1 = __webpack_require__(74);
+const globalConfig_service_1 = __webpack_require__(75);
+const mailer_service_1 = __webpack_require__(96);
+const models_entity_1 = __webpack_require__(79);
+const models_service_1 = __webpack_require__(77);
+const plugin_entity_1 = __webpack_require__(161);
+const redisCache_service_1 = __webpack_require__(29);
+const upload_service_1 = __webpack_require__(162);
+const user_entity_1 = __webpack_require__(84);
+const user_service_1 = __webpack_require__(98);
+const accountLog_entity_1 = __webpack_require__(80);
+const balance_entity_1 = __webpack_require__(81);
+const fingerprint_entity_1 = __webpack_require__(85);
+const userBalance_entity_1 = __webpack_require__(82);
+const userBalance_service_1 = __webpack_require__(35);
+const verification_entity_1 = __webpack_require__(102);
+const verification_service_1 = __webpack_require__(101);
+const drawing_mj_module_1 = __webpack_require__(169);
+const chat_controller_1 = __webpack_require__(177);
+const chat_service_2 = __webpack_require__(178);
 let ChatModule = class ChatModule {
 };
 exports.ChatModule = ChatModule;
@@ -9484,6 +9540,7 @@ exports.ChatModule = ChatModule = __decorate([
     (0, common_1.Global)(),
     (0, common_1.Module)({
         imports: [
+            drawing_mj_module_1.DrawingMjModule,
             typeorm_1.TypeOrmModule.forFeature([
                 balance_entity_1.BalanceEntity,
                 user_entity_1.UserEntity,
@@ -9531,7 +9588,7 @@ exports.ChatModule = ChatModule = __decorate([
 
 
 /***/ }),
-/* 152 */
+/* 153 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -9547,12 +9604,12 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var _a, _b;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.OpenAIChatService = void 0;
-const utils_1 = __webpack_require__(36);
-const correctApiBaseUrl_1 = __webpack_require__(70);
+const utils_1 = __webpack_require__(37);
+const correctApiBaseUrl_1 = __webpack_require__(71);
 const common_1 = __webpack_require__(2);
-const openai_1 = __webpack_require__(153);
-const globalConfig_service_1 = __webpack_require__(74);
-const netSearch_service_1 = __webpack_require__(154);
+const openai_1 = __webpack_require__(154);
+const globalConfig_service_1 = __webpack_require__(75);
+const netSearch_service_1 = __webpack_require__(155);
 let OpenAIChatService = class OpenAIChatService {
     globalConfigService;
     netSearchService;
@@ -10088,13 +10145,13 @@ exports.OpenAIChatService = OpenAIChatService = __decorate([
 
 
 /***/ }),
-/* 153 */
+/* 154 */
 /***/ ((module) => {
 
 module.exports = require("openai");
 
 /***/ }),
-/* 154 */
+/* 155 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -10110,10 +10167,10 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.NetSearchService = void 0;
-const utils_1 = __webpack_require__(36);
+const utils_1 = __webpack_require__(37);
 const common_1 = __webpack_require__(2);
-const cross_fetch_1 = __webpack_require__(155);
-const globalConfig_service_1 = __webpack_require__(74);
+const cross_fetch_1 = __webpack_require__(156);
+const globalConfig_service_1 = __webpack_require__(75);
 let NetSearchService = class NetSearchService {
     globalConfigService;
     constructor(globalConfigService) {
@@ -10285,13 +10342,13 @@ exports.NetSearchService = NetSearchService = __decorate([
 
 
 /***/ }),
-/* 155 */
+/* 156 */
 /***/ ((module) => {
 
 module.exports = require("cross-fetch");
 
 /***/ }),
-/* 156 */
+/* 157 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -10311,13 +10368,13 @@ var _a, _b, _c;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ChatGroupService = void 0;
 const common_1 = __webpack_require__(2);
-const typeorm_1 = __webpack_require__(33);
-const axios_1 = __webpack_require__(39);
-const pdf = __webpack_require__(157);
+const typeorm_1 = __webpack_require__(34);
+const axios_1 = __webpack_require__(40);
+const pdf = __webpack_require__(158);
 const typeorm_2 = __webpack_require__(3);
-const app_entity_1 = __webpack_require__(106);
-const models_service_1 = __webpack_require__(76);
-const chatGroup_entity_1 = __webpack_require__(82);
+const app_entity_1 = __webpack_require__(107);
+const models_service_1 = __webpack_require__(77);
+const chatGroup_entity_1 = __webpack_require__(83);
 let ChatGroupService = class ChatGroupService {
     chatGroupEntity;
     appEntity;
@@ -10524,13 +10581,13 @@ exports.ChatGroupService = ChatGroupService = __decorate([
 
 
 /***/ }),
-/* 157 */
+/* 158 */
 /***/ ((module) => {
 
 module.exports = require("pdf-parse");
 
 /***/ }),
-/* 158 */
+/* 159 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -10549,16 +10606,16 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var _a, _b, _c, _d;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ChatLogService = void 0;
-const balance_constant_1 = __webpack_require__(35);
-const utils_1 = __webpack_require__(36);
+const balance_constant_1 = __webpack_require__(36);
+const utils_1 = __webpack_require__(37);
 const common_1 = __webpack_require__(2);
-const typeorm_1 = __webpack_require__(33);
-const exceljs_1 = __webpack_require__(159);
+const typeorm_1 = __webpack_require__(34);
+const exceljs_1 = __webpack_require__(160);
 const typeorm_2 = __webpack_require__(3);
-const chatGroup_entity_1 = __webpack_require__(82);
-const user_entity_1 = __webpack_require__(83);
-const chatLog_entity_1 = __webpack_require__(75);
-const models_service_1 = __webpack_require__(76);
+const chatGroup_entity_1 = __webpack_require__(83);
+const user_entity_1 = __webpack_require__(84);
+const chatLog_entity_1 = __webpack_require__(76);
+const models_service_1 = __webpack_require__(77);
 let ChatLogService = class ChatLogService {
     chatLogEntity;
     userEntity;
@@ -10933,13 +10990,13 @@ exports.ChatLogService = ChatLogService = __decorate([
 
 
 /***/ }),
-/* 159 */
+/* 160 */
 /***/ ((module) => {
 
 module.exports = require("exceljs");
 
 /***/ }),
-/* 160 */
+/* 161 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -10954,7 +11011,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PluginEntity = void 0;
-const baseEntity_1 = __webpack_require__(72);
+const baseEntity_1 = __webpack_require__(73);
 const typeorm_1 = __webpack_require__(3);
 let PluginEntity = class PluginEntity extends baseEntity_1.BaseEntity {
     name;
@@ -10995,7 +11052,7 @@ exports.PluginEntity = PluginEntity = __decorate([
 
 
 /***/ }),
-/* 161 */
+/* 162 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -11011,19 +11068,19 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var _a, _b;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UploadService = void 0;
-const utils_1 = __webpack_require__(36);
-const client_s3_1 = __webpack_require__(162);
+const utils_1 = __webpack_require__(37);
+const client_s3_1 = __webpack_require__(163);
 const common_1 = __webpack_require__(2);
-const ALIOSS = __webpack_require__(163);
-const axios_1 = __webpack_require__(39);
-const TENCENTCOS = __webpack_require__(164);
-const FormData = __webpack_require__(165);
-const fs_1 = __webpack_require__(18);
-const mime = __webpack_require__(166);
-const path = __webpack_require__(20);
-const streamToBuffer = __webpack_require__(167);
-const globalConfig_service_1 = __webpack_require__(74);
-const redisCache_service_1 = __webpack_require__(28);
+const ALIOSS = __webpack_require__(164);
+const axios_1 = __webpack_require__(40);
+const TENCENTCOS = __webpack_require__(165);
+const FormData = __webpack_require__(166);
+const fs_1 = __webpack_require__(19);
+const mime = __webpack_require__(167);
+const path = __webpack_require__(21);
+const streamToBuffer = __webpack_require__(168);
+const globalConfig_service_1 = __webpack_require__(75);
+const redisCache_service_1 = __webpack_require__(29);
 const blacklist = ['exe', 'sh', 'bat', 'js', 'php', 'py'];
 let UploadService = class UploadService {
     globalConfigService;
@@ -11396,43 +11453,1418 @@ exports.UploadService = UploadService = __decorate([
 
 
 /***/ }),
-/* 162 */
+/* 163 */
 /***/ ((module) => {
 
 module.exports = require("@aws-sdk/client-s3");
 
 /***/ }),
-/* 163 */
+/* 164 */
 /***/ ((module) => {
 
 module.exports = require("ali-oss");
 
 /***/ }),
-/* 164 */
+/* 165 */
 /***/ ((module) => {
 
 module.exports = require("cos-nodejs-sdk-v5");
 
 /***/ }),
-/* 165 */
+/* 166 */
 /***/ ((module) => {
 
 module.exports = require("form-data");
 
 /***/ }),
-/* 166 */
+/* 167 */
 /***/ ((module) => {
 
 module.exports = require("mime-types");
 
 /***/ }),
-/* 167 */
+/* 168 */
 /***/ ((module) => {
 
 module.exports = require("stream-to-buffer");
 
 /***/ }),
-/* 168 */
+/* 169 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DrawingMjModule = void 0;
+const common_1 = __webpack_require__(2);
+const typeorm_1 = __webpack_require__(34);
+const models_entity_1 = __webpack_require__(79);
+const user_entity_1 = __webpack_require__(84);
+const drawing_mj_admin_controller_1 = __webpack_require__(170);
+const drawing_mj_controller_1 = __webpack_require__(175);
+const drawing_mj_job_entity_1 = __webpack_require__(173);
+const drawing_mj_job_service_1 = __webpack_require__(172);
+const drawing_mj_service_1 = __webpack_require__(176);
+let DrawingMjModule = class DrawingMjModule {
+};
+exports.DrawingMjModule = DrawingMjModule;
+exports.DrawingMjModule = DrawingMjModule = __decorate([
+    (0, common_1.Module)({
+        imports: [typeorm_1.TypeOrmModule.forFeature([models_entity_1.ModelsEntity, drawing_mj_job_entity_1.DrawingMjJobEntity, user_entity_1.UserEntity])],
+        controllers: [drawing_mj_controller_1.DrawingMjController, drawing_mj_admin_controller_1.DrawingMjAdminController],
+        providers: [drawing_mj_service_1.DrawingMjService, drawing_mj_job_service_1.DrawingMjJobService],
+        exports: [drawing_mj_service_1.DrawingMjService],
+    })
+], DrawingMjModule);
+
+
+/***/ }),
+/* 170 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a, _b, _c;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DrawingMjAdminController = void 0;
+const adminAuth_guard_1 = __webpack_require__(87);
+const common_1 = __webpack_require__(2);
+const swagger_1 = __webpack_require__(14);
+const express_1 = __webpack_require__(105);
+const queryAdminDrawingMjJobs_dto_1 = __webpack_require__(171);
+const drawing_mj_job_service_1 = __webpack_require__(172);
+let DrawingMjAdminController = class DrawingMjAdminController {
+    drawingMjJobService;
+    constructor(drawingMjJobService) {
+        this.drawingMjJobService = drawingMjJobService;
+    }
+    async adminListJobs(query, req) {
+        return this.drawingMjJobService.adminQueryJobs(query, req);
+    }
+};
+exports.DrawingMjAdminController = DrawingMjAdminController;
+__decorate([
+    (0, common_1.Get)('jobs'),
+    (0, swagger_1.ApiOperation)({ summary: '后台：分页查询用户 MJ 绘画任务（含用户信息）' }),
+    __param(0, (0, common_1.Query)()),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_b = typeof queryAdminDrawingMjJobs_dto_1.QueryAdminDrawingMjJobsDto !== "undefined" && queryAdminDrawingMjJobs_dto_1.QueryAdminDrawingMjJobsDto) === "function" ? _b : Object, typeof (_c = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _c : Object]),
+    __metadata("design:returntype", Promise)
+], DrawingMjAdminController.prototype, "adminListJobs", null);
+exports.DrawingMjAdminController = DrawingMjAdminController = __decorate([
+    (0, swagger_1.ApiTags)('drawing-mj-admin'),
+    (0, common_1.Controller)('drawing/mj/admin'),
+    (0, common_1.UseGuards)(adminAuth_guard_1.AdminAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    __metadata("design:paramtypes", [typeof (_a = typeof drawing_mj_job_service_1.DrawingMjJobService !== "undefined" && drawing_mj_job_service_1.DrawingMjJobService) === "function" ? _a : Object])
+], DrawingMjAdminController);
+
+
+/***/ }),
+/* 171 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.QueryAdminDrawingMjJobsDto = void 0;
+const swagger_1 = __webpack_require__(14);
+const class_validator_1 = __webpack_require__(111);
+class QueryAdminDrawingMjJobsDto {
+    page;
+    size;
+    userId;
+    keyword;
+    modelKey;
+    loading;
+    taskId;
+}
+exports.QueryAdminDrawingMjJobsDto = QueryAdminDrawingMjJobsDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 1, description: '页码', required: false }),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], QueryAdminDrawingMjJobsDto.prototype, "page", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 20, description: '每页条数', required: false }),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], QueryAdminDrawingMjJobsDto.prototype, "size", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 1, description: '用户 ID', required: false }),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], QueryAdminDrawingMjJobsDto.prototype, "userId", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '提示词 / 任务 ID 模糊搜索', required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], QueryAdminDrawingMjJobsDto.prototype, "keyword", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '模型 key 精确筛选', required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], QueryAdminDrawingMjJobsDto.prototype, "modelKey", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '进行中 true / 已完成 false，不传则不限', required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], QueryAdminDrawingMjJobsDto.prototype, "loading", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '上游任务 ID 精确筛选', required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], QueryAdminDrawingMjJobsDto.prototype, "taskId", void 0);
+
+
+/***/ }),
+/* 172 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a, _b;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DrawingMjJobService = void 0;
+const utils_1 = __webpack_require__(37);
+const common_1 = __webpack_require__(2);
+const typeorm_1 = __webpack_require__(34);
+const typeorm_2 = __webpack_require__(3);
+const user_entity_1 = __webpack_require__(84);
+const drawing_mj_job_entity_1 = __webpack_require__(173);
+const mj_task_image_urls_1 = __webpack_require__(174);
+let DrawingMjJobService = class DrawingMjJobService {
+    repo;
+    userRepo;
+    constructor(repo, userRepo) {
+        this.repo = repo;
+        this.userRepo = userRepo;
+    }
+    async listForUser(userId, limit) {
+        return this.repo.find({
+            where: { userId },
+            order: { id: 'DESC' },
+            take: limit,
+        });
+    }
+    async create(userId, dto) {
+        const row = this.repo.create({
+            userId,
+            clientKey: dto.clientKey != null ? String(dto.clientKey) : null,
+            taskId: dto.taskId ?? null,
+            modelKey: dto.modelKey,
+            mjMode: dto.mjMode,
+            mjStyleSnapshot: dto.mjStyleSnapshot ?? null,
+            promptLabel: dto.promptLabel,
+            loading: dto.loading !== false,
+            error: dto.error ?? null,
+            taskJson: dto.task ? JSON.stringify(dto.task) : null,
+        });
+        return this.repo.save(row);
+    }
+    async update(userId, id, dto) {
+        const row = await this.repo.findOne({ where: { id, userId } });
+        if (!row) {
+            throw new common_1.NotFoundException('任务不存在');
+        }
+        if (dto.taskId !== undefined)
+            row.taskId = dto.taskId;
+        if (dto.loading !== undefined)
+            row.loading = dto.loading;
+        if (dto.error !== undefined)
+            row.error = dto.error;
+        if (dto.promptLabel !== undefined)
+            row.promptLabel = dto.promptLabel;
+        if (dto.task !== undefined) {
+            row.taskJson = dto.task ? JSON.stringify(dto.task) : null;
+        }
+        return this.repo.save(row);
+    }
+    async upsert(userId, dto) {
+        const ck = dto.clientKey != null ? String(dto.clientKey) : null;
+        if (ck) {
+            const existing = await this.repo.findOne({ where: { userId, clientKey: ck } });
+            if (existing) {
+                if (dto.taskId !== undefined)
+                    existing.taskId = dto.taskId ?? null;
+                if (dto.loading !== undefined)
+                    existing.loading = dto.loading;
+                if (dto.error !== undefined)
+                    existing.error = dto.error ?? null;
+                if (dto.promptLabel !== undefined)
+                    existing.promptLabel = dto.promptLabel;
+                if (dto.modelKey !== undefined)
+                    existing.modelKey = dto.modelKey;
+                if (dto.mjMode !== undefined)
+                    existing.mjMode = dto.mjMode;
+                if (dto.mjStyleSnapshot !== undefined)
+                    existing.mjStyleSnapshot = dto.mjStyleSnapshot ?? null;
+                if (dto.task !== undefined) {
+                    existing.taskJson = dto.task ? JSON.stringify(dto.task) : null;
+                }
+                return this.repo.save(existing);
+            }
+        }
+        return this.create(userId, dto);
+    }
+    async batchUpsert(userId, jobs) {
+        let n = 0;
+        for (const dto of jobs.slice(0, 80)) {
+            if (dto.clientKey == null || !dto.modelKey || !String(dto.modelKey).trim()) {
+                continue;
+            }
+            await this.upsert(userId, dto);
+            n += 1;
+        }
+        return n;
+    }
+    async delete(userId, id) {
+        const row = await this.repo.findOne({ where: { id, userId } });
+        if (!row) {
+            throw new common_1.NotFoundException('任务不存在');
+        }
+        await this.repo.remove(row);
+    }
+    async adminQueryJobs(params, req) {
+        const page = Math.max(1, Number(params.page) || 1);
+        const size = Math.min(100, Math.max(1, Number(params.size) || 20));
+        const { userId, keyword, modelKey, taskId } = params;
+        const loadingRaw = params.loading;
+        let loadingFilter;
+        if (loadingRaw === '1' || loadingRaw === 'true')
+            loadingFilter = true;
+        else if (loadingRaw === '0' || loadingRaw === 'false')
+            loadingFilter = false;
+        const qb = this.repo.createQueryBuilder('j');
+        if (userId != null && String(userId).trim() !== '') {
+            const uid = Number(userId);
+            if (Number.isFinite(uid))
+                qb.andWhere('j.userId = :userId', { userId: uid });
+        }
+        if (modelKey != null && String(modelKey).trim() !== '') {
+            qb.andWhere('j.modelKey = :modelKey', { modelKey: String(modelKey).trim() });
+        }
+        if (taskId != null && String(taskId).trim() !== '') {
+            qb.andWhere('j.taskId = :taskId', { taskId: String(taskId).trim() });
+        }
+        if (loadingFilter !== undefined) {
+            qb.andWhere('j.loading = :loading', { loading: loadingFilter });
+        }
+        const kw = keyword != null ? String(keyword).trim() : '';
+        if (kw) {
+            const like = `%${kw}%`;
+            qb.andWhere(new typeorm_2.Brackets(w => {
+                w.where('j.promptLabel LIKE :mjKw', { mjKw: like }).orWhere('j.taskId LIKE :mjKw', {
+                    mjKw: like,
+                });
+            }));
+        }
+        qb.orderBy('j.id', 'DESC')
+            .skip((page - 1) * size)
+            .take(size);
+        const [rows, count] = await qb.getManyAndCount();
+        const userIds = [...new Set(rows.map(r => r.userId))];
+        const users = userIds.length > 0
+            ? await this.userRepo.find({
+                where: { id: (0, typeorm_2.In)(userIds) },
+                select: ['id', 'username', 'email', 'nickname'],
+            })
+            : [];
+        const isSuper = req.user?.role === 'super';
+        const mapped = rows.map(item => {
+            let task;
+            try {
+                if (item.taskJson)
+                    task = JSON.parse(item.taskJson);
+            }
+            catch {
+                task = undefined;
+            }
+            const u = users.find(x => x.id === item.userId);
+            let email = u?.email;
+            if (!isSuper && email)
+                email = (0, utils_1.maskEmail)(email);
+            const ck = item.clientKey ? Number(item.clientKey) : undefined;
+            return {
+                id: item.id,
+                userId: item.userId,
+                username: u?.username,
+                nickname: u?.nickname,
+                email: email ?? (!u ? `${item.userId}@aiweb.com` : email),
+                clientKey: Number.isFinite(ck) ? ck : undefined,
+                taskId: item.taskId ?? '',
+                modelKey: item.modelKey,
+                mjMode: item.mjMode,
+                mjStyleSnapshot: item.mjStyleSnapshot ?? undefined,
+                promptLabel: item.promptLabel,
+                loading: !!item.loading,
+                error: item.error ?? undefined,
+                task,
+                imageUrls: (0, mj_task_image_urls_1.collectMjImageUrls)(task),
+                createdAt: item.createdAt,
+                updatedAt: item.updatedAt,
+            };
+        });
+        mapped.forEach(t => {
+            if (!t.email && t.userId)
+                t.email = `${t.userId}@aiweb.com`;
+            if (!t.username && t.userId)
+                t.username = `游客${t.userId}`;
+        });
+        return { rows: mapped, count };
+    }
+};
+exports.DrawingMjJobService = DrawingMjJobService;
+exports.DrawingMjJobService = DrawingMjJobService = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, typeorm_1.InjectRepository)(drawing_mj_job_entity_1.DrawingMjJobEntity)),
+    __param(1, (0, typeorm_1.InjectRepository)(user_entity_1.UserEntity)),
+    __metadata("design:paramtypes", [typeof (_a = typeof typeorm_2.Repository !== "undefined" && typeorm_2.Repository) === "function" ? _a : Object, typeof (_b = typeof typeorm_2.Repository !== "undefined" && typeorm_2.Repository) === "function" ? _b : Object])
+], DrawingMjJobService);
+
+
+/***/ }),
+/* 173 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DrawingMjJobEntity = void 0;
+const baseEntity_1 = __webpack_require__(73);
+const typeorm_1 = __webpack_require__(3);
+let DrawingMjJobEntity = class DrawingMjJobEntity extends baseEntity_1.BaseEntity {
+    userId;
+    clientKey;
+    taskId;
+    modelKey;
+    mjMode;
+    mjStyleSnapshot;
+    promptLabel;
+    loading;
+    error;
+    taskJson;
+};
+exports.DrawingMjJobEntity = DrawingMjJobEntity;
+__decorate([
+    (0, typeorm_1.Column)({ comment: '用户ID' }),
+    __metadata("design:type", Number)
+], DrawingMjJobEntity.prototype, "userId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ length: 24, nullable: true, comment: '客户端 localId，便于对齐与去重' }),
+    __metadata("design:type", String)
+], DrawingMjJobEntity.prototype, "clientKey", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ length: 191, nullable: true, comment: 'MJ 上游任务 ID' }),
+    __metadata("design:type", String)
+], DrawingMjJobEntity.prototype, "taskId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ length: 191, comment: '模型 model 字段' }),
+    __metadata("design:type", String)
+], DrawingMjJobEntity.prototype, "modelKey", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ length: 32, comment: 'fast|turbo|relax' }),
+    __metadata("design:type", String)
+], DrawingMjJobEntity.prototype, "mjMode", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ length: 32, nullable: true, comment: '写实|动漫等' }),
+    __metadata("design:type", String)
+], DrawingMjJobEntity.prototype, "mjStyleSnapshot", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'text', comment: '提示或任务摘要' }),
+    __metadata("design:type", String)
+], DrawingMjJobEntity.prototype, "promptLabel", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: true, comment: '是否仍在前端视为进行中' }),
+    __metadata("design:type", Boolean)
+], DrawingMjJobEntity.prototype, "loading", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'text', nullable: true, comment: '失败原因' }),
+    __metadata("design:type", String)
+], DrawingMjJobEntity.prototype, "error", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'longtext', nullable: true, comment: '上游 task/fetch 解析后的 JSON' }),
+    __metadata("design:type", String)
+], DrawingMjJobEntity.prototype, "taskJson", void 0);
+exports.DrawingMjJobEntity = DrawingMjJobEntity = __decorate([
+    (0, typeorm_1.Entity)({ name: 'drawing_mj_job' }),
+    (0, typeorm_1.Index)(['userId', 'id'])
+], DrawingMjJobEntity);
+
+
+/***/ }),
+/* 174 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.collectMjImageUrls = collectMjImageUrls;
+function collectMjImageUrls(task) {
+    if (!task)
+        return [];
+    const out = [];
+    const seen = new Set();
+    const add = (u) => {
+        if (typeof u !== 'string')
+            return;
+        const s = u.trim();
+        if (!/^https?:\/\//i.test(s) || seen.has(s))
+            return;
+        seen.add(s);
+        out.push(s);
+    };
+    add(task.imageUrl);
+    add(task.image_url);
+    add(task.cdnImage);
+    add(task.picUrl);
+    add(task.pic_url);
+    add(task.discordImageUrl);
+    add(task.previewUrl);
+    add(task.preview_url);
+    add(task.thumbnailUrl);
+    add(task.thumbnail_url);
+    add(task.tempImageUrl);
+    add(task.progressImageUrl);
+    add(task.coverUrl);
+    const props = task.properties;
+    if (props) {
+        add(props.imageUrl);
+        add(props.image_url);
+        add(props.cdnImage);
+        add(props.previewUrl);
+        add(props.preview_url);
+        add(props.thumbnailUrl);
+        add(props.thumbnail_url);
+    }
+    const list = task.imageUrls ?? task.image_urls ?? props?.imageUrls ?? props?.image_urls;
+    if (Array.isArray(list))
+        list.forEach(add);
+    return out;
+}
+
+
+/***/ }),
+/* 175 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var DrawingMjController_1;
+var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DrawingMjController = void 0;
+const jwtAuth_guard_1 = __webpack_require__(88);
+const userBalance_service_1 = __webpack_require__(35);
+const common_1 = __webpack_require__(2);
+const swagger_1 = __webpack_require__(14);
+const express_1 = __webpack_require__(105);
+const drawing_mj_job_service_1 = __webpack_require__(172);
+const drawing_mj_service_1 = __webpack_require__(176);
+function resolveMjModalMaskFormat(_maskIn) {
+    const v = process.env.MJ_MODAL_MASK_FORMAT?.trim().toLowerCase();
+    if (v === 'raw' || v === 'dataurl' || v === 'passthrough')
+        return v;
+    if (process.env.MJ_MODAL_MASK_DATAURL === '1')
+        return 'dataurl';
+    if (process.env.MJ_MODAL_MASK_RAW === '1')
+        return 'raw';
+    return 'raw';
+}
+function mjModalForwardExtrasToUpstream() {
+    return process.env.MJ_MODAL_FORWARD_EXTRAS === '1';
+}
+function normalizeMjModalMaskForUpstream(raw, format) {
+    if (raw == null || typeof raw !== 'string')
+        return undefined;
+    if (format === 'passthrough') {
+        const t = raw.trim().replace(/\s+/g, '');
+        return t || undefined;
+    }
+    let s = raw.trim().replace(/\s+/g, '');
+    if (!s)
+        return undefined;
+    if (format === 'dataurl') {
+        if (/^data:image\/[^;]+;base64,/i.test(s))
+            return s;
+        return `data:image/png;base64,${s}`;
+    }
+    const stripped = s.match(/^data:image\/[^;]+;base64,(.+)$/i);
+    if (stripped)
+        return stripped[1] || undefined;
+    return s || undefined;
+}
+function mjModalMaskPayloadIsPng(mask) {
+    let b64 = mask;
+    const m = mask.match(/^data:image\/[^;]+;base64,(.+)$/i);
+    if (m)
+        b64 = m[1];
+    try {
+        const buf = Buffer.from(b64, 'base64');
+        return (buf.length >= 24 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47);
+    }
+    catch {
+        return false;
+    }
+}
+let DrawingMjController = DrawingMjController_1 = class DrawingMjController {
+    drawingMjService;
+    drawingMjJobService;
+    userBalanceService;
+    logger = new common_1.Logger(DrawingMjController_1.name);
+    constructor(drawingMjService, drawingMjJobService, userBalanceService) {
+        this.drawingMjService = drawingMjService;
+        this.drawingMjJobService = drawingMjJobService;
+        this.userBalanceService = userBalanceService;
+    }
+    async proxyImageDownload(url) {
+        if (!url || typeof url !== 'string' || !url.trim()) {
+            throw new common_1.BadRequestException('缺少参数 url');
+        }
+        const out = await this.drawingMjService.proxyFetchImage(url.trim());
+        const safeName = out.filename.replace(/[^\w.\-()+[\]]/g, '_') || 'image.png';
+        return new common_1.StreamableFile(out.buffer, {
+            type: out.contentType,
+            disposition: `attachment; filename="${safeName}"`,
+        });
+    }
+    mjJobEntityToDto(e) {
+        let task;
+        try {
+            if (e.taskJson)
+                task = JSON.parse(e.taskJson);
+        }
+        catch {
+            task = undefined;
+        }
+        const ck = e.clientKey ? Number(e.clientKey) : undefined;
+        return {
+            id: e.id,
+            clientKey: Number.isFinite(ck) ? ck : undefined,
+            taskId: e.taskId ?? '',
+            modelKey: e.modelKey,
+            mjMode: e.mjMode,
+            mjStyleSnapshot: e.mjStyleSnapshot ?? undefined,
+            promptLabel: e.promptLabel,
+            loading: !!e.loading,
+            error: e.error ?? undefined,
+            task,
+            createdAt: e.createdAt,
+            updatedAt: e.updatedAt,
+        };
+    }
+    async listMjJobs(req, limit) {
+        const lim = Math.min(100, Math.max(1, parseInt(String(limit || '80'), 10) || 80));
+        const rows = await this.drawingMjJobService.listForUser(req.user.id, lim);
+        return { list: rows.map(r => this.mjJobEntityToDto(r)) };
+    }
+    async batchUpsertMjJobs(req, body) {
+        const jobs = Array.isArray(body?.jobs) ? body.jobs : [];
+        const n = await this.drawingMjJobService.batchUpsert(req.user.id, jobs);
+        return { synced: n };
+    }
+    async deleteMjJob(req, id) {
+        const nid = parseInt(String(id || '').trim(), 10);
+        if (!Number.isFinite(nid) || nid < 1) {
+            throw new common_1.BadRequestException('无效的任务 id');
+        }
+        await this.drawingMjJobService.delete(req.user.id, nid);
+        return { ok: true };
+    }
+    async withBalance(req, row, mjMode, charge, fn) {
+        const mult = typeof charge === 'string'
+            ? this.drawingMjService.guessChargeMultiplier(charge || '')
+            : charge.mult;
+        const base = this.drawingMjService.mjBaseDeductPerUnit(row, mjMode);
+        const amount = base * mult;
+        await this.userBalanceService.validateBalance(req, row.deductType, amount);
+        const out = await fn();
+        const payload = out?.data;
+        const raw = payload?.code;
+        const code = typeof raw === 'number' && Number.isFinite(raw)
+            ? raw
+            : typeof raw === 'string' && raw.trim() !== ''
+                ? Number(raw.trim())
+                : NaN;
+        if (!Number.isNaN(code) && (code === 0 || code === 1 || code === 21 || code === 22)) {
+            await this.userBalanceService.deductFromBalance(req.user.id, row.deductType, amount);
+        }
+        return payload;
+    }
+    async imagine(req, body) {
+        const row = await this.drawingMjService.resolveMjModel(body.model);
+        const mode = body.mjMode || 'fast';
+        return this.withBalance(req, row, mode, body.prompt || '', () => this.drawingMjService.requestUpstream(row, mode, '/submit/imagine', {
+            data: {
+                prompt: body.prompt,
+                base64Array: body.base64Array,
+                notifyHook: body.notifyHook,
+                state: body.state,
+            },
+        }));
+    }
+    async change(req, body) {
+        const row = await this.drawingMjService.resolveMjModel(body.model);
+        const mode = body.mjMode || 'fast';
+        return this.withBalance(req, row, mode, { mult: 1 }, () => this.drawingMjService.requestUpstream(row, mode, '/submit/change', {
+            data: {
+                action: body.action,
+                index: body.index,
+                taskId: body.taskId,
+                notifyHook: body.notifyHook,
+                state: body.state,
+            },
+        }));
+    }
+    async action(req, body) {
+        const row = await this.drawingMjService.resolveMjModel(body.model);
+        const mode = body.mjMode || 'fast';
+        const actionData = {
+            customId: body.customId,
+            taskId: body.taskId,
+        };
+        const nh = body.notifyHook != null ? String(body.notifyHook).trim() : '';
+        if (nh)
+            actionData.notifyHook = nh;
+        const st = body.state != null ? String(body.state).trim() : '';
+        if (st)
+            actionData.state = st;
+        if (process.env.MJ_ACTION_FORWARD_EXTRAS === '1') {
+            if (body.botType != null && String(body.botType).trim() !== '') {
+                actionData.botType = String(body.botType).trim();
+            }
+            if (body.enableRemix === true)
+                actionData.enableRemix = true;
+        }
+        return this.withBalance(req, row, mode, { mult: 1 }, () => this.drawingMjService.requestUpstream(row, mode, '/submit/action', {
+            data: actionData,
+        }));
+    }
+    async simpleChange(req, body) {
+        const row = await this.drawingMjService.resolveMjModel(body.model);
+        const mode = body.mjMode || 'fast';
+        return this.withBalance(req, row, mode, { mult: 1 }, () => this.drawingMjService.requestUpstream(row, mode, '/submit/simple-change', {
+            data: {
+                content: body.content,
+                notifyHook: body.notifyHook,
+                state: body.state,
+            },
+        }));
+    }
+    async blend(req, body) {
+        const row = await this.drawingMjService.resolveMjModel(body.model);
+        const mode = body.mjMode || 'fast';
+        return this.withBalance(req, row, mode, { mult: 4 }, () => this.drawingMjService.requestUpstream(row, mode, '/submit/blend', {
+            data: {
+                base64Array: body.base64Array,
+                dimensions: body.dimensions,
+                notifyHook: body.notifyHook,
+                state: body.state,
+            },
+        }));
+    }
+    async describe(req, body) {
+        const row = await this.drawingMjService.resolveMjModel(body.model);
+        const mode = body.mjMode || 'fast';
+        return this.withBalance(req, row, mode, { mult: 1 }, () => this.drawingMjService.requestUpstream(row, mode, '/submit/describe', {
+            data: {
+                base64: body.base64,
+                notifyHook: body.notifyHook,
+                state: body.state,
+            },
+        }));
+    }
+    async modal(req, body) {
+        const row = await this.drawingMjService.resolveMjModel(body.model);
+        const mode = body.mjMode || 'fast';
+        const taskId = String(body.taskId ?? '').trim();
+        if (!taskId) {
+            throw new common_1.BadRequestException('缺少 taskId');
+        }
+        const maskFmt = resolveMjModalMaskFormat(body.maskBase64);
+        const rawMaskIn = body.maskBase64;
+        const rawLen = rawMaskIn != null && typeof rawMaskIn === 'string' ? rawMaskIn.trim().length : 0;
+        let mask = normalizeMjModalMaskForUpstream(body.maskBase64, maskFmt);
+        if (rawLen > 80 && !mask) {
+            throw new common_1.BadRequestException('蒙版无法解析（可能被网关截断 JSON，请调大 Nginx client_max_body_size 或缩小选区）');
+        }
+        if (mask && !mjModalMaskPayloadIsPng(mask)) {
+            this.logger.log(`[MJ modal] 蒙版解码后非标准 PNG 文件头，仍尝试提交上游（若失败请检查选区/图片源）`);
+        }
+        const promptStr = body.prompt != null && String(body.prompt).trim() !== '' ? String(body.prompt).trim() : '';
+        let effectivePrompt = promptStr;
+        if (mask && !effectivePrompt && process.env.MJ_MODAL_EMPTY_PROMPT_FALLBACK?.trim()) {
+            effectivePrompt = process.env.MJ_MODAL_EMPTY_PROMPT_FALLBACK.trim();
+        }
+        const forwardExtras = mjModalForwardExtrasToUpstream();
+        const data = { taskId };
+        if (mask) {
+            if (effectivePrompt !== '')
+                data.prompt = effectivePrompt;
+            data.maskBase64 = mask;
+            const dupK = process.env.MJ_MODAL_MASK_DUP_KEY?.trim();
+            if (dupK && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(dupK)) {
+                data[dupK] = mask;
+            }
+        }
+        else if (effectivePrompt !== '') {
+            data.prompt = effectivePrompt;
+        }
+        if (process.env.MJ_MODAL_APPEND_MODE === '1') {
+            const turboLit = process.env.MJ_MODAL_MODE_TURBO_LITERAL === '1';
+            data.mode = mode === 'relax' ? 'RELAX' : mode === 'turbo' && turboLit ? 'TURBO' : 'FAST';
+        }
+        if (forwardExtras) {
+            if (typeof body.noStorage === 'boolean') {
+                data.noStorage = body.noStorage;
+            }
+            const nh = body.notifyHook != null ? String(body.notifyHook).trim() : '';
+            if (nh)
+                data.notifyHook = nh;
+            const st = body.state != null ? String(body.state).trim() : '';
+            if (st)
+                data.state = st;
+        }
+        const upstreamMode = process.env.MJ_MODAL_FORCE_FAST_MJ_PATH === '1' ? 'fast' : mode;
+        this.logger.log(`[MJ modal] forwardExtras=${forwardExtras} maskFmt=${maskFmt} upstreamMode=${upstreamMode} taskId.len=${taskId.length} prompt.len=${effectivePrompt.length} rawMask.len=${rawLen} outMask.len=${mask?.length ?? 0} reqMjMode=${mode}`);
+        return this.withBalance(req, row, upstreamMode, { mult: 1 }, () => this.drawingMjService.requestUpstream(row, upstreamMode, '/submit/modal', {
+            data,
+        }));
+    }
+    async shorten(req, body) {
+        const row = await this.drawingMjService.resolveMjModel(body.model);
+        const mode = body.mjMode || 'fast';
+        return this.withBalance(req, row, mode, body.prompt || '', () => this.drawingMjService.requestUpstream(row, mode, '/submit/shorten', {
+            data: {
+                prompt: body.prompt,
+                botType: body.botType,
+                notifyHook: body.notifyHook,
+                state: body.state,
+            },
+        }));
+    }
+    async taskList(body) {
+        const row = await this.drawingMjService.resolveMjModel(body.model);
+        const mode = body.mjMode || 'fast';
+        const out = await this.drawingMjService.requestUpstream(row, mode, '/task/list-by-condition', {
+            data: { ids: body.ids || [] },
+        });
+        return out.data;
+    }
+    async taskFetch(id, model, mjMode) {
+        const row = await this.drawingMjService.resolveMjModel(model);
+        const mode = mjMode || 'fast';
+        const out = await this.drawingMjService.requestUpstream(row, mode, `/task/${encodeURIComponent(id)}/fetch`, {
+            method: 'GET',
+        });
+        return out.data;
+    }
+    async imageSeed(id, model, mjMode) {
+        const row = await this.drawingMjService.resolveMjModel(model);
+        const mode = mjMode || 'fast';
+        const out = await this.drawingMjService.requestUpstream(row, mode, `/task/${encodeURIComponent(id)}/image-seed`, {
+            method: 'GET',
+        });
+        return out.data;
+    }
+};
+exports.DrawingMjController = DrawingMjController;
+__decorate([
+    (0, common_1.Get)('proxy-image'),
+    (0, swagger_1.ApiOperation)({ summary: '代理下载远程图片（前端另存为，服务端拉取绕开浏览器跨域）' }),
+    (0, common_1.Header)('Cache-Control', 'no-store'),
+    __param(0, (0, common_1.Query)('url')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], DrawingMjController.prototype, "proxyImageDownload", null);
+__decorate([
+    (0, common_1.Get)('jobs'),
+    (0, swagger_1.ApiOperation)({ summary: '列举当前账号的 MJ 绘画任务（云端，可跨设备）' }),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Query)('limit')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_d = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _d : Object, String]),
+    __metadata("design:returntype", Promise)
+], DrawingMjController.prototype, "listMjJobs", null);
+__decorate([
+    (0, common_1.Post)('jobs/batch-upsert'),
+    (0, swagger_1.ApiOperation)({ summary: '批量同步 MJ 任务快照（按 clientKey 与账号幂等合并）' }),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_e = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _e : Object, Object]),
+    __metadata("design:returntype", Promise)
+], DrawingMjController.prototype, "batchUpsertMjJobs", null);
+__decorate([
+    (0, common_1.Delete)('jobs/:id'),
+    (0, swagger_1.ApiOperation)({ summary: '删除当前账号下的 MJ 绘画任务记录（云端列表）' }),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_f = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _f : Object, String]),
+    __metadata("design:returntype", Promise)
+], DrawingMjController.prototype, "deleteMjJob", null);
+__decorate([
+    (0, common_1.Post)('submit/imagine'),
+    (0, swagger_1.ApiOperation)({ summary: 'MJ Imagine（文生图 / 垫图）' }),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_g = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _g : Object, Object]),
+    __metadata("design:returntype", Promise)
+], DrawingMjController.prototype, "imagine", null);
+__decorate([
+    (0, common_1.Post)('submit/change'),
+    (0, swagger_1.ApiOperation)({ summary: 'MJ U/V/R（change）' }),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_h = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _h : Object, Object]),
+    __metadata("design:returntype", Promise)
+], DrawingMjController.prototype, "change", null);
+__decorate([
+    (0, common_1.Post)('submit/action'),
+    (0, swagger_1.ApiOperation)({ summary: 'MJ 自定义按钮（customId）' }),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_j = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _j : Object, Object]),
+    __metadata("design:returntype", Promise)
+], DrawingMjController.prototype, "action", null);
+__decorate([
+    (0, common_1.Post)('submit/simple-change'),
+    (0, swagger_1.ApiOperation)({ summary: 'MJ simple-change（如 taskId U2）' }),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_k = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _k : Object, Object]),
+    __metadata("design:returntype", Promise)
+], DrawingMjController.prototype, "simpleChange", null);
+__decorate([
+    (0, common_1.Post)('submit/blend'),
+    (0, swagger_1.ApiOperation)({ summary: 'MJ Blend 混合图' }),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_l = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _l : Object, Object]),
+    __metadata("design:returntype", Promise)
+], DrawingMjController.prototype, "blend", null);
+__decorate([
+    (0, common_1.Post)('submit/describe'),
+    (0, swagger_1.ApiOperation)({ summary: 'MJ Describe 图生文' }),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_m = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _m : Object, Object]),
+    __metadata("design:returntype", Promise)
+], DrawingMjController.prototype, "describe", null);
+__decorate([
+    (0, common_1.Post)('submit/modal'),
+    (0, swagger_1.ApiOperation)({ summary: 'MJ Modal（局部重绘 / Zoom）' }),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_o = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _o : Object, Object]),
+    __metadata("design:returntype", Promise)
+], DrawingMjController.prototype, "modal", null);
+__decorate([
+    (0, common_1.Post)('submit/shorten'),
+    (0, swagger_1.ApiOperation)({ summary: 'MJ Shorten 提示词分析' }),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_p = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _p : Object, Object]),
+    __metadata("design:returntype", Promise)
+], DrawingMjController.prototype, "shorten", null);
+__decorate([
+    (0, common_1.Post)('task/list-by-condition'),
+    (0, swagger_1.ApiOperation)({ summary: 'MJ 按 ID 列表查任务' }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], DrawingMjController.prototype, "taskList", null);
+__decorate([
+    (0, common_1.Get)('task/:id/fetch'),
+    (0, swagger_1.ApiOperation)({ summary: 'MJ 查询单个任务（含按钮）' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Query)('model')),
+    __param(2, (0, common_1.Query)('mjMode')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, typeof (_q = typeof drawing_mj_service_1.MjSpeedMode !== "undefined" && drawing_mj_service_1.MjSpeedMode) === "function" ? _q : Object]),
+    __metadata("design:returntype", Promise)
+], DrawingMjController.prototype, "taskFetch", null);
+__decorate([
+    (0, common_1.Get)('task/:id/image-seed'),
+    (0, swagger_1.ApiOperation)({ summary: 'MJ 获取任务 seed' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Query)('model')),
+    __param(2, (0, common_1.Query)('mjMode')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, typeof (_r = typeof drawing_mj_service_1.MjSpeedMode !== "undefined" && drawing_mj_service_1.MjSpeedMode) === "function" ? _r : Object]),
+    __metadata("design:returntype", Promise)
+], DrawingMjController.prototype, "imageSeed", null);
+exports.DrawingMjController = DrawingMjController = DrawingMjController_1 = __decorate([
+    (0, swagger_1.ApiTags)('drawing-mj'),
+    (0, common_1.Controller)('drawing/mj'),
+    (0, common_1.UseGuards)(jwtAuth_guard_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    __metadata("design:paramtypes", [typeof (_a = typeof drawing_mj_service_1.DrawingMjService !== "undefined" && drawing_mj_service_1.DrawingMjService) === "function" ? _a : Object, typeof (_b = typeof drawing_mj_job_service_1.DrawingMjJobService !== "undefined" && drawing_mj_job_service_1.DrawingMjJobService) === "function" ? _b : Object, typeof (_c = typeof userBalance_service_1.UserBalanceService !== "undefined" && userBalance_service_1.UserBalanceService) === "function" ? _c : Object])
+], DrawingMjController);
+
+
+/***/ }),
+/* 176 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DrawingMjService = void 0;
+const common_1 = __webpack_require__(2);
+const typeorm_1 = __webpack_require__(34);
+const axios_1 = __webpack_require__(40);
+const typeorm_2 = __webpack_require__(3);
+const models_entity_1 = __webpack_require__(79);
+function mjApiPrefix(mode) {
+    switch (mode) {
+        case 'turbo':
+            return '/mj-turbo/mj';
+        case 'relax':
+            return '/mj-relax/mj';
+        default: {
+            const o = process.env.MJ_API_PREFIX_FAST?.trim();
+            if (o)
+                return o.replace(/\/+$/, '');
+            return '/mj';
+        }
+    }
+}
+function mjSafeUrlForLog(fullUrl) {
+    try {
+        const u = new URL(fullUrl);
+        return `${u.origin}${u.pathname}`;
+    }
+    catch {
+        return '[invalid-url]';
+    }
+}
+function mjSummarizePostBody(data) {
+    const out = {};
+    for (const [k, v] of Object.entries(data)) {
+        if (typeof v === 'string') {
+            const lk = k.toLowerCase();
+            if (lk.includes('base64') || lk === 'mask' || v.length > 240) {
+                out[k] = `<string len=${v.length}>`;
+            }
+            else {
+                out[k] = v.length > 200 ? `${v.slice(0, 200)}…` : v;
+            }
+        }
+        else {
+            out[k] = v;
+        }
+    }
+    return out;
+}
+function mjSummarizeResponseBody(data) {
+    if (data == null)
+        return data;
+    if (typeof data !== 'object' || Array.isArray(data)) {
+        return typeof data === 'string' ? data.slice(0, 400) : data;
+    }
+    const o = data;
+    const snap = {};
+    for (const k of [
+        'code',
+        'description',
+        'message',
+        'msg',
+        'status',
+        'title',
+        'failReason',
+        'failMsg',
+    ]) {
+        if (k in o && o[k] != null)
+            snap[k] = o[k];
+    }
+    if ('result' in o) {
+        const r = o.result;
+        if (typeof r === 'string')
+            snap.result = r.length > 64 ? `${r.slice(0, 64)}…(len=${r.length})` : r;
+        else
+            snap.result = r;
+    }
+    if ('data' in o && o.data != null && typeof o.data === 'object') {
+        snap.nestedData = mjSummarizeResponseBody(o.data);
+    }
+    return Object.keys(snap).length ? snap : JSON.stringify(data).slice(0, 500);
+}
+function joinUrl(base, path) {
+    const b = base.replace(/\/+$/, '');
+    const p = path.startsWith('/') ? path : `/${path}`;
+    return `${b}${p}`;
+}
+function normalizeMjProxyBaseUrl(raw) {
+    let url = raw.trim();
+    if (!url)
+        return '';
+    if (url.endsWith('/'))
+        url = url.slice(0, -1);
+    try {
+        const u = new URL(url);
+        const pathname = (u.pathname || '/').replace(/\/+$/, '');
+        const parts = pathname.split('/').filter(Boolean);
+        if (parts.length > 0 && parts[parts.length - 1].toLowerCase() === 'mj') {
+            parts.pop();
+            u.pathname = parts.length ? `/${parts.join('/')}` : '/';
+            let out = u.toString();
+            if (out.endsWith('/'))
+                out = out.slice(0, -1);
+            return out;
+        }
+    }
+    catch {
+        if (/\/mj$/i.test(url))
+            return url.replace(/\/mj$/i, '');
+    }
+    return url;
+}
+let DrawingMjService = class DrawingMjService {
+    modelsEntity;
+    constructor(modelsEntity) {
+        this.modelsEntity = modelsEntity;
+    }
+    async resolveMjModel(modelKey) {
+        if (!modelKey) {
+            throw new common_1.HttpException('缺少模型参数 model', common_1.HttpStatus.BAD_REQUEST);
+        }
+        const row = await this.modelsEntity.findOne({
+            where: { model: modelKey },
+        });
+        if (!row || !row.status) {
+            throw new common_1.HttpException('模型不存在或未启用', common_1.HttpStatus.BAD_REQUEST);
+        }
+        if (Number(row.drawingType) !== 3) {
+            throw new common_1.HttpException('当前模型不是 Midjourney 绘画类型（drawingType=3）', common_1.HttpStatus.BAD_REQUEST);
+        }
+        if (!row.proxyUrl || !String(row.proxyUrl).trim()) {
+            throw new common_1.HttpException('模型未配置上游地址 proxyUrl', common_1.HttpStatus.BAD_REQUEST);
+        }
+        return row;
+    }
+    async resolveMjModelForChat(modelKey) {
+        if (!modelKey) {
+            throw new common_1.HttpException('缺少模型参数 model', common_1.HttpStatus.BAD_REQUEST);
+        }
+        const row = await this.modelsEntity.findOne({
+            where: { model: modelKey },
+        });
+        if (!row || !row.status) {
+            throw new common_1.HttpException('模型不存在或未启用', common_1.HttpStatus.BAD_REQUEST);
+        }
+        if (!row.proxyUrl || !String(row.proxyUrl).trim()) {
+            throw new common_1.HttpException('模型未配置上游地址 proxyUrl', common_1.HttpStatus.BAD_REQUEST);
+        }
+        const dt = Number(row.drawingType);
+        const legacyMj = String(row.model).toLowerCase() === 'midjourney';
+        if (dt !== 3 && !legacyMj) {
+            throw new common_1.HttpException('对话使用 Midjourney 请在后台将「绘画类型」设为 Midjourney（drawingType=3），或与绘画页使用同一 MJ 模型', common_1.HttpStatus.BAD_REQUEST);
+        }
+        return row;
+    }
+    async requestUpstream(row, mode, pathAfterPrefix, options) {
+        const base = normalizeMjProxyBaseUrl(row.proxyUrl);
+        const prefix = mjApiPrefix(mode);
+        const url = joinUrl(base, joinUrl(prefix, pathAfterPrefix));
+        const headers = {};
+        if (row.key) {
+            const authMode = process.env.MJ_UPSTREAM_AUTH?.trim().toLowerCase();
+            if (authMode === 'secret') {
+                headers['mj-api-secret'] = row.key;
+            }
+            else {
+                headers.Authorization = `Bearer ${row.key}`;
+                if (authMode === 'both' || process.env.MJ_UPSTREAM_MIRROR_SECRET === '1') {
+                    headers['mj-api-secret'] = row.key;
+                }
+            }
+        }
+        if (options.method !== 'GET') {
+            headers['Content-Type'] = 'application/json';
+        }
+        const cfg = {
+            method: options.method || 'POST',
+            url,
+            headers,
+            timeout: (row.timeout || 300) * 1000,
+            validateStatus: () => true,
+            maxBodyLength: 50 * 1024 * 1024,
+            maxContentLength: 50 * 1024 * 1024,
+        };
+        if (options.method === 'GET') {
+            cfg.params = options.params;
+        }
+        else {
+            cfg.data = options.data ?? {};
+        }
+        const m = options.method || 'POST';
+        if (m !== 'GET' && cfg.data && typeof cfg.data === 'object' && !Array.isArray(cfg.data)) {
+            common_1.Logger.log(`[MJ] → ${pathAfterPrefix} ${mjSafeUrlForLog(url)} ${JSON.stringify(mjSummarizePostBody(cfg.data))}`, 'DrawingMjService');
+        }
+        try {
+            const res = await axios_1.default.request(cfg);
+            const sum = mjSummarizeResponseBody(res.data);
+            const line = `[MJ] ← ${pathAfterPrefix} HTTP ${res.status} ${mjSafeUrlForLog(url)} ${JSON.stringify(sum)}`;
+            if (res.status >= 400) {
+                common_1.Logger.error(line, 'DrawingMjService');
+            }
+            else {
+                common_1.Logger.log(line, 'DrawingMjService');
+            }
+            return { status: res.status, data: res.data };
+        }
+        catch (e) {
+            common_1.Logger.error(`MJ upstream error: ${e?.message}`, 'DrawingMjService');
+            throw new common_1.HttpException(e?.message || '上游请求失败', common_1.HttpStatus.BAD_GATEWAY);
+        }
+    }
+    guessChargeMultiplier(prompt) {
+        if (!prompt || !String(prompt).trim())
+            return 1;
+        if (prompt.includes('--v 8'))
+            return 8;
+        if (prompt.includes('--v 7'))
+            return 8;
+        if (prompt.includes('--niji 7'))
+            return 8;
+        if (prompt.includes('--draft'))
+            return 2;
+        return 4;
+    }
+    mjBaseDeductPerUnit(row, mode) {
+        const fallbackRaw = Number(row.deduct);
+        const fallback = Number.isFinite(fallbackRaw) && fallbackRaw >= 0 ? fallbackRaw : 0;
+        if (Number(row.drawingType) !== 3) {
+            return fallback;
+        }
+        const pick = (v) => {
+            if (v === null || v === undefined)
+                return null;
+            const n = Number(v);
+            if (!Number.isFinite(n) || n < 0)
+                return null;
+            return n;
+        };
+        let chosen = null;
+        if (mode === 'relax')
+            chosen = pick(row.deductMjRelax ?? null);
+        else if (mode === 'turbo')
+            chosen = pick(row.deductMjTurbo ?? null);
+        else
+            chosen = pick(row.deductMjFast ?? null);
+        return chosen ?? fallback;
+    }
+    assertSafeImageProxyUrl(raw) {
+        let u;
+        try {
+            u = new URL(raw);
+        }
+        catch {
+            throw new common_1.BadRequestException('无效的 URL');
+        }
+        if (u.protocol !== 'http:' && u.protocol !== 'https:') {
+            throw new common_1.BadRequestException('仅允许 http/https');
+        }
+        const host = u.hostname.toLowerCase();
+        if (host === 'localhost' ||
+            host === '0.0.0.0' ||
+            host.endsWith('.localhost') ||
+            host.endsWith('.local')) {
+            throw new common_1.BadRequestException('禁止访问该地址');
+        }
+        const ipv4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+        if (ipv4) {
+            const ha = Number(ipv4[1]);
+            const hb = Number(ipv4[2]);
+            if (ha === 10 ||
+                ha === 127 ||
+                ha === 0 ||
+                (ha === 169 && hb === 254) ||
+                (ha === 172 && hb >= 16 && hb <= 31) ||
+                (ha === 192 && hb === 168)) {
+                throw new common_1.BadRequestException('禁止访问该地址');
+            }
+        }
+        if (host === '[::1]' || host === '::1') {
+            throw new common_1.BadRequestException('禁止访问该地址');
+        }
+        return u;
+    }
+    bufferLooksLikeImage(buf) {
+        if (buf.length < 12)
+            return false;
+        if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff)
+            return true;
+        if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47)
+            return true;
+        if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46)
+            return true;
+        if (buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP')
+            return true;
+        return false;
+    }
+    safeDownloadFilename(urlStr) {
+        try {
+            const seg = new URL(urlStr).pathname.split('/').filter(Boolean).pop() || 'image.png';
+            const cleaned = seg
+                .replace(/[^\w.\-]+/g, '_')
+                .replace(/_+/g, '_')
+                .slice(0, 120);
+            return cleaned.match(/\.(png|jpe?g|webp|gif)$/i) ? cleaned : `${cleaned || 'image'}.png`;
+        }
+        catch {
+            return 'image.png';
+        }
+    }
+    normalizeImageContentType(ctRaw, buf) {
+        const base = String(ctRaw || '')
+            .split(';')[0]
+            .trim()
+            .toLowerCase();
+        if (base.startsWith('image/'))
+            return base;
+        if ((base === 'application/octet-stream' || base === 'binary/octet-stream') &&
+            this.bufferLooksLikeImage(buf)) {
+            if (buf[0] === 0xff && buf[1] === 0xd8)
+                return 'image/jpeg';
+            if (buf[0] === 0x89 && buf[1] === 0x50)
+                return 'image/png';
+            if (buf[0] === 0x47 && buf[1] === 0x49)
+                return 'image/gif';
+            return 'image/webp';
+        }
+        throw new common_1.BadRequestException('响应不是可识别的图片');
+    }
+    async proxyFetchImage(rawUrl) {
+        const trimmed = String(rawUrl || '').trim();
+        if (!trimmed || trimmed.length > 4096) {
+            throw new common_1.BadRequestException('URL 过长或为空');
+        }
+        const u = this.assertSafeImageProxyUrl(trimmed);
+        const urlStr = u.toString();
+        try {
+            const res = await axios_1.default.get(urlStr, {
+                responseType: 'arraybuffer',
+                timeout: 45000,
+                maxContentLength: 30 * 1024 * 1024,
+                maxBodyLength: 30 * 1024 * 1024,
+                validateStatus: status => status === 200,
+                headers: { Accept: 'image/*,*/*;q=0.8' },
+            });
+            if (res.status !== 200 || !res.data) {
+                throw new common_1.BadRequestException('图片下载失败');
+            }
+            const buf = Buffer.from(res.data);
+            if (buf.length === 0 || buf.length > 30 * 1024 * 1024) {
+                throw new common_1.BadRequestException('图片过大或为空');
+            }
+            const ctHeader = String(res.headers['content-type'] || '')
+                .split(';')[0]
+                .trim();
+            const contentType = this.normalizeImageContentType(ctHeader, buf);
+            const filename = this.safeDownloadFilename(urlStr);
+            return { buffer: buf, contentType, filename };
+        }
+        catch (e) {
+            if (e instanceof common_1.BadRequestException)
+                throw e;
+            common_1.Logger.warn(`proxyFetchImage failed: ${e?.message}`, 'DrawingMjService');
+            throw new common_1.BadRequestException(e?.message || '图片拉取失败');
+        }
+    }
+};
+exports.DrawingMjService = DrawingMjService;
+exports.DrawingMjService = DrawingMjService = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, typeorm_1.InjectRepository)(models_entity_1.ModelsEntity)),
+    __metadata("design:paramtypes", [typeof (_a = typeof typeorm_2.Repository !== "undefined" && typeorm_2.Repository) === "function" ? _a : Object])
+], DrawingMjService);
+
+
+/***/ }),
+/* 177 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -11452,11 +12884,11 @@ var _a, _b, _c, _d, _e, _f;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ChatController = void 0;
 const swagger_1 = __webpack_require__(14);
-const jwtAuth_guard_1 = __webpack_require__(87);
-const chat_service_1 = __webpack_require__(169);
+const jwtAuth_guard_1 = __webpack_require__(88);
+const chat_service_1 = __webpack_require__(178);
 const common_1 = __webpack_require__(2);
-const express_1 = __webpack_require__(104);
-const chatProcess_dto_1 = __webpack_require__(170);
+const express_1 = __webpack_require__(105);
+const chatProcess_dto_1 = __webpack_require__(179);
 let ChatController = class ChatController {
     chatService;
     constructor(chatService) {
@@ -11502,7 +12934,7 @@ exports.ChatController = ChatController = __decorate([
 
 
 /***/ }),
-/* 169 */
+/* 178 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -11518,27 +12950,28 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o;
+var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ChatService = void 0;
-const utils_1 = __webpack_require__(36);
+const utils_1 = __webpack_require__(37);
 const common_1 = __webpack_require__(2);
-const typeorm_1 = __webpack_require__(33);
-const openai_1 = __webpack_require__(153);
+const typeorm_1 = __webpack_require__(34);
+const openai_1 = __webpack_require__(154);
 const typeorm_2 = __webpack_require__(3);
-const chat_service_1 = __webpack_require__(152);
-const app_entity_1 = __webpack_require__(106);
-const app_service_1 = __webpack_require__(105);
-const autoReply_service_1 = __webpack_require__(135);
-const badWords_service_1 = __webpack_require__(143);
-const chatGroup_service_1 = __webpack_require__(156);
-const chatLog_service_1 = __webpack_require__(158);
-const globalConfig_service_1 = __webpack_require__(74);
-const models_service_1 = __webpack_require__(76);
-const plugin_entity_1 = __webpack_require__(160);
-const upload_service_1 = __webpack_require__(161);
-const user_service_1 = __webpack_require__(97);
-const userBalance_service_1 = __webpack_require__(34);
+const chat_service_1 = __webpack_require__(153);
+const app_entity_1 = __webpack_require__(107);
+const app_service_1 = __webpack_require__(106);
+const autoReply_service_1 = __webpack_require__(136);
+const badWords_service_1 = __webpack_require__(144);
+const chatGroup_service_1 = __webpack_require__(157);
+const chatLog_service_1 = __webpack_require__(159);
+const drawing_mj_service_1 = __webpack_require__(176);
+const globalConfig_service_1 = __webpack_require__(75);
+const models_service_1 = __webpack_require__(77);
+const plugin_entity_1 = __webpack_require__(161);
+const upload_service_1 = __webpack_require__(162);
+const user_service_1 = __webpack_require__(98);
+const userBalance_service_1 = __webpack_require__(35);
 let ChatService = class ChatService {
     appEntity;
     pluginEntity;
@@ -11553,7 +12986,8 @@ let ChatService = class ChatService {
     chatGroupService;
     modelsService;
     appService;
-    constructor(appEntity, pluginEntity, openAIChatService, chatLogService, userBalanceService, userService, uploadService, badWordsService, autoReplyService, globalConfigService, chatGroupService, modelsService, appService) {
+    drawingMjService;
+    constructor(appEntity, pluginEntity, openAIChatService, chatLogService, userBalanceService, userService, uploadService, badWordsService, autoReplyService, globalConfigService, chatGroupService, modelsService, appService, drawingMjService) {
         this.appEntity = appEntity;
         this.pluginEntity = pluginEntity;
         this.openAIChatService = openAIChatService;
@@ -11567,6 +13001,7 @@ let ChatService = class ChatService {
         this.chatGroupService = chatGroupService;
         this.modelsService = modelsService;
         this.appService = appService;
+        this.drawingMjService = drawingMjService;
     }
     async chatProcess(body, req, res) {
         await this.userBalanceService.checkUserCertification(req.user.id);
@@ -11798,6 +13233,20 @@ let ChatService = class ChatService {
             }, req);
         }
         const { deduct, isTokenBased, tokenFeeRatio, deductType, key, id: keyId, maxRounds, proxyUrl, maxModelTokens, max_tokens, timeout, model: useModel, isFileUpload, isImageUpload, keyType: modelType, deductDeepThink = 1, isMcpTool, deepThinkingType, drawingType, } = currentRequestModelKey;
+        if (Number(drawingType) === 3) {
+            if (!proxyUrl || !String(proxyUrl).trim()) {
+                throw new common_1.HttpException('Midjourney 模型未配置上游代理地址 proxyUrl，请在模型管理中填写（与独立绘画页一致）', common_1.HttpStatus.BAD_REQUEST);
+            }
+        }
+        let charge = deduct * (usingDeepThinking ? deductDeepThink : 1);
+        const isMjChatModel = Number(drawingType) === 3 || String(useModel).toLowerCase() === 'midjourney';
+        if (action !== 'UPSCALE' && isMjChatModel) {
+            const em = extraParam?.mjMode;
+            const mjMode = em === 'turbo' || em === 'relax' || em === 'fast' ? em : 'fast';
+            const base = this.drawingMjService.mjBaseDeductPerUnit(currentRequestModelKey, mjMode);
+            const mult = this.drawingMjService.guessChargeMultiplier(prompt);
+            charge = base * mult;
+        }
         if (await this.chatLogService.checkModelLimits(req.user, useModel)) {
             res.write(`\n${JSON.stringify({
                 status: 3,
@@ -11807,7 +13256,7 @@ let ChatService = class ChatService {
             res.end();
             return;
         }
-        await this.userBalanceService.validateBalance(req, deductType, deduct * (usingDeepThinking ? deductDeepThink : 1));
+        await this.userBalanceService.validateBalance(req, deductType, charge);
         const useModeName = modelName;
         const proxyResUrl = (0, utils_1.formatUrl)(proxyUrl || openaiBaseUrl || 'https://api.openai.com');
         const modelKey = key || openaiBaseKey;
@@ -11891,21 +13340,6 @@ let ChatService = class ChatService {
             isFileUpload,
             isImageUpload,
         }, this.chatLogService);
-        let charge;
-        if (action !== 'UPSCALE' && useModel === 'midjourney') {
-            if (prompt.includes('--v 7')) {
-                charge = deduct * 8;
-            }
-            else if (prompt.includes('--draft')) {
-                charge = deduct * 2;
-            }
-            else {
-                charge = deduct * 4;
-            }
-        }
-        else {
-            charge = deduct * (usingDeepThinking ? deductDeepThink : 1);
-        }
         const abortController = new AbortController();
         try {
             if (res) {
@@ -11918,6 +13352,28 @@ let ChatService = class ChatService {
                         chatId: assistantLogId,
                     };
                     res.write(`\n${JSON.stringify(chatId)}`);
+                    const useMjUpstream = proxyUrl &&
+                        String(proxyUrl).trim() &&
+                        (Number(drawingType) === 3 || String(useModel).toLowerCase() === 'midjourney');
+                    if (useMjUpstream) {
+                        await this.runMidjourneyUpstreamChat({
+                            req,
+                            res,
+                            useModel,
+                            prompt,
+                            extraParam,
+                            charge,
+                            deductType,
+                            keyId,
+                            userLogId,
+                            assistantLogId,
+                            useModeName,
+                            model,
+                            isSensitiveWordFilter,
+                            abortController,
+                        });
+                        return;
+                    }
                     response = await this.openAIChatService.chat(messagesHistory, {
                         chatId: assistantLogId,
                         extraParam,
@@ -12044,6 +13500,197 @@ let ChatService = class ChatService {
         finally {
             res && res.end();
         }
+    }
+    async runMidjourneyUpstreamChat(opts) {
+        const { req, res, useModel, prompt, extraParam, charge, deductType, keyId, userLogId, assistantLogId, useModeName, model, isSensitiveWordFilter, abortController, } = opts;
+        let mjRow;
+        try {
+            mjRow = await this.drawingMjService.resolveMjModelForChat(useModel);
+        }
+        catch (e) {
+            const msg = e?.message || 'Midjourney 模型不可用';
+            common_1.Logger.error(`MJ 对话路由失败: ${msg}`, 'ChatService');
+            await this.chatLogService.updateChatLog(assistantLogId, { content: msg, status: 4 });
+            res.write(`\n${JSON.stringify({
+                errMsg: msg,
+                full_content: '',
+                content: [{ type: 'text', text: msg }],
+            })}`);
+            return;
+        }
+        let mode = 'fast';
+        const em = extraParam?.mjMode;
+        if (em === 'turbo' || em === 'relax' || em === 'fast') {
+            mode = em;
+        }
+        const builtPrompt = this.buildMjChatPrompt(prompt, extraParam);
+        common_1.Logger.log(`MJ 对话直连上游 imagine model=${useModel} mode=${mode}`, 'ChatService');
+        let submitOut;
+        try {
+            submitOut = await this.drawingMjService.requestUpstream(mjRow, mode, '/submit/imagine', {
+                data: { prompt: builtPrompt },
+            });
+        }
+        catch (e) {
+            const msg = e?.message || 'Midjourney 上游请求失败';
+            await this.chatLogService.updateChatLog(assistantLogId, { content: msg, status: 4 });
+            res.write(`\n${JSON.stringify({ errMsg: msg, content: [{ type: 'text', text: msg }] })}`);
+            return;
+        }
+        const payload = submitOut?.data;
+        const code = typeof payload?.code === 'number' ? payload.code : null;
+        if (code !== 1 && code !== 21 && code !== 22) {
+            const msg = (payload && (payload.description || payload.msg)) || 'Midjourney 提交失败';
+            await this.chatLogService.updateChatLog(assistantLogId, { content: String(msg), status: 4 });
+            res.write(`\n${JSON.stringify({ errMsg: msg, content: [{ type: 'text', text: String(msg) }] })}`);
+            return;
+        }
+        const taskId = this.extractMjTaskIdFromPayload(payload);
+        if (!taskId) {
+            const msg = '未获取到 Midjourney 任务 ID';
+            await this.chatLogService.updateChatLog(assistantLogId, { content: msg, status: 4 });
+            res.write(`\n${JSON.stringify({ errMsg: msg, content: [{ type: 'text', text: msg }] })}`);
+            return;
+        }
+        await this.userBalanceService.deductFromBalance(req.user.id, deductType, charge, 0);
+        await this.modelsService.saveUseLog(keyId, 0);
+        const writeProgress = (text) => {
+            res.write(`\n${JSON.stringify({
+                content: [{ type: 'text', text }],
+            })}`);
+        };
+        writeProgress(`任务已提交（${taskId}），正在生成…\n`);
+        for (let i = 0; i < 120; i++) {
+            if (abortController.signal.aborted) {
+                await this.chatLogService.updateChatLog(assistantLogId, {
+                    content: '已取消',
+                    status: 5,
+                });
+                return;
+            }
+            await new Promise(r => setTimeout(r, 2500));
+            let fetchOut;
+            try {
+                fetchOut = await this.drawingMjService.requestUpstream(mjRow, mode, `/task/${encodeURIComponent(taskId)}/fetch`, { method: 'GET' });
+            }
+            catch {
+                writeProgress('查询进度暂时失败，重试中…\n');
+                continue;
+            }
+            const task = fetchOut?.data;
+            if (!task || typeof task !== 'object') {
+                continue;
+            }
+            const progress = task.progress ?? task.percentage;
+            if (progress != null && String(progress).trim()) {
+                writeProgress(`进度：${progress}\n`);
+            }
+            const st = String(task.status ?? task.Status ?? '')
+                .trim()
+                .toUpperCase();
+            if (['SUCCESS', 'COMPLETE', 'DONE'].includes(st)) {
+                const imageUrl = task.imageUrl ||
+                    task.image_url ||
+                    task.properties?.imageUrl;
+                const desc = (task.description || task.prompt || '');
+                let fullText = '';
+                if (imageUrl) {
+                    fullText += `![Generated](${imageUrl})\n\n`;
+                }
+                if (desc) {
+                    fullText += String(desc);
+                }
+                if (!fullText.trim()) {
+                    fullText = '生成完成（上游未返回图片链接）';
+                }
+                let sanitizedAnswer = fullText;
+                if (isSensitiveWordFilter === '1') {
+                    const triggeredWords = await this.badWordsService.checkBadWords(fullText, req.user.id);
+                    if (triggeredWords.length > 0) {
+                        const regex = new RegExp(triggeredWords.join('|'), 'gi');
+                        sanitizedAnswer = fullText.replace(regex, m => '*'.repeat(m.length));
+                    }
+                }
+                const promptTokens = await (0, utils_1.getTokenCount)(prompt);
+                const completionTokens = await (0, utils_1.getTokenCount)(sanitizedAnswer);
+                await this.chatLogService.updateChatLog(userLogId, {
+                    promptTokens,
+                    completionTokens,
+                    totalTokens: promptTokens + completionTokens,
+                });
+                await this.chatLogService.updateChatLog(assistantLogId, {
+                    content: sanitizedAnswer,
+                    reasoning_content: '',
+                    promptTokens,
+                    completionTokens,
+                    totalTokens: promptTokens + completionTokens,
+                    status: 3,
+                });
+                const userBalance = await this.userBalanceService.queryUserBalance(req.user.id);
+                const response = {
+                    full_content: sanitizedAnswer,
+                    full_reasoning_content: '',
+                    content: [{ type: 'text', text: sanitizedAnswer }],
+                    userBalance,
+                    chatId: assistantLogId,
+                    promptReference: '',
+                };
+                res.write(`\n${JSON.stringify(response)}`);
+                common_1.Logger.log(`MJ 对话完成 user=${req.user.id} model=${useModeName}(${model}) task=${taskId}`, 'ChatService');
+                return;
+            }
+            if (['FAILURE', 'FAILED', 'ERROR', 'CANCELLED'].includes(st)) {
+                const errMsg = String(task.failReason || task.description || task.error || task.message || '生成失败');
+                await this.chatLogService.updateChatLog(assistantLogId, {
+                    content: errMsg,
+                    status: 4,
+                });
+                res.write(`\n${JSON.stringify({
+                    errMsg,
+                    full_content: errMsg,
+                    content: [{ type: 'text', text: errMsg }],
+                })}`);
+                return;
+            }
+        }
+        const timeoutMsg = '生成超时，请稍后在记录中查看或重试';
+        await this.chatLogService.updateChatLog(assistantLogId, {
+            content: timeoutMsg,
+            status: 4,
+        });
+        res.write(`\n${JSON.stringify({ errMsg: timeoutMsg, content: [{ type: 'text', text: timeoutMsg }] })}`);
+    }
+    buildMjChatPrompt(prompt, extraParam) {
+        let p = String(prompt || '').trim();
+        const size = extraParam?.size;
+        const arMap = {
+            '1024x1024': '--ar 1:1',
+            '1024x768': '--ar 4:3',
+            '1792x1024': '--ar 16:9',
+            '1024x1792': '--ar 3:4',
+            '1024x1536': '--ar 9:16',
+        };
+        if (size && arMap[size]) {
+            p = `${p} ${arMap[size]}`.trim();
+        }
+        if (!/\b--v\s+\d+/i.test(p) && !/\b--niji\b/i.test(p)) {
+            p = `${p} --v 6`.trim();
+        }
+        return p;
+    }
+    extractMjTaskIdFromPayload(payload) {
+        if (!payload || typeof payload !== 'object') {
+            return '';
+        }
+        let inner = payload;
+        if (inner.data &&
+            typeof inner.data === 'object' &&
+            typeof inner.code === 'undefined' &&
+            typeof inner.data.code === 'number') {
+            inner = inner.data;
+        }
+        const r = inner.result ?? inner.properties?.result ?? inner.properties?.taskId;
+        return r != null ? String(r) : '';
     }
     async updateChatTitle(groupId, groupInfo, modelType, prompt, req) {
         if (groupInfo?.title === '新对话') {
@@ -12272,12 +13919,12 @@ exports.ChatService = ChatService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(app_entity_1.AppEntity)),
     __param(1, (0, typeorm_1.InjectRepository)(plugin_entity_1.PluginEntity)),
-    __metadata("design:paramtypes", [typeof (_a = typeof typeorm_2.Repository !== "undefined" && typeorm_2.Repository) === "function" ? _a : Object, typeof (_b = typeof typeorm_2.Repository !== "undefined" && typeorm_2.Repository) === "function" ? _b : Object, typeof (_c = typeof chat_service_1.OpenAIChatService !== "undefined" && chat_service_1.OpenAIChatService) === "function" ? _c : Object, typeof (_d = typeof chatLog_service_1.ChatLogService !== "undefined" && chatLog_service_1.ChatLogService) === "function" ? _d : Object, typeof (_e = typeof userBalance_service_1.UserBalanceService !== "undefined" && userBalance_service_1.UserBalanceService) === "function" ? _e : Object, typeof (_f = typeof user_service_1.UserService !== "undefined" && user_service_1.UserService) === "function" ? _f : Object, typeof (_g = typeof upload_service_1.UploadService !== "undefined" && upload_service_1.UploadService) === "function" ? _g : Object, typeof (_h = typeof badWords_service_1.BadWordsService !== "undefined" && badWords_service_1.BadWordsService) === "function" ? _h : Object, typeof (_j = typeof autoReply_service_1.AutoReplyService !== "undefined" && autoReply_service_1.AutoReplyService) === "function" ? _j : Object, typeof (_k = typeof globalConfig_service_1.GlobalConfigService !== "undefined" && globalConfig_service_1.GlobalConfigService) === "function" ? _k : Object, typeof (_l = typeof chatGroup_service_1.ChatGroupService !== "undefined" && chatGroup_service_1.ChatGroupService) === "function" ? _l : Object, typeof (_m = typeof models_service_1.ModelsService !== "undefined" && models_service_1.ModelsService) === "function" ? _m : Object, typeof (_o = typeof app_service_1.AppService !== "undefined" && app_service_1.AppService) === "function" ? _o : Object])
+    __metadata("design:paramtypes", [typeof (_a = typeof typeorm_2.Repository !== "undefined" && typeorm_2.Repository) === "function" ? _a : Object, typeof (_b = typeof typeorm_2.Repository !== "undefined" && typeorm_2.Repository) === "function" ? _b : Object, typeof (_c = typeof chat_service_1.OpenAIChatService !== "undefined" && chat_service_1.OpenAIChatService) === "function" ? _c : Object, typeof (_d = typeof chatLog_service_1.ChatLogService !== "undefined" && chatLog_service_1.ChatLogService) === "function" ? _d : Object, typeof (_e = typeof userBalance_service_1.UserBalanceService !== "undefined" && userBalance_service_1.UserBalanceService) === "function" ? _e : Object, typeof (_f = typeof user_service_1.UserService !== "undefined" && user_service_1.UserService) === "function" ? _f : Object, typeof (_g = typeof upload_service_1.UploadService !== "undefined" && upload_service_1.UploadService) === "function" ? _g : Object, typeof (_h = typeof badWords_service_1.BadWordsService !== "undefined" && badWords_service_1.BadWordsService) === "function" ? _h : Object, typeof (_j = typeof autoReply_service_1.AutoReplyService !== "undefined" && autoReply_service_1.AutoReplyService) === "function" ? _j : Object, typeof (_k = typeof globalConfig_service_1.GlobalConfigService !== "undefined" && globalConfig_service_1.GlobalConfigService) === "function" ? _k : Object, typeof (_l = typeof chatGroup_service_1.ChatGroupService !== "undefined" && chatGroup_service_1.ChatGroupService) === "function" ? _l : Object, typeof (_m = typeof models_service_1.ModelsService !== "undefined" && models_service_1.ModelsService) === "function" ? _m : Object, typeof (_o = typeof app_service_1.AppService !== "undefined" && app_service_1.AppService) === "function" ? _o : Object, typeof (_p = typeof drawing_mj_service_1.DrawingMjService !== "undefined" && drawing_mj_service_1.DrawingMjService) === "function" ? _p : Object])
 ], ChatService);
 
 
 /***/ }),
-/* 170 */
+/* 179 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -12292,9 +13939,9 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ChatProcessDto = exports.Options = void 0;
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 const swagger_1 = __webpack_require__(14);
-const class_transformer_1 = __webpack_require__(171);
+const class_transformer_1 = __webpack_require__(180);
 class Options {
     parentMessageId;
     model;
@@ -12363,13 +14010,13 @@ __decorate([
 
 
 /***/ }),
-/* 171 */
+/* 180 */
 /***/ ((module) => {
 
 module.exports = require("class-transformer");
 
 /***/ }),
-/* 172 */
+/* 181 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -12382,11 +14029,11 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ChatGroupModule = void 0;
 const common_1 = __webpack_require__(2);
-const chatGroup_controller_1 = __webpack_require__(173);
-const chatGroup_service_1 = __webpack_require__(156);
-const typeorm_1 = __webpack_require__(33);
-const chatGroup_entity_1 = __webpack_require__(82);
-const app_entity_1 = __webpack_require__(106);
+const chatGroup_controller_1 = __webpack_require__(182);
+const chatGroup_service_1 = __webpack_require__(157);
+const typeorm_1 = __webpack_require__(34);
+const chatGroup_entity_1 = __webpack_require__(83);
+const app_entity_1 = __webpack_require__(107);
 let ChatGroupModule = class ChatGroupModule {
 };
 exports.ChatGroupModule = ChatGroupModule;
@@ -12402,7 +14049,7 @@ exports.ChatGroupModule = ChatGroupModule = __decorate([
 
 
 /***/ }),
-/* 173 */
+/* 182 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -12422,13 +14069,13 @@ var _a, _b, _c, _d, _e, _f, _g, _h, _j;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ChatGroupController = void 0;
 const swagger_1 = __webpack_require__(14);
-const chatGroup_service_1 = __webpack_require__(156);
+const chatGroup_service_1 = __webpack_require__(157);
 const common_1 = __webpack_require__(2);
-const createGroup_dto_1 = __webpack_require__(174);
-const express_1 = __webpack_require__(104);
-const jwtAuth_guard_1 = __webpack_require__(87);
-const delGroup_dto_1 = __webpack_require__(175);
-const updateGroup_dto_1 = __webpack_require__(176);
+const createGroup_dto_1 = __webpack_require__(183);
+const express_1 = __webpack_require__(105);
+const jwtAuth_guard_1 = __webpack_require__(88);
+const delGroup_dto_1 = __webpack_require__(184);
+const updateGroup_dto_1 = __webpack_require__(185);
 let ChatGroupController = class ChatGroupController {
     chatGroupService;
     constructor(chatGroupService) {
@@ -12512,7 +14159,7 @@ exports.ChatGroupController = ChatGroupController = __decorate([
 
 
 /***/ }),
-/* 174 */
+/* 183 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -12528,7 +14175,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CreateGroupDto = void 0;
 const swagger_1 = __webpack_require__(14);
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 class CreateGroupDto {
     appId;
     modelConfig;
@@ -12559,7 +14206,7 @@ __decorate([
 
 
 /***/ }),
-/* 175 */
+/* 184 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -12586,7 +14233,7 @@ __decorate([
 
 
 /***/ }),
-/* 176 */
+/* 185 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -12602,7 +14249,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UpdateGroupDto = void 0;
 const swagger_1 = __webpack_require__(14);
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 class UpdateGroupDto {
     groupId;
     title;
@@ -12636,7 +14283,7 @@ __decorate([
 
 
 /***/ }),
-/* 177 */
+/* 186 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -12649,12 +14296,12 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ChatLogModule = void 0;
 const common_1 = __webpack_require__(2);
-const typeorm_1 = __webpack_require__(33);
-const chatGroup_entity_1 = __webpack_require__(82);
-const user_entity_1 = __webpack_require__(83);
-const chatLog_controller_1 = __webpack_require__(178);
-const chatLog_entity_1 = __webpack_require__(75);
-const chatLog_service_1 = __webpack_require__(158);
+const typeorm_1 = __webpack_require__(34);
+const chatGroup_entity_1 = __webpack_require__(83);
+const user_entity_1 = __webpack_require__(84);
+const chatLog_controller_1 = __webpack_require__(187);
+const chatLog_entity_1 = __webpack_require__(76);
+const chatLog_service_1 = __webpack_require__(159);
 let ChatLogModule = class ChatLogModule {
 };
 exports.ChatLogModule = ChatLogModule;
@@ -12670,7 +14317,7 @@ exports.ChatLogModule = ChatLogModule = __decorate([
 
 
 /***/ }),
-/* 178 */
+/* 187 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -12689,22 +14336,22 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ChatLogController = void 0;
-const adminAuth_guard_1 = __webpack_require__(86);
-const jwtAuth_guard_1 = __webpack_require__(87);
-const superAuth_guard_1 = __webpack_require__(103);
+const adminAuth_guard_1 = __webpack_require__(87);
+const jwtAuth_guard_1 = __webpack_require__(88);
+const superAuth_guard_1 = __webpack_require__(104);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
-const express_1 = __webpack_require__(104);
-const chatLog_service_1 = __webpack_require__(158);
-const chatList_dto_1 = __webpack_require__(179);
-const del_dto_1 = __webpack_require__(180);
-const delByGroup_dto_1 = __webpack_require__(181);
-const exportExcelChatlog_dto_1 = __webpack_require__(182);
-const queryAllChatLog_dto_1 = __webpack_require__(183);
-const queryByAppId_dto_1 = __webpack_require__(184);
-const queryMyChatLog_dto_1 = __webpack_require__(185);
-const querySingleChat_dto_1 = __webpack_require__(186);
-const recDrawImg_dto_1 = __webpack_require__(187);
+const express_1 = __webpack_require__(105);
+const chatLog_service_1 = __webpack_require__(159);
+const chatList_dto_1 = __webpack_require__(188);
+const del_dto_1 = __webpack_require__(189);
+const delByGroup_dto_1 = __webpack_require__(190);
+const exportExcelChatlog_dto_1 = __webpack_require__(191);
+const queryAllChatLog_dto_1 = __webpack_require__(192);
+const queryByAppId_dto_1 = __webpack_require__(193);
+const queryMyChatLog_dto_1 = __webpack_require__(194);
+const querySingleChat_dto_1 = __webpack_require__(195);
+const recDrawImg_dto_1 = __webpack_require__(196);
 let ChatLogController = class ChatLogController {
     chatLogService;
     constructor(chatLogService) {
@@ -12858,7 +14505,7 @@ exports.ChatLogController = ChatLogController = __decorate([
 
 
 /***/ }),
-/* 179 */
+/* 188 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -12873,7 +14520,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ChatListDto = void 0;
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 const swagger_1 = __webpack_require__(14);
 class ChatListDto {
     groupId;
@@ -12887,7 +14534,7 @@ __decorate([
 
 
 /***/ }),
-/* 180 */
+/* 189 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -12914,7 +14561,7 @@ __decorate([
 
 
 /***/ }),
-/* 181 */
+/* 190 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -12941,7 +14588,7 @@ __decorate([
 
 
 /***/ }),
-/* 182 */
+/* 191 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -12957,7 +14604,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ExportExcelChatlogDto = void 0;
 const swagger_1 = __webpack_require__(14);
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 class ExportExcelChatlogDto {
     page;
     size;
@@ -12996,7 +14643,7 @@ __decorate([
 
 
 /***/ }),
-/* 183 */
+/* 192 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -13012,7 +14659,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.QuerAllChatLogDto = void 0;
 const swagger_1 = __webpack_require__(14);
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 class QuerAllChatLogDto {
     page;
     size;
@@ -13064,7 +14711,7 @@ __decorate([
 
 
 /***/ }),
-/* 184 */
+/* 193 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -13079,7 +14726,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.QueryByAppIdDto = void 0;
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 const swagger_1 = __webpack_require__(14);
 class QueryByAppIdDto {
     appId;
@@ -13105,7 +14752,7 @@ __decorate([
 
 
 /***/ }),
-/* 185 */
+/* 194 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -13120,7 +14767,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.QuerMyChatLogDto = void 0;
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 const swagger_1 = __webpack_require__(14);
 class QuerMyChatLogDto {
     model;
@@ -13134,7 +14781,7 @@ __decorate([
 
 
 /***/ }),
-/* 186 */
+/* 195 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -13150,7 +14797,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.QuerySingleChatDto = void 0;
 const swagger_1 = __webpack_require__(14);
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 class QuerySingleChatDto {
     chatId;
 }
@@ -13163,7 +14810,7 @@ __decorate([
 
 
 /***/ }),
-/* 187 */
+/* 196 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -13190,7 +14837,7 @@ __decorate([
 
 
 /***/ }),
-/* 188 */
+/* 197 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -13203,20 +14850,20 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CramiModule = void 0;
 const common_1 = __webpack_require__(2);
-const typeorm_1 = __webpack_require__(33);
-const chatGroup_entity_1 = __webpack_require__(82);
-const chatLog_entity_1 = __webpack_require__(75);
-const config_entity_1 = __webpack_require__(73);
-const user_entity_1 = __webpack_require__(83);
-const accountLog_entity_1 = __webpack_require__(79);
-const balance_entity_1 = __webpack_require__(80);
-const fingerprint_entity_1 = __webpack_require__(84);
-const userBalance_entity_1 = __webpack_require__(81);
-const userBalance_service_1 = __webpack_require__(34);
-const crami_controller_1 = __webpack_require__(189);
-const crami_entity_1 = __webpack_require__(191);
-const crami_service_1 = __webpack_require__(190);
-const cramiPackage_entity_1 = __webpack_require__(71);
+const typeorm_1 = __webpack_require__(34);
+const chatGroup_entity_1 = __webpack_require__(83);
+const chatLog_entity_1 = __webpack_require__(76);
+const config_entity_1 = __webpack_require__(74);
+const user_entity_1 = __webpack_require__(84);
+const accountLog_entity_1 = __webpack_require__(80);
+const balance_entity_1 = __webpack_require__(81);
+const fingerprint_entity_1 = __webpack_require__(85);
+const userBalance_entity_1 = __webpack_require__(82);
+const userBalance_service_1 = __webpack_require__(35);
+const crami_controller_1 = __webpack_require__(198);
+const crami_entity_1 = __webpack_require__(200);
+const crami_service_1 = __webpack_require__(199);
+const cramiPackage_entity_1 = __webpack_require__(72);
 let CramiModule = class CramiModule {
 };
 exports.CramiModule = CramiModule;
@@ -13245,7 +14892,7 @@ exports.CramiModule = CramiModule = __decorate([
 
 
 /***/ }),
-/* 189 */
+/* 198 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -13264,21 +14911,21 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CramiController = void 0;
-const adminAuth_guard_1 = __webpack_require__(86);
-const jwtAuth_guard_1 = __webpack_require__(87);
-const superAuth_guard_1 = __webpack_require__(103);
+const adminAuth_guard_1 = __webpack_require__(87);
+const jwtAuth_guard_1 = __webpack_require__(88);
+const superAuth_guard_1 = __webpack_require__(104);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
-const express_1 = __webpack_require__(104);
-const crami_service_1 = __webpack_require__(190);
-const batchDelCrami_dto_1 = __webpack_require__(192);
-const createCrami_dto_1 = __webpack_require__(193);
-const createPackage_dto_1 = __webpack_require__(194);
-const deletePackage_dto_1 = __webpack_require__(195);
-const queryAllCrami_dto_1 = __webpack_require__(196);
-const queryAllPackage_dto_1 = __webpack_require__(197);
-const updatePackage_dto_1 = __webpack_require__(198);
-const useCrami_dto_1 = __webpack_require__(199);
+const express_1 = __webpack_require__(105);
+const crami_service_1 = __webpack_require__(199);
+const batchDelCrami_dto_1 = __webpack_require__(201);
+const createCrami_dto_1 = __webpack_require__(202);
+const createPackage_dto_1 = __webpack_require__(203);
+const deletePackage_dto_1 = __webpack_require__(204);
+const queryAllCrami_dto_1 = __webpack_require__(205);
+const queryAllPackage_dto_1 = __webpack_require__(206);
+const updatePackage_dto_1 = __webpack_require__(207);
+const useCrami_dto_1 = __webpack_require__(208);
 let CramiController = class CramiController {
     cramiService;
     constructor(cramiService) {
@@ -13422,7 +15069,7 @@ exports.CramiController = CramiController = __decorate([
 
 
 /***/ }),
-/* 190 */
+/* 199 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -13441,15 +15088,15 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var _a, _b, _c, _d;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CramiService = void 0;
-const balance_constant_1 = __webpack_require__(35);
-const utils_1 = __webpack_require__(36);
+const balance_constant_1 = __webpack_require__(36);
+const utils_1 = __webpack_require__(37);
 const common_1 = __webpack_require__(2);
-const typeorm_1 = __webpack_require__(33);
+const typeorm_1 = __webpack_require__(34);
 const typeorm_2 = __webpack_require__(3);
-const user_entity_1 = __webpack_require__(83);
-const userBalance_service_1 = __webpack_require__(34);
-const crami_entity_1 = __webpack_require__(191);
-const cramiPackage_entity_1 = __webpack_require__(71);
+const user_entity_1 = __webpack_require__(84);
+const userBalance_service_1 = __webpack_require__(35);
+const crami_entity_1 = __webpack_require__(200);
+const cramiPackage_entity_1 = __webpack_require__(72);
 let CramiService = class CramiService {
     cramiEntity;
     cramiPackageEntity;
@@ -13666,7 +15313,7 @@ exports.CramiService = CramiService = __decorate([
 
 
 /***/ }),
-/* 191 */
+/* 200 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -13681,7 +15328,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CramiEntity = void 0;
-const baseEntity_1 = __webpack_require__(72);
+const baseEntity_1 = __webpack_require__(73);
 const typeorm_1 = __webpack_require__(3);
 let CramiEntity = class CramiEntity extends baseEntity_1.BaseEntity {
     code;
@@ -13751,7 +15398,7 @@ exports.CramiEntity = CramiEntity = __decorate([
 
 
 /***/ }),
-/* 192 */
+/* 201 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -13767,7 +15414,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BatchDelCramiDto = void 0;
 const swagger_1 = __webpack_require__(14);
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 class BatchDelCramiDto {
     ids;
 }
@@ -13781,7 +15428,7 @@ __decorate([
 
 
 /***/ }),
-/* 193 */
+/* 202 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -13796,7 +15443,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CreatCramiDto = void 0;
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 const swagger_1 = __webpack_require__(14);
 class CreatCramiDto {
     packageId;
@@ -13841,7 +15488,7 @@ __decorate([
 
 
 /***/ }),
-/* 194 */
+/* 203 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -13857,8 +15504,8 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CreatePackageDto = void 0;
 const swagger_1 = __webpack_require__(14);
-const class_transformer_1 = __webpack_require__(171);
-const class_validator_1 = __webpack_require__(110);
+const class_transformer_1 = __webpack_require__(180);
+const class_validator_1 = __webpack_require__(111);
 class CreatePackageDto {
     name;
     des;
@@ -13962,7 +15609,7 @@ __decorate([
 
 
 /***/ }),
-/* 195 */
+/* 204 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -13978,7 +15625,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DeletePackageDto = void 0;
 const swagger_1 = __webpack_require__(14);
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 class DeletePackageDto {
     id;
 }
@@ -13991,7 +15638,7 @@ __decorate([
 
 
 /***/ }),
-/* 196 */
+/* 205 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14006,7 +15653,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.QuerAllCramiDto = void 0;
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 const swagger_1 = __webpack_require__(14);
 class QuerAllCramiDto {
     page;
@@ -14042,7 +15689,7 @@ __decorate([
 
 
 /***/ }),
-/* 197 */
+/* 206 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14057,7 +15704,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.QuerAllPackageDto = void 0;
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 const swagger_1 = __webpack_require__(14);
 class QuerAllPackageDto {
     page;
@@ -14103,7 +15750,7 @@ __decorate([
 
 
 /***/ }),
-/* 198 */
+/* 207 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14118,9 +15765,9 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UpdatePackageDto = void 0;
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 const swagger_1 = __webpack_require__(14);
-const createPackage_dto_1 = __webpack_require__(194);
+const createPackage_dto_1 = __webpack_require__(203);
 class UpdatePackageDto extends createPackage_dto_1.CreatePackageDto {
     id;
 }
@@ -14133,7 +15780,7 @@ __decorate([
 
 
 /***/ }),
-/* 199 */
+/* 208 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14148,7 +15795,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UseCramiDto = void 0;
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 const swagger_1 = __webpack_require__(14);
 class UseCramiDto {
     code;
@@ -14166,7 +15813,7 @@ __decorate([
 
 
 /***/ }),
-/* 200 */
+/* 209 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14184,32 +15831,33 @@ var _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DatabaseModule = void 0;
 const common_1 = __webpack_require__(2);
-const typeorm_1 = __webpack_require__(33);
+const typeorm_1 = __webpack_require__(34);
 const typeorm_2 = __webpack_require__(3);
-const database_service_1 = __webpack_require__(201);
-const app_entity_1 = __webpack_require__(106);
-const appCats_entity_1 = __webpack_require__(107);
-const userApps_entity_1 = __webpack_require__(108);
-const autoReply_entity_1 = __webpack_require__(136);
-const badWords_entity_1 = __webpack_require__(144);
-const violationLog_entity_1 = __webpack_require__(145);
-const chatGroup_entity_1 = __webpack_require__(82);
-const chatLog_entity_1 = __webpack_require__(75);
-const crami_entity_1 = __webpack_require__(191);
-const cramiPackage_entity_1 = __webpack_require__(71);
-const config_entity_1 = __webpack_require__(73);
-const models_entity_1 = __webpack_require__(78);
-const model_token_catalog_entity_1 = __webpack_require__(202);
-const order_entity_1 = __webpack_require__(203);
-const plugin_entity_1 = __webpack_require__(160);
-const share_entity_1 = __webpack_require__(204);
-const signIn_entity_1 = __webpack_require__(205);
-const user_entity_1 = __webpack_require__(83);
-const accountLog_entity_1 = __webpack_require__(79);
-const balance_entity_1 = __webpack_require__(80);
-const fingerprint_entity_1 = __webpack_require__(84);
-const userBalance_entity_1 = __webpack_require__(81);
-const verification_entity_1 = __webpack_require__(101);
+const database_service_1 = __webpack_require__(210);
+const app_entity_1 = __webpack_require__(107);
+const appCats_entity_1 = __webpack_require__(108);
+const userApps_entity_1 = __webpack_require__(109);
+const autoReply_entity_1 = __webpack_require__(137);
+const badWords_entity_1 = __webpack_require__(145);
+const violationLog_entity_1 = __webpack_require__(146);
+const chatGroup_entity_1 = __webpack_require__(83);
+const chatLog_entity_1 = __webpack_require__(76);
+const crami_entity_1 = __webpack_require__(200);
+const cramiPackage_entity_1 = __webpack_require__(72);
+const drawing_mj_job_entity_1 = __webpack_require__(173);
+const config_entity_1 = __webpack_require__(74);
+const models_entity_1 = __webpack_require__(79);
+const model_token_catalog_entity_1 = __webpack_require__(211);
+const order_entity_1 = __webpack_require__(212);
+const plugin_entity_1 = __webpack_require__(161);
+const share_entity_1 = __webpack_require__(213);
+const signIn_entity_1 = __webpack_require__(214);
+const user_entity_1 = __webpack_require__(84);
+const accountLog_entity_1 = __webpack_require__(80);
+const balance_entity_1 = __webpack_require__(81);
+const fingerprint_entity_1 = __webpack_require__(85);
+const userBalance_entity_1 = __webpack_require__(82);
+const verification_entity_1 = __webpack_require__(102);
 let DatabaseModule = DatabaseModule_1 = class DatabaseModule {
     connection;
     constructor(connection) {
@@ -14257,6 +15905,7 @@ exports.DatabaseModule = DatabaseModule = DatabaseModule_1 = __decorate([
                         appCats_entity_1.AppCatsEntity,
                         app_entity_1.AppEntity,
                         order_entity_1.OrderEntity,
+                        drawing_mj_job_entity_1.DrawingMjJobEntity,
                     ],
                     synchronize: false,
                     logging: false,
@@ -14272,7 +15921,7 @@ exports.DatabaseModule = DatabaseModule = DatabaseModule_1 = __decorate([
 
 
 /***/ }),
-/* 201 */
+/* 210 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14289,7 +15938,7 @@ var _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DatabaseService = void 0;
 const common_1 = __webpack_require__(2);
-const bcrypt = __webpack_require__(93);
+const bcrypt = __webpack_require__(94);
 const typeorm_1 = __webpack_require__(3);
 let DatabaseService = class DatabaseService {
     connection;
@@ -14457,7 +16106,7 @@ exports.DatabaseService = DatabaseService = __decorate([
 
 
 /***/ }),
-/* 202 */
+/* 211 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14472,7 +16121,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ModelTokenCatalogEntity = void 0;
-const baseEntity_1 = __webpack_require__(72);
+const baseEntity_1 = __webpack_require__(73);
 const typeorm_1 = __webpack_require__(3);
 let ModelTokenCatalogEntity = class ModelTokenCatalogEntity extends baseEntity_1.BaseEntity {
     modelId;
@@ -14522,7 +16171,7 @@ exports.ModelTokenCatalogEntity = ModelTokenCatalogEntity = __decorate([
 
 
 /***/ }),
-/* 203 */
+/* 212 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14539,7 +16188,7 @@ var _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.OrderEntity = void 0;
 const typeorm_1 = __webpack_require__(3);
-const baseEntity_1 = __webpack_require__(72);
+const baseEntity_1 = __webpack_require__(73);
 let OrderEntity = class OrderEntity extends baseEntity_1.BaseEntity {
     orderId;
     tradeId;
@@ -14616,7 +16265,7 @@ exports.OrderEntity = OrderEntity = __decorate([
 
 
 /***/ }),
-/* 204 */
+/* 213 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14662,7 +16311,7 @@ exports.Share = Share = __decorate([
 
 
 /***/ }),
-/* 205 */
+/* 214 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14679,7 +16328,7 @@ var _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.SigninEntity = void 0;
 const typeorm_1 = __webpack_require__(3);
-const baseEntity_1 = __webpack_require__(72);
+const baseEntity_1 = __webpack_require__(73);
 let SigninEntity = class SigninEntity extends baseEntity_1.BaseEntity {
     userId;
     signInDate;
@@ -14709,7 +16358,7 @@ exports.SigninEntity = SigninEntity = __decorate([
 
 
 /***/ }),
-/* 206 */
+/* 215 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14722,11 +16371,11 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.GlobalConfigModule = void 0;
 const common_1 = __webpack_require__(2);
-const typeorm_1 = __webpack_require__(33);
-const chatLog_entity_1 = __webpack_require__(75);
-const config_entity_1 = __webpack_require__(73);
-const globalConfig_controller_1 = __webpack_require__(207);
-const globalConfig_service_1 = __webpack_require__(74);
+const typeorm_1 = __webpack_require__(34);
+const chatLog_entity_1 = __webpack_require__(76);
+const config_entity_1 = __webpack_require__(74);
+const globalConfig_controller_1 = __webpack_require__(216);
+const globalConfig_service_1 = __webpack_require__(75);
 let GlobalConfigModule = class GlobalConfigModule {
 };
 exports.GlobalConfigModule = GlobalConfigModule;
@@ -14742,7 +16391,7 @@ exports.GlobalConfigModule = GlobalConfigModule = __decorate([
 
 
 /***/ }),
-/* 207 */
+/* 216 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14761,14 +16410,14 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var _a, _b, _c, _d, _e, _f;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.GlobalConfigController = void 0;
-const adminAuth_guard_1 = __webpack_require__(86);
-const superAuth_guard_1 = __webpack_require__(103);
+const adminAuth_guard_1 = __webpack_require__(87);
+const superAuth_guard_1 = __webpack_require__(104);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
-const express_1 = __webpack_require__(104);
-const queryConfig_dto_1 = __webpack_require__(208);
-const setConfig_dto_1 = __webpack_require__(209);
-const globalConfig_service_1 = __webpack_require__(74);
+const express_1 = __webpack_require__(105);
+const queryConfig_dto_1 = __webpack_require__(217);
+const setConfig_dto_1 = __webpack_require__(218);
+const globalConfig_service_1 = __webpack_require__(75);
 let GlobalConfigController = class GlobalConfigController {
     globalConfigService;
     constructor(globalConfigService) {
@@ -14846,7 +16495,7 @@ exports.GlobalConfigController = GlobalConfigController = __decorate([
 
 
 /***/ }),
-/* 208 */
+/* 217 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14861,8 +16510,8 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.QueryConfigDto = void 0;
-const class_validator_1 = __webpack_require__(110);
-const class_transformer_1 = __webpack_require__(171);
+const class_validator_1 = __webpack_require__(111);
+const class_transformer_1 = __webpack_require__(180);
 const swagger_1 = __webpack_require__(14);
 class QueryConfigDto {
     keys;
@@ -14881,7 +16530,7 @@ __decorate([
 
 
 /***/ }),
-/* 209 */
+/* 218 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14897,8 +16546,8 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.SetConfigDto = void 0;
 const swagger_1 = __webpack_require__(14);
-const class_transformer_1 = __webpack_require__(171);
-const class_validator_1 = __webpack_require__(110);
+const class_transformer_1 = __webpack_require__(180);
+const class_validator_1 = __webpack_require__(111);
 class SetConfigDto {
     settings;
 }
@@ -14917,7 +16566,7 @@ __decorate([
 
 
 /***/ }),
-/* 210 */
+/* 219 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14930,12 +16579,12 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ModelsModule = void 0;
 const common_1 = __webpack_require__(2);
-const models_controller_1 = __webpack_require__(211);
-const models_service_1 = __webpack_require__(76);
-const typeorm_1 = __webpack_require__(33);
-const models_entity_1 = __webpack_require__(78);
-const model_token_catalog_entity_1 = __webpack_require__(202);
-const model_token_catalog_service_1 = __webpack_require__(219);
+const models_controller_1 = __webpack_require__(220);
+const models_service_1 = __webpack_require__(77);
+const typeorm_1 = __webpack_require__(34);
+const models_entity_1 = __webpack_require__(79);
+const model_token_catalog_entity_1 = __webpack_require__(211);
+const model_token_catalog_service_1 = __webpack_require__(228);
 let ModelsModule = class ModelsModule {
 };
 exports.ModelsModule = ModelsModule;
@@ -14951,7 +16600,7 @@ exports.ModelsModule = ModelsModule = __decorate([
 
 
 /***/ }),
-/* 211 */
+/* 220 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14970,19 +16619,19 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ModelsController = void 0;
-const adminAuth_guard_1 = __webpack_require__(86);
-const superAuth_guard_1 = __webpack_require__(103);
+const adminAuth_guard_1 = __webpack_require__(87);
+const superAuth_guard_1 = __webpack_require__(104);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
-const queryModel_dto_1 = __webpack_require__(212);
-const queryModelType_dto_1 = __webpack_require__(213);
-const queryTokenCatalog_dto_1 = __webpack_require__(214);
-const setModel_dto_1 = __webpack_require__(215);
-const setModelType_dto_1 = __webpack_require__(216);
-const setTokenCatalog_dto_1 = __webpack_require__(217);
-const syncTokenCatalog_dto_1 = __webpack_require__(218);
-const model_token_catalog_service_1 = __webpack_require__(219);
-const models_service_1 = __webpack_require__(76);
+const queryModel_dto_1 = __webpack_require__(221);
+const queryModelType_dto_1 = __webpack_require__(222);
+const queryTokenCatalog_dto_1 = __webpack_require__(223);
+const setModel_dto_1 = __webpack_require__(224);
+const setModelType_dto_1 = __webpack_require__(225);
+const setTokenCatalog_dto_1 = __webpack_require__(226);
+const syncTokenCatalog_dto_1 = __webpack_require__(227);
+const model_token_catalog_service_1 = __webpack_require__(228);
+const models_service_1 = __webpack_require__(77);
 let ModelsController = class ModelsController {
     modelsService;
     modelTokenCatalogService;
@@ -15001,6 +16650,9 @@ let ModelsController = class ModelsController {
     }
     modelsList() {
         return this.modelsService.modelsList();
+    }
+    drawingModelsList() {
+        return this.modelsService.drawingModelsList();
     }
     baseConfig() {
         return this.modelsService.getBaseConfig();
@@ -15072,6 +16724,13 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], ModelsController.prototype, "modelsList", null);
+__decorate([
+    (0, common_1.Get)('drawingList'),
+    (0, swagger_1.ApiOperation)({ summary: '客户端查询绘画独立页可用模型（后台配置 drawingType>0）' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], ModelsController.prototype, "drawingModelsList", null);
 __decorate([
     (0, common_1.Get)('baseConfig'),
     (0, swagger_1.ApiOperation)({ summary: '客户端查询当前已经配置模型的基础配置' }),
@@ -15175,7 +16834,7 @@ exports.ModelsController = ModelsController = __decorate([
 
 
 /***/ }),
-/* 212 */
+/* 221 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15239,7 +16898,7 @@ __decorate([
 
 
 /***/ }),
-/* 213 */
+/* 222 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15285,7 +16944,7 @@ __decorate([
 
 
 /***/ }),
-/* 214 */
+/* 223 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15327,7 +16986,7 @@ __decorate([
 
 
 /***/ }),
-/* 215 */
+/* 224 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15358,6 +17017,9 @@ class SetModelDto {
     keyStatus;
     deductType;
     deduct;
+    deductMjRelax;
+    deductMjFast;
+    deductMjTurbo;
     maxRounds;
     isDraw;
     isFileUpload;
@@ -15442,6 +17104,18 @@ __decorate([
     __metadata("design:type", Number)
 ], SetModelDto.prototype, "deduct", void 0);
 __decorate([
+    (0, swagger_1.ApiProperty)({ example: 1, description: 'MJ慢速(relax)单次扣除，空则同deduct', required: false }),
+    __metadata("design:type", Number)
+], SetModelDto.prototype, "deductMjRelax", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 1, description: 'MJ快速(fast)单次扣除，空则同deduct', required: false }),
+    __metadata("design:type", Number)
+], SetModelDto.prototype, "deductMjFast", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 1, description: 'MJ极速(turbo)单次扣除，空则同deduct', required: false }),
+    __metadata("design:type", Number)
+], SetModelDto.prototype, "deductMjTurbo", void 0);
+__decorate([
     (0, swagger_1.ApiProperty)({
         example: true,
         description: '最大上下文轮次',
@@ -15480,7 +17154,7 @@ __decorate([
 
 
 /***/ }),
-/* 216 */
+/* 225 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15621,7 +17295,7 @@ __decorate([
 
 
 /***/ }),
-/* 217 */
+/* 226 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15683,7 +17357,7 @@ __decorate([
 
 
 /***/ }),
-/* 218 */
+/* 227 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15715,7 +17389,7 @@ __decorate([
 
 
 /***/ }),
-/* 219 */
+/* 228 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15736,13 +17410,13 @@ var _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ModelTokenCatalogService = void 0;
 const common_1 = __webpack_require__(2);
-const typeorm_1 = __webpack_require__(33);
-const axios_1 = __webpack_require__(39);
-const https = __webpack_require__(220);
-const crypto_1 = __webpack_require__(16);
+const typeorm_1 = __webpack_require__(34);
+const axios_1 = __webpack_require__(40);
+const https = __webpack_require__(229);
+const crypto_1 = __webpack_require__(17);
 const typeorm_2 = __webpack_require__(3);
-const model_limits_openrouter_litellm_1 = __webpack_require__(221);
-const model_token_catalog_entity_1 = __webpack_require__(202);
+const model_limits_openrouter_litellm_1 = __webpack_require__(230);
+const model_token_catalog_entity_1 = __webpack_require__(211);
 let ModelTokenCatalogService = ModelTokenCatalogService_1 = class ModelTokenCatalogService {
     catalogRepo;
     logger = new common_1.Logger(ModelTokenCatalogService_1.name);
@@ -16183,13 +17857,13 @@ exports.ModelTokenCatalogService = ModelTokenCatalogService = ModelTokenCatalogS
 
 
 /***/ }),
-/* 220 */
+/* 229 */
 /***/ ((module) => {
 
 module.exports = require("https");
 
 /***/ }),
-/* 221 */
+/* 230 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -16444,7 +18118,7 @@ function openRouterListToMap(data) {
 
 
 /***/ }),
-/* 222 */
+/* 231 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16457,8 +18131,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.OfficialModule = void 0;
 const common_1 = __webpack_require__(2);
-const official_controller_1 = __webpack_require__(223);
-const official_service_1 = __webpack_require__(226);
+const official_controller_1 = __webpack_require__(232);
+const official_service_1 = __webpack_require__(235);
 let OfficialModule = class OfficialModule {
 };
 exports.OfficialModule = OfficialModule;
@@ -16473,7 +18147,7 @@ exports.OfficialModule = OfficialModule = __decorate([
 
 
 /***/ }),
-/* 223 */
+/* 232 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16492,15 +18166,15 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.OfficialController = void 0;
-const jwtAuth_guard_1 = __webpack_require__(87);
-const superAuth_guard_1 = __webpack_require__(103);
-const utils_1 = __webpack_require__(36);
+const jwtAuth_guard_1 = __webpack_require__(88);
+const superAuth_guard_1 = __webpack_require__(104);
+const utils_1 = __webpack_require__(37);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
-const express_1 = __webpack_require__(104);
-const createMenu_dto_1 = __webpack_require__(224);
-const getQrCode_dto_1 = __webpack_require__(225);
-const official_service_1 = __webpack_require__(226);
+const express_1 = __webpack_require__(105);
+const createMenu_dto_1 = __webpack_require__(233);
+const getQrCode_dto_1 = __webpack_require__(234);
+const official_service_1 = __webpack_require__(235);
 let OfficialController = class OfficialController {
     officialService;
     constructor(officialService) {
@@ -16852,7 +18526,7 @@ exports.OfficialController = OfficialController = __decorate([
 
 
 /***/ }),
-/* 224 */
+/* 233 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16868,8 +18542,8 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CreateMenuDto = void 0;
 const swagger_1 = __webpack_require__(14);
-const class_transformer_1 = __webpack_require__(171);
-const class_validator_1 = __webpack_require__(110);
+const class_transformer_1 = __webpack_require__(180);
+const class_validator_1 = __webpack_require__(111);
 class ButtonBase {
     name;
 }
@@ -16988,7 +18662,7 @@ __decorate([
 
 
 /***/ }),
-/* 225 */
+/* 234 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17003,7 +18677,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.GetQrCodeDto = void 0;
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 const swagger_1 = __webpack_require__(14);
 class GetQrCodeDto {
     sceneStr;
@@ -17021,7 +18695,7 @@ __decorate([
 
 
 /***/ }),
-/* 226 */
+/* 235 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17037,15 +18711,15 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var _a, _b, _c, _d, _e;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.OfficialService = void 0;
-const utils_1 = __webpack_require__(36);
+const utils_1 = __webpack_require__(37);
 const common_1 = __webpack_require__(2);
-const axios_1 = __webpack_require__(39);
-const crypto = __webpack_require__(16);
-const autoReply_service_1 = __webpack_require__(135);
-const chat_service_1 = __webpack_require__(169);
-const auth_service_1 = __webpack_require__(90);
-const globalConfig_service_1 = __webpack_require__(74);
-const user_service_1 = __webpack_require__(97);
+const axios_1 = __webpack_require__(40);
+const crypto = __webpack_require__(17);
+const autoReply_service_1 = __webpack_require__(136);
+const chat_service_1 = __webpack_require__(178);
+const auth_service_1 = __webpack_require__(91);
+const globalConfig_service_1 = __webpack_require__(75);
+const user_service_1 = __webpack_require__(98);
 let OfficialService = class OfficialService {
     autoReplyService;
     userService;
@@ -17451,7 +19125,7 @@ exports.OfficialService = OfficialService = __decorate([
 
 
 /***/ }),
-/* 227 */
+/* 236 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17463,13 +19137,13 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.OrderModule = void 0;
-const cramiPackage_entity_1 = __webpack_require__(71);
+const cramiPackage_entity_1 = __webpack_require__(72);
 const common_1 = __webpack_require__(2);
-const order_controller_1 = __webpack_require__(228);
-const order_service_1 = __webpack_require__(229);
-const order_entity_1 = __webpack_require__(203);
-const typeorm_1 = __webpack_require__(33);
-const user_entity_1 = __webpack_require__(83);
+const order_controller_1 = __webpack_require__(237);
+const order_service_1 = __webpack_require__(238);
+const order_entity_1 = __webpack_require__(212);
+const typeorm_1 = __webpack_require__(34);
+const user_entity_1 = __webpack_require__(84);
 let OrderModule = class OrderModule {
 };
 exports.OrderModule = OrderModule;
@@ -17483,7 +19157,7 @@ exports.OrderModule = OrderModule = __decorate([
 
 
 /***/ }),
-/* 228 */
+/* 237 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17502,16 +19176,16 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var _a, _b, _c, _d, _e, _f, _g;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.OrderController = void 0;
-const superAuth_guard_1 = __webpack_require__(103);
-const jwtAuth_guard_1 = __webpack_require__(87);
+const superAuth_guard_1 = __webpack_require__(104);
+const jwtAuth_guard_1 = __webpack_require__(88);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
-const order_service_1 = __webpack_require__(229);
-const express_1 = __webpack_require__(104);
-const buy_dto_1 = __webpack_require__(231);
-const queryByOrder_dto_1 = __webpack_require__(232);
-const adminAuth_guard_1 = __webpack_require__(86);
-const queryAllOrder_dto_1 = __webpack_require__(233);
+const order_service_1 = __webpack_require__(238);
+const express_1 = __webpack_require__(105);
+const buy_dto_1 = __webpack_require__(240);
+const queryByOrder_dto_1 = __webpack_require__(241);
+const adminAuth_guard_1 = __webpack_require__(87);
+const queryAllOrder_dto_1 = __webpack_require__(242);
 let OrderController = class OrderController {
     orderService;
     constructor(orderService) {
@@ -17591,7 +19265,7 @@ exports.OrderController = OrderController = __decorate([
 
 
 /***/ }),
-/* 229 */
+/* 238 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17610,15 +19284,15 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var _a, _b, _c, _d, _e;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.OrderService = void 0;
-const utils_1 = __webpack_require__(36);
+const utils_1 = __webpack_require__(37);
 const common_1 = __webpack_require__(2);
-const typeorm_1 = __webpack_require__(33);
+const typeorm_1 = __webpack_require__(34);
 const typeorm_2 = __webpack_require__(3);
-const cramiPackage_entity_1 = __webpack_require__(71);
-const globalConfig_service_1 = __webpack_require__(74);
-const pay_service_1 = __webpack_require__(230);
-const user_entity_1 = __webpack_require__(83);
-const order_entity_1 = __webpack_require__(203);
+const cramiPackage_entity_1 = __webpack_require__(72);
+const globalConfig_service_1 = __webpack_require__(75);
+const pay_service_1 = __webpack_require__(239);
+const user_entity_1 = __webpack_require__(84);
+const order_entity_1 = __webpack_require__(212);
 let OrderService = class OrderService {
     orderEntity;
     cramiPackageEntity;
@@ -17753,7 +19427,7 @@ exports.OrderService = OrderService = __decorate([
 
 
 /***/ }),
-/* 230 */
+/* 239 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17772,17 +19446,17 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var _a, _b, _c, _d, _e;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PayService = void 0;
-const utils_1 = __webpack_require__(36);
+const utils_1 = __webpack_require__(37);
 const common_1 = __webpack_require__(2);
-const typeorm_1 = __webpack_require__(33);
-const axios_1 = __webpack_require__(39);
-const crypto = __webpack_require__(16);
+const typeorm_1 = __webpack_require__(34);
+const axios_1 = __webpack_require__(40);
+const crypto = __webpack_require__(17);
 const typeorm_2 = __webpack_require__(3);
-const cramiPackage_entity_1 = __webpack_require__(71);
-const globalConfig_service_1 = __webpack_require__(74);
-const order_entity_1 = __webpack_require__(203);
-const user_service_1 = __webpack_require__(97);
-const userBalance_service_1 = __webpack_require__(34);
+const cramiPackage_entity_1 = __webpack_require__(72);
+const globalConfig_service_1 = __webpack_require__(75);
+const order_entity_1 = __webpack_require__(212);
+const user_service_1 = __webpack_require__(98);
+const userBalance_service_1 = __webpack_require__(35);
 let PayService = class PayService {
     cramiPackageEntity;
     orderEntity;
@@ -18475,7 +20149,7 @@ exports.PayService = PayService = __decorate([
 
 
 /***/ }),
-/* 231 */
+/* 240 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18512,7 +20186,7 @@ __decorate([
 
 
 /***/ }),
-/* 232 */
+/* 241 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18543,7 +20217,7 @@ __decorate([
 
 
 /***/ }),
-/* 233 */
+/* 242 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18558,7 +20232,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.QuerAllOrderDto = void 0;
-const class_validator_1 = __webpack_require__(110);
+const class_validator_1 = __webpack_require__(111);
 const swagger_1 = __webpack_require__(14);
 class QuerAllOrderDto {
     page;
@@ -18596,7 +20270,7 @@ __decorate([
 
 
 /***/ }),
-/* 234 */
+/* 243 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18609,11 +20283,11 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PayModule = void 0;
 const common_1 = __webpack_require__(2);
-const pay_controller_1 = __webpack_require__(235);
-const pay_service_1 = __webpack_require__(230);
-const order_entity_1 = __webpack_require__(203);
-const cramiPackage_entity_1 = __webpack_require__(71);
-const typeorm_1 = __webpack_require__(33);
+const pay_controller_1 = __webpack_require__(244);
+const pay_service_1 = __webpack_require__(239);
+const order_entity_1 = __webpack_require__(212);
+const cramiPackage_entity_1 = __webpack_require__(72);
+const typeorm_1 = __webpack_require__(34);
 let PayModule = class PayModule {
 };
 exports.PayModule = PayModule;
@@ -18629,7 +20303,7 @@ exports.PayModule = PayModule = __decorate([
 
 
 /***/ }),
-/* 235 */
+/* 244 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18650,7 +20324,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PayController = void 0;
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
-const pay_service_1 = __webpack_require__(230);
+const pay_service_1 = __webpack_require__(239);
 let PayController = class PayController {
     payService;
     constructor(payService) {
@@ -18714,7 +20388,7 @@ exports.PayController = PayController = __decorate([
 
 
 /***/ }),
-/* 236 */
+/* 245 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18727,10 +20401,10 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PluginModule = void 0;
 const common_1 = __webpack_require__(2);
-const typeorm_1 = __webpack_require__(33);
-const plugin_controller_1 = __webpack_require__(237);
-const plugin_entity_1 = __webpack_require__(160);
-const plugin_service_1 = __webpack_require__(238);
+const typeorm_1 = __webpack_require__(34);
+const plugin_controller_1 = __webpack_require__(246);
+const plugin_entity_1 = __webpack_require__(161);
+const plugin_service_1 = __webpack_require__(247);
 let PluginModule = class PluginModule {
 };
 exports.PluginModule = PluginModule;
@@ -18744,7 +20418,7 @@ exports.PluginModule = PluginModule = __decorate([
 
 
 /***/ }),
-/* 237 */
+/* 246 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18763,11 +20437,11 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var _a, _b;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PluginController = void 0;
-const superAuth_guard_1 = __webpack_require__(103);
+const superAuth_guard_1 = __webpack_require__(104);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
-const express_1 = __webpack_require__(104);
-const plugin_service_1 = __webpack_require__(238);
+const express_1 = __webpack_require__(105);
+const plugin_service_1 = __webpack_require__(247);
 let PluginController = class PluginController {
     pluginService;
     constructor(pluginService) {
@@ -18833,7 +20507,7 @@ exports.PluginController = PluginController = __decorate([
 
 
 /***/ }),
-/* 238 */
+/* 247 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18853,10 +20527,10 @@ var _a, _b;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PluginService = void 0;
 const common_1 = __webpack_require__(2);
-const typeorm_1 = __webpack_require__(33);
+const typeorm_1 = __webpack_require__(34);
 const typeorm_2 = __webpack_require__(3);
-const models_service_1 = __webpack_require__(76);
-const plugin_entity_1 = __webpack_require__(160);
+const models_service_1 = __webpack_require__(77);
+const plugin_entity_1 = __webpack_require__(161);
 let PluginService = class PluginService {
     PluginEntity;
     modelsService;
@@ -18963,7 +20637,7 @@ exports.PluginService = PluginService = __decorate([
 
 
 /***/ }),
-/* 239 */
+/* 248 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18976,10 +20650,10 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ShareModule = void 0;
 const common_1 = __webpack_require__(2);
-const typeorm_1 = __webpack_require__(33);
-const share_controller_1 = __webpack_require__(240);
-const share_entity_1 = __webpack_require__(204);
-const share_service_1 = __webpack_require__(241);
+const typeorm_1 = __webpack_require__(34);
+const share_controller_1 = __webpack_require__(249);
+const share_entity_1 = __webpack_require__(213);
+const share_service_1 = __webpack_require__(250);
 let ShareModule = class ShareModule {
 };
 exports.ShareModule = ShareModule;
@@ -18993,7 +20667,7 @@ exports.ShareModule = ShareModule = __decorate([
 
 
 /***/ }),
-/* 240 */
+/* 249 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19012,10 +20686,10 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ShareController = void 0;
-const jwtAuth_guard_1 = __webpack_require__(87);
+const jwtAuth_guard_1 = __webpack_require__(88);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
-const share_service_1 = __webpack_require__(241);
+const share_service_1 = __webpack_require__(250);
 let ShareController = class ShareController {
     shareService;
     constructor(shareService) {
@@ -19063,7 +20737,7 @@ exports.ShareController = ShareController = __decorate([
 
 
 /***/ }),
-/* 241 */
+/* 250 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19083,10 +20757,10 @@ var _a, _b;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ShareService = void 0;
 const common_1 = __webpack_require__(2);
-const typeorm_1 = __webpack_require__(33);
+const typeorm_1 = __webpack_require__(34);
 const typeorm_2 = __webpack_require__(3);
-const globalConfig_service_1 = __webpack_require__(74);
-const share_entity_1 = __webpack_require__(204);
+const globalConfig_service_1 = __webpack_require__(75);
+const share_entity_1 = __webpack_require__(213);
 let ShareService = class ShareService {
     shareRepository;
     globalConfigService;
@@ -19142,7 +20816,7 @@ exports.ShareService = ShareService = __decorate([
 
 
 /***/ }),
-/* 242 */
+/* 251 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19155,11 +20829,11 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.SigninModule = void 0;
 const common_1 = __webpack_require__(2);
-const signin_controller_1 = __webpack_require__(243);
-const signin_service_1 = __webpack_require__(244);
-const typeorm_1 = __webpack_require__(33);
-const signIn_entity_1 = __webpack_require__(205);
-const user_entity_1 = __webpack_require__(83);
+const signin_controller_1 = __webpack_require__(252);
+const signin_service_1 = __webpack_require__(253);
+const typeorm_1 = __webpack_require__(34);
+const signIn_entity_1 = __webpack_require__(214);
+const user_entity_1 = __webpack_require__(84);
 let SigninModule = class SigninModule {
 };
 exports.SigninModule = SigninModule;
@@ -19175,7 +20849,7 @@ exports.SigninModule = SigninModule = __decorate([
 
 
 /***/ }),
-/* 243 */
+/* 252 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19195,10 +20869,10 @@ var _a, _b, _c;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.SigninController = void 0;
 const common_1 = __webpack_require__(2);
-const signin_service_1 = __webpack_require__(244);
+const signin_service_1 = __webpack_require__(253);
 const swagger_1 = __webpack_require__(14);
-const jwtAuth_guard_1 = __webpack_require__(87);
-const express_1 = __webpack_require__(104);
+const jwtAuth_guard_1 = __webpack_require__(88);
+const express_1 = __webpack_require__(105);
 let SigninController = class SigninController {
     signinService;
     constructor(signinService) {
@@ -19240,7 +20914,7 @@ exports.SigninController = SigninController = __decorate([
 
 
 /***/ }),
-/* 244 */
+/* 253 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19259,15 +20933,15 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var _a, _b, _c, _d;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.SigninService = void 0;
-const globalConfig_service_1 = __webpack_require__(74);
-const userBalance_service_1 = __webpack_require__(34);
+const globalConfig_service_1 = __webpack_require__(75);
+const userBalance_service_1 = __webpack_require__(35);
 const common_1 = __webpack_require__(2);
-const signIn_entity_1 = __webpack_require__(205);
-const typeorm_1 = __webpack_require__(33);
+const signIn_entity_1 = __webpack_require__(214);
+const typeorm_1 = __webpack_require__(34);
 const typeorm_2 = __webpack_require__(3);
-const date_1 = __webpack_require__(47);
-const user_entity_1 = __webpack_require__(83);
-const balance_constant_1 = __webpack_require__(35);
+const date_1 = __webpack_require__(48);
+const user_entity_1 = __webpack_require__(84);
+const balance_constant_1 = __webpack_require__(36);
 let SigninService = class SigninService {
     signinEntity;
     userEntity;
@@ -19375,7 +21049,7 @@ exports.SigninService = SigninService = __decorate([
 
 
 /***/ }),
-/* 245 */
+/* 254 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19388,7 +21062,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.SpaModule = void 0;
 const common_1 = __webpack_require__(2);
-const spa_controller_1 = __webpack_require__(246);
+const spa_controller_1 = __webpack_require__(255);
 let SpaModule = class SpaModule {
 };
 exports.SpaModule = SpaModule;
@@ -19400,7 +21074,7 @@ exports.SpaModule = SpaModule = __decorate([
 
 
 /***/ }),
-/* 246 */
+/* 255 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19422,9 +21096,9 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.SpaController = void 0;
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
-const express_1 = __webpack_require__(104);
-const fs = __webpack_require__(18);
-const path_1 = __webpack_require__(20);
+const express_1 = __webpack_require__(105);
+const fs = __webpack_require__(19);
+const path_1 = __webpack_require__(21);
 let SpaController = SpaController_1 = class SpaController {
     logger = new common_1.Logger(SpaController_1.name);
     indexPath = (0, path_1.join)(process.cwd(), 'public/chat/index.html');
@@ -19471,7 +21145,7 @@ exports.SpaController = SpaController = SpaController_1 = __decorate([
 
 
 /***/ }),
-/* 247 */
+/* 256 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19484,13 +21158,13 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.StatisticModule = void 0;
 const common_1 = __webpack_require__(2);
-const typeorm_1 = __webpack_require__(33);
-const chatLog_entity_1 = __webpack_require__(75);
-const config_entity_1 = __webpack_require__(73);
-const order_entity_1 = __webpack_require__(203);
-const user_entity_1 = __webpack_require__(83);
-const statistic_controller_1 = __webpack_require__(248);
-const statistic_service_1 = __webpack_require__(250);
+const typeorm_1 = __webpack_require__(34);
+const chatLog_entity_1 = __webpack_require__(76);
+const config_entity_1 = __webpack_require__(74);
+const order_entity_1 = __webpack_require__(212);
+const user_entity_1 = __webpack_require__(84);
+const statistic_controller_1 = __webpack_require__(257);
+const statistic_service_1 = __webpack_require__(259);
 let StatisticModule = class StatisticModule {
 };
 exports.StatisticModule = StatisticModule;
@@ -19504,7 +21178,7 @@ exports.StatisticModule = StatisticModule = __decorate([
 
 
 /***/ }),
-/* 248 */
+/* 257 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19523,11 +21197,11 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var _a, _b, _c;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.StatisticController = void 0;
-const adminAuth_guard_1 = __webpack_require__(86);
+const adminAuth_guard_1 = __webpack_require__(87);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
-const queryStatisticDto_dto_1 = __webpack_require__(249);
-const statistic_service_1 = __webpack_require__(250);
+const queryStatisticDto_dto_1 = __webpack_require__(258);
+const statistic_service_1 = __webpack_require__(259);
 let StatisticController = class StatisticController {
     statisticService;
     constructor(statisticService) {
@@ -19581,7 +21255,7 @@ exports.StatisticController = StatisticController = __decorate([
 
 
 /***/ }),
-/* 249 */
+/* 258 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19608,7 +21282,7 @@ __decorate([
 
 
 /***/ }),
-/* 250 */
+/* 259 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19627,17 +21301,17 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var _a, _b, _c, _d, _e;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.StatisticService = void 0;
-const balance_constant_1 = __webpack_require__(35);
-const date_1 = __webpack_require__(47);
+const balance_constant_1 = __webpack_require__(36);
+const date_1 = __webpack_require__(48);
 const common_1 = __webpack_require__(2);
-const typeorm_1 = __webpack_require__(33);
-const axios_1 = __webpack_require__(39);
+const typeorm_1 = __webpack_require__(34);
+const axios_1 = __webpack_require__(40);
 const typeorm_2 = __webpack_require__(3);
-const chatLog_entity_1 = __webpack_require__(75);
-const config_entity_1 = __webpack_require__(73);
-const globalConfig_service_1 = __webpack_require__(74);
-const order_entity_1 = __webpack_require__(203);
-const user_entity_1 = __webpack_require__(83);
+const chatLog_entity_1 = __webpack_require__(76);
+const config_entity_1 = __webpack_require__(74);
+const globalConfig_service_1 = __webpack_require__(75);
+const order_entity_1 = __webpack_require__(212);
+const user_entity_1 = __webpack_require__(84);
 let StatisticService = class StatisticService {
     userEntity;
     chatLogEntity;
@@ -19892,7 +21566,7 @@ exports.StatisticService = StatisticService = __decorate([
 
 
 /***/ }),
-/* 251 */
+/* 260 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19905,12 +21579,12 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.TaskModule = void 0;
 const common_1 = __webpack_require__(2);
-const schedule_1 = __webpack_require__(252);
-const typeorm_1 = __webpack_require__(33);
-const globalConfig_module_1 = __webpack_require__(206);
-const models_module_1 = __webpack_require__(210);
-const userBalance_entity_1 = __webpack_require__(81);
-const task_service_1 = __webpack_require__(253);
+const schedule_1 = __webpack_require__(261);
+const typeorm_1 = __webpack_require__(34);
+const globalConfig_module_1 = __webpack_require__(215);
+const models_module_1 = __webpack_require__(219);
+const userBalance_entity_1 = __webpack_require__(82);
+const task_service_1 = __webpack_require__(262);
 let TaskModule = class TaskModule {
 };
 exports.TaskModule = TaskModule;
@@ -19928,13 +21602,13 @@ exports.TaskModule = TaskModule = __decorate([
 
 
 /***/ }),
-/* 252 */
+/* 261 */
 /***/ ((module) => {
 
 module.exports = require("@nestjs/schedule");
 
 /***/ }),
-/* 253 */
+/* 262 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19954,14 +21628,14 @@ var _a, _b, _c;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.TaskService = void 0;
 const common_1 = __webpack_require__(2);
-const schedule_1 = __webpack_require__(252);
-const typeorm_1 = __webpack_require__(33);
-const fs = __webpack_require__(18);
-const path = __webpack_require__(20);
+const schedule_1 = __webpack_require__(261);
+const typeorm_1 = __webpack_require__(34);
+const fs = __webpack_require__(19);
+const path = __webpack_require__(21);
 const typeorm_2 = __webpack_require__(3);
-const models_service_1 = __webpack_require__(76);
-const userBalance_entity_1 = __webpack_require__(81);
-const globalConfig_service_1 = __webpack_require__(74);
+const models_service_1 = __webpack_require__(77);
+const userBalance_entity_1 = __webpack_require__(82);
+const globalConfig_service_1 = __webpack_require__(75);
 let TaskService = class TaskService {
     userBalanceEntity;
     globalConfigService;
@@ -20034,7 +21708,7 @@ exports.TaskService = TaskService = __decorate([
 
 
 /***/ }),
-/* 254 */
+/* 263 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20047,9 +21721,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UploadModule = void 0;
 const common_1 = __webpack_require__(2);
-const redisCache_module_1 = __webpack_require__(26);
-const upload_controller_1 = __webpack_require__(255);
-const upload_service_1 = __webpack_require__(161);
+const redisCache_module_1 = __webpack_require__(27);
+const upload_controller_1 = __webpack_require__(264);
+const upload_service_1 = __webpack_require__(162);
 let UploadModule = class UploadModule {
 };
 exports.UploadModule = UploadModule;
@@ -20065,7 +21739,7 @@ exports.UploadModule = UploadModule = __decorate([
 
 
 /***/ }),
-/* 255 */
+/* 264 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20084,12 +21758,12 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var _a, _b;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UploadController = void 0;
-const jwtAuth_guard_1 = __webpack_require__(87);
+const jwtAuth_guard_1 = __webpack_require__(88);
 const common_1 = __webpack_require__(2);
-const platform_express_1 = __webpack_require__(256);
+const platform_express_1 = __webpack_require__(265);
 const swagger_1 = __webpack_require__(14);
-const express_1 = __webpack_require__(104);
-const upload_service_1 = __webpack_require__(161);
+const express_1 = __webpack_require__(105);
+const upload_service_1 = __webpack_require__(162);
 let UploadController = class UploadController {
     uploadService;
     constructor(uploadService) {
@@ -20125,13 +21799,13 @@ exports.UploadController = UploadController = __decorate([
 
 
 /***/ }),
-/* 256 */
+/* 265 */
 /***/ ((module) => {
 
 module.exports = require("@nestjs/platform-express");
 
 /***/ }),
-/* 257 */
+/* 266 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20144,26 +21818,26 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UserBalanceModule = void 0;
 const common_1 = __webpack_require__(2);
-const typeorm_1 = __webpack_require__(33);
-const app_entity_1 = __webpack_require__(106);
-const app_service_1 = __webpack_require__(105);
-const appCats_entity_1 = __webpack_require__(107);
-const userApps_entity_1 = __webpack_require__(108);
-const chatGroup_entity_1 = __webpack_require__(82);
-const chatLog_entity_1 = __webpack_require__(75);
-const cramiPackage_entity_1 = __webpack_require__(71);
-const config_entity_1 = __webpack_require__(73);
-const globalConfig_module_1 = __webpack_require__(206);
-const redisCache_service_1 = __webpack_require__(28);
-const user_entity_1 = __webpack_require__(83);
-const verification_entity_1 = __webpack_require__(101);
-const verification_service_1 = __webpack_require__(100);
-const accountLog_entity_1 = __webpack_require__(79);
-const balance_entity_1 = __webpack_require__(80);
-const fingerprint_entity_1 = __webpack_require__(84);
-const userBalance_controller_1 = __webpack_require__(258);
-const userBalance_entity_1 = __webpack_require__(81);
-const userBalance_service_1 = __webpack_require__(34);
+const typeorm_1 = __webpack_require__(34);
+const app_entity_1 = __webpack_require__(107);
+const app_service_1 = __webpack_require__(106);
+const appCats_entity_1 = __webpack_require__(108);
+const userApps_entity_1 = __webpack_require__(109);
+const chatGroup_entity_1 = __webpack_require__(83);
+const chatLog_entity_1 = __webpack_require__(76);
+const cramiPackage_entity_1 = __webpack_require__(72);
+const config_entity_1 = __webpack_require__(74);
+const globalConfig_module_1 = __webpack_require__(215);
+const redisCache_service_1 = __webpack_require__(29);
+const user_entity_1 = __webpack_require__(84);
+const verification_entity_1 = __webpack_require__(102);
+const verification_service_1 = __webpack_require__(101);
+const accountLog_entity_1 = __webpack_require__(80);
+const balance_entity_1 = __webpack_require__(81);
+const fingerprint_entity_1 = __webpack_require__(85);
+const userBalance_controller_1 = __webpack_require__(267);
+const userBalance_entity_1 = __webpack_require__(82);
+const userBalance_service_1 = __webpack_require__(35);
 let UserBalanceModule = class UserBalanceModule {
 };
 exports.UserBalanceModule = UserBalanceModule;
@@ -20196,7 +21870,7 @@ exports.UserBalanceModule = UserBalanceModule = __decorate([
 
 
 /***/ }),
-/* 258 */
+/* 267 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20215,12 +21889,12 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var _a, _b, _c, _d, _e, _f;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UserBalanceController = void 0;
-const adminAuth_guard_1 = __webpack_require__(86);
-const jwtAuth_guard_1 = __webpack_require__(87);
+const adminAuth_guard_1 = __webpack_require__(87);
+const jwtAuth_guard_1 = __webpack_require__(88);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
-const express_1 = __webpack_require__(104);
-const userBalance_service_1 = __webpack_require__(34);
+const express_1 = __webpack_require__(105);
+const userBalance_service_1 = __webpack_require__(35);
 let UserBalanceController = class UserBalanceController {
     userBalanceService;
     constructor(userBalanceService) {
@@ -20303,7 +21977,7 @@ exports.UserBalanceController = UserBalanceController = __decorate([
 
 
 /***/ }),
-/* 259 */
+/* 268 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20316,10 +21990,10 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VerificationModule = void 0;
 const common_1 = __webpack_require__(2);
-const typeorm_1 = __webpack_require__(33);
-const redisCache_service_1 = __webpack_require__(28);
-const verification_entity_1 = __webpack_require__(101);
-const verification_service_1 = __webpack_require__(100);
+const typeorm_1 = __webpack_require__(34);
+const redisCache_service_1 = __webpack_require__(29);
+const verification_entity_1 = __webpack_require__(102);
+const verification_service_1 = __webpack_require__(101);
 let VerificationModule = class VerificationModule {
 };
 exports.VerificationModule = VerificationModule;
@@ -20332,7 +22006,7 @@ exports.VerificationModule = VerificationModule = __decorate([
 
 
 /***/ }),
-/* 260 */
+/* 269 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20382,39 +22056,40 @@ exports.AllExceptionsFilter = AllExceptionsFilter = __decorate([
 
 
 /***/ }),
-/* 261 */
+/* 270 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.initDatabase = initDatabase;
 const common_1 = __webpack_require__(2);
-const dotenv_1 = __webpack_require__(17);
-const mysql = __webpack_require__(262);
+const dotenv_1 = __webpack_require__(18);
+const mysql = __webpack_require__(271);
 const typeorm_1 = __webpack_require__(3);
-const app_entity_1 = __webpack_require__(106);
-const appCats_entity_1 = __webpack_require__(107);
-const userApps_entity_1 = __webpack_require__(108);
-const autoReply_entity_1 = __webpack_require__(136);
-const badWords_entity_1 = __webpack_require__(144);
-const violationLog_entity_1 = __webpack_require__(145);
-const chatGroup_entity_1 = __webpack_require__(82);
-const chatLog_entity_1 = __webpack_require__(75);
-const crami_entity_1 = __webpack_require__(191);
-const cramiPackage_entity_1 = __webpack_require__(71);
-const config_entity_1 = __webpack_require__(73);
-const models_entity_1 = __webpack_require__(78);
-const model_token_catalog_entity_1 = __webpack_require__(202);
-const order_entity_1 = __webpack_require__(203);
-const plugin_entity_1 = __webpack_require__(160);
-const share_entity_1 = __webpack_require__(204);
-const signIn_entity_1 = __webpack_require__(205);
-const user_entity_1 = __webpack_require__(83);
-const accountLog_entity_1 = __webpack_require__(79);
-const balance_entity_1 = __webpack_require__(80);
-const fingerprint_entity_1 = __webpack_require__(84);
-const userBalance_entity_1 = __webpack_require__(81);
-const verification_entity_1 = __webpack_require__(101);
+const app_entity_1 = __webpack_require__(107);
+const appCats_entity_1 = __webpack_require__(108);
+const userApps_entity_1 = __webpack_require__(109);
+const autoReply_entity_1 = __webpack_require__(137);
+const badWords_entity_1 = __webpack_require__(145);
+const violationLog_entity_1 = __webpack_require__(146);
+const chatGroup_entity_1 = __webpack_require__(83);
+const chatLog_entity_1 = __webpack_require__(76);
+const crami_entity_1 = __webpack_require__(200);
+const cramiPackage_entity_1 = __webpack_require__(72);
+const drawing_mj_job_entity_1 = __webpack_require__(173);
+const config_entity_1 = __webpack_require__(74);
+const models_entity_1 = __webpack_require__(79);
+const model_token_catalog_entity_1 = __webpack_require__(211);
+const order_entity_1 = __webpack_require__(212);
+const plugin_entity_1 = __webpack_require__(161);
+const share_entity_1 = __webpack_require__(213);
+const signIn_entity_1 = __webpack_require__(214);
+const user_entity_1 = __webpack_require__(84);
+const accountLog_entity_1 = __webpack_require__(80);
+const balance_entity_1 = __webpack_require__(81);
+const fingerprint_entity_1 = __webpack_require__(85);
+const userBalance_entity_1 = __webpack_require__(82);
+const verification_entity_1 = __webpack_require__(102);
 (0, dotenv_1.config)();
 const dataSourceOptions = {
     type: 'mysql',
@@ -20447,6 +22122,7 @@ const dataSourceOptions = {
         appCats_entity_1.AppCatsEntity,
         app_entity_1.AppEntity,
         order_entity_1.OrderEntity,
+        drawing_mj_job_entity_1.DrawingMjJobEntity,
     ],
     synchronize: false,
     charset: 'utf8mb4',
@@ -20599,7 +22275,7 @@ async function initDatabase() {
 
 
 /***/ }),
-/* 262 */
+/* 271 */
 /***/ ((module) => {
 
 module.exports = require("mysql2/promise");
@@ -20645,15 +22321,16 @@ const fast_xml_middleware_1 = __webpack_require__(10);
 const common_1 = __webpack_require__(2);
 const core_1 = __webpack_require__(13);
 const swagger_1 = __webpack_require__(14);
-const compression = __webpack_require__(15);
-const crypto_1 = __webpack_require__(16);
-const Dotenv = __webpack_require__(17);
-const fs = __webpack_require__(18);
-const ioredis_1 = __webpack_require__(19);
-const path = __webpack_require__(20);
-__webpack_require__(21);
-const app_module_1 = __webpack_require__(22);
-const allExceptions_filter_1 = __webpack_require__(260);
+const bodyParser = __webpack_require__(15);
+const compression = __webpack_require__(16);
+const crypto_1 = __webpack_require__(17);
+const Dotenv = __webpack_require__(18);
+const fs = __webpack_require__(19);
+const ioredis_1 = __webpack_require__(20);
+const path = __webpack_require__(21);
+__webpack_require__(22);
+const app_module_1 = __webpack_require__(23);
+const allExceptions_filter_1 = __webpack_require__(269);
 Dotenv.config({ path: '.env' });
 function findFilePath(filename) {
     const possiblePaths = [
@@ -20687,11 +22364,14 @@ async function bootstrap() {
         common_1.Logger.log('Generating and setting new JWT_SECRET');
         await redis.set('JWT_SECRET', jwtSecret);
     }
-    const { initDatabase } = __webpack_require__(261);
+    const { initDatabase } = __webpack_require__(270);
     const app = await core_1.NestFactory.create(app_module_1.AppModule, {
         bufferLogs: true,
         logger: ['log', 'error', 'warn', 'debug', 'verbose'],
+        bodyParser: false,
     });
+    app.use(bodyParser.json({ limit: '32mb' }));
+    app.use(bodyParser.urlencoded({ extended: true, limit: '32mb' }));
     try {
         common_1.Logger.log('正在预初始化数据库结构...', 'Bootstrap');
         await initDatabase();

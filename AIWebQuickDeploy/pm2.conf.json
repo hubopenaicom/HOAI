@@ -1,16 +1,21 @@
 {
-  "apps": {
-    "name": "HOAI",
-    "script": "./dist/main.js",
-    "watch": true,
-    "ignore_watch": ["node_modules", "logs", "public/file"],
-    "env": {
-      "TZ": "Asia/Shanghai"
-    },
-    "instances": 1,
-    "error_file": "logs/err.log",
-    "out_file": "logs/out.log",
-    "log_date_format": "YYYY-MM-DD HH:mm:ss",
-    "max_memory_restart": "2000M"
-  }
+  "apps": [
+    {
+      "name": "HOAI",
+      "cwd": "/www/wwwroot/ai.hubopenai.com/service",
+      "script": "./dist/main.js",
+      "exec_mode": "fork",
+      "instances": 1,
+      "watch": false,
+      "ignore_watch": ["node_modules", "logs", "public/file"],
+      "env": {
+        "TZ": "Asia/Shanghai"
+      },
+      "error_file": "./logs/err.log",
+      "out_file": "./logs/out.log",
+      "merge_logs": true,
+      "log_date_format": "YYYY-MM-DD HH:mm:ss",
+      "max_memory_restart": "2000M"
+    }
+  ]
 }
