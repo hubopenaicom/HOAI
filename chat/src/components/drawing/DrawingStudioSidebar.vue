@@ -338,14 +338,9 @@ function segBtn(active: boolean) {
           :class="aspectCustomInvalid ? 'border-amber-500/40 ring-1 ring-amber-500/15' : ''"
           :value="aspectCustomRatio"
           :placeholder="t('drawing.studioAspectCustomPlaceholder')"
-          @input="
-            emit('update:aspectCustomRatio', ($event.target as HTMLInputElement).value)
-          "
+          @input="emit('update:aspectCustomRatio', ($event.target as HTMLInputElement).value)"
         />
-        <p
-          v-if="aspectCustomInvalid"
-          class="text-[11px] leading-snug text-amber-200/90"
-        >
+        <p v-if="aspectCustomInvalid" class="text-[11px] leading-snug text-amber-200/90">
           {{ t('drawing.studioAspectCustomInvalid') }}
         </p>
       </div>
