@@ -23,7 +23,7 @@ export function parseMjSubmitBody(r: any): {
       inner = anyInner.data
     }
   }
-  // { code, data: { result | taskId } } 且外层无 result
+  // { code, data: { result | taskId } } 且外层无 result — 解包时保留外层 code/description，否则会导致 applyMjSubmitResponse 误判失败（局部重绘 modal 等）
   if (inner && typeof inner === 'object') {
     const I = inner as Record<string, unknown>
     const nested = I.data
@@ -36,7 +36,12 @@ export function parseMjSubmitBody(r: any): {
         (nested as Record<string, unknown>).taskId !== undefined ||
         (nested as Record<string, unknown>).task_id !== undefined)
     ) {
-      inner = nested as typeof inner
+      const n = nested as Record<string, unknown>
+      inner = {
+        ...n,
+        code: n.code !== undefined ? n.code : I.code,
+        description: n.description !== undefined ? n.description : I.description,
+      } as typeof inner
     }
   }
   return { ok: true, mj: inner as any }
@@ -72,8 +77,17 @@ export function extractMjTaskId(
     const nested = d.result ?? d.taskId ?? d.task_id ?? d.id ?? d.hash
     if (nested != null) return String(nested)
   }
+  const rawResult = mj.result
+  if (rawResult != null && typeof rawResult === 'object' && !Array.isArray(rawResult)) {
+    const ro = rawResult as Record<string, unknown>
+    const nid = ro.id ?? ro.taskId ?? ro.task_id ?? ro.hash ?? ro.result
+    if (nid != null && typeof nid !== 'object') return String(nid)
+  }
+
+  const primResult =
+    typeof rawResult === 'string' || typeof rawResult === 'number' ? rawResult : undefined
   const r =
-    mj.result ??
+    primResult ??
     anyMj.taskId ??
     anyMj.task_id ??
     props?.result ??
@@ -206,6 +220,51 @@ function firstMjImageUrl(task: Record<string, unknown>): string | undefined {
   return all[0]
 }
 
+/** 轮询失败文案：映射为可操作的 i18n key（原始串仍可从 task.failReason 查看） */
+export type MjTaskFailureHintKey = 'drawing.mjFailModalWindow' | 'drawing.mjFailModalInvalid' | null
+
+export function mjTaskFailureHintKey(raw: string | undefined): MjTaskFailureHintKey {
+  const r = String(raw ?? '')
+  if (!r.trim()) return null
+  if (/invalid\s*parameter|无效参数|\[invalid/i.test(r)) return 'drawing.mjFailModalInvalid'
+  if (/waiting\s*for\s*window\s*confirm|窗口等待|等待.*确认/i.test(r))
+    return 'drawing.mjFailModalWindow'
+  return null
+}
+
+/**
+ * api.ephone.ai 等：任务结束同时带 description=Waiting for window confirm 与 failReason=无效参数，
+ * 若只读 failReason 会误判为「蒙版/参数格式错」，实为 Discord 弹窗未关单。
+ */
+export function mjTaskFailureHintKeyFromTask(task: Record<string, unknown>): MjTaskFailureHintKey {
+  const fr = String(task.failReason ?? task.failMsg ?? '').trim()
+  const desc = String(task.description ?? '').trim()
+  const win = /waiting\s*for\s*window\s*confirm/i.test(desc)
+  const genericInvalid =
+    fr === '无效参数' ||
+    /^invalid\s*parameter\.?$/i.test(fr) ||
+    /^\[invalid\s*parameter\]/i.test(fr)
+  if (win && (genericInvalid || !fr)) return 'drawing.mjFailModalWindow'
+  if (genericInvalid || /invalid\s*parameter|\[invalid/i.test(fr))
+    return 'drawing.mjFailModalInvalid'
+  if (/waiting\s*for\s*window\s*confirm|窗口等待/i.test(desc)) return 'drawing.mjFailModalWindow'
+  return null
+}
+
+/** 合并 description + failReason，避免聚合把「等弹窗」误标成无效参数时误导用户 */
+function mjTaskFailureDisplayMessage(task: Record<string, unknown>, fallback: string): string {
+  const fr = String(task.failReason ?? task.failMsg ?? '').trim()
+  const desc = String(task.description ?? '').trim()
+  const win = /waiting\s*for\s*window\s*confirm/i.test(desc)
+  const genericInvalid =
+    fr === '无效参数' ||
+    /^invalid\s*parameter\.?$/i.test(fr) ||
+    /^\[invalid\s*parameter\]/i.test(fr)
+  if (win && genericInvalid) return desc || fr || fallback
+  if (win && fr && !genericInvalid) return `${desc} | ${fr}`
+  return fr || desc || String(task.error ?? task.message ?? '').trim() || fallback
+}
+
 export function mjTaskPollOutcome(task: Record<string, unknown>): {
   phase: 'running' | 'done_ok' | 'done_fail'
   message?: string
@@ -220,14 +279,7 @@ export function mjTaskPollOutcome(task: Record<string, unknown>): {
     if (c === 'fail') {
       return {
         phase: 'done_fail',
-        message: String(
-          task.failReason ??
-            task.failMsg ??
-            task.description ??
-            task.error ??
-            task.message ??
-            (num === 5 ? 'timeout' : 'FAILURE')
-        ),
+        message: mjTaskFailureDisplayMessage(task, num === 5 ? 'timeout' : 'FAILURE'),
       }
     }
   }
@@ -243,9 +295,7 @@ export function mjTaskPollOutcome(task: Record<string, unknown>): {
   if (isMjSuccessStatus(st)) return { phase: 'done_ok' }
   return {
     phase: 'done_fail',
-    message: String(
-      task.failReason ?? task.failMsg ?? task.description ?? task.error ?? task.message ?? 'FAILURE'
-    ),
+    message: mjTaskFailureDisplayMessage(task, 'FAILURE'),
   }
 }
 
