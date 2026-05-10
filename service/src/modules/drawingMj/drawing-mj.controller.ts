@@ -4,8 +4,10 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Header,
+  Logger,
   Param,
   Post,
   Query,
@@ -16,17 +18,74 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { DrawingMjJobEntity } from './drawing-mj-job.entity';
-import {
-  CreateDrawingMjJobDto,
-  DrawingMjJobService,
-} from './drawing-mj-job.service';
+import { CreateDrawingMjJobDto, DrawingMjJobService } from './drawing-mj-job.service';
 import { DrawingMjService, MjSpeedMode } from './drawing-mj.service';
+
+/** 蒙版转发格式；`passthrough` = trim 后原样上传（调试用） */
+type MjModalMaskFmt = 'raw' | 'dataurl' | 'passthrough';
+
+/**
+ * 蒙版：参考 xifan `CanvasMask` —— 前端多为 `data:image/png;base64,...`；部分 OpenAPI 仅接受裸 Base64。
+ * - 显式：`MJ_MODAL_MASK_FORMAT=raw|dataurl|passthrough`；或 `MJ_MODAL_MASK_DATAURL=1` / `MJ_MODAL_MASK_RAW=1`。
+ * - 默认 **auto**：统一按 **raw** 送上游（剥掉 `data:image/...;base64,`）。多数 OpenAPI / proxy-plus 对 `maskBase64` 只校验裸 base64，带前缀易报「无效参数」。需保留前缀的网关请设 `MJ_MODAL_MASK_FORMAT=dataurl`。
+ */
+function resolveMjModalMaskFormat(_maskIn?: string): MjModalMaskFmt {
+  const v = process.env.MJ_MODAL_MASK_FORMAT?.trim().toLowerCase();
+  if (v === 'raw' || v === 'dataurl' || v === 'passthrough') return v;
+  if (process.env.MJ_MODAL_MASK_DATAURL === '1') return 'dataurl';
+  if (process.env.MJ_MODAL_MASK_RAW === '1') return 'raw';
+  return 'raw';
+}
+
+/**
+ * Modal 上游 Body：许多 OpenAPI 仅声明 `taskId` + 可选 `prompt` / `maskBase64`，多传字段易报「无效参数」。
+ * 默认只转发这三项（与具体代理域名无关）。若某聚合仍需 `notifyHook` / `state` / `mode` / `noStorage`，设 `MJ_MODAL_FORWARD_EXTRAS=1`。
+ */
+function mjModalForwardExtrasToUpstream(): boolean {
+  return process.env.MJ_MODAL_FORWARD_EXTRAS === '1';
+}
+
+function normalizeMjModalMaskForUpstream(
+  raw: string | undefined,
+  format: MjModalMaskFmt,
+): string | undefined {
+  if (raw == null || typeof raw !== 'string') return undefined;
+  if (format === 'passthrough') {
+    const t = raw.trim().replace(/\s+/g, '');
+    return t || undefined;
+  }
+  let s = raw.trim().replace(/\s+/g, '');
+  if (!s) return undefined;
+  if (format === 'dataurl') {
+    if (/^data:image\/[^;]+;base64,/i.test(s)) return s;
+    return `data:image/png;base64,${s}`;
+  }
+  const stripped = s.match(/^data:image\/[^;]+;base64,(.+)$/i);
+  if (stripped) return stripped[1] || undefined;
+  return s || undefined;
+}
+
+function mjModalMaskPayloadIsPng(mask: string): boolean {
+  let b64 = mask;
+  const m = mask.match(/^data:image\/[^;]+;base64,(.+)$/i);
+  if (m) b64 = m[1];
+  try {
+    const buf = Buffer.from(b64, 'base64');
+    return (
+      buf.length >= 24 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47
+    );
+  } catch {
+    return false;
+  }
+}
 
 @ApiTags('drawing-mj')
 @Controller('drawing/mj')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class DrawingMjController {
+  private readonly logger = new Logger(DrawingMjController.name);
+
   constructor(
     private readonly drawingMjService: DrawingMjService,
     private readonly drawingMjJobService: DrawingMjJobService,
@@ -88,14 +147,26 @@ export class DrawingMjController {
     return { synced: n };
   }
 
+  @Delete('jobs/:id')
+  @ApiOperation({ summary: '删除当前账号下的 MJ 绘画任务记录（云端列表）' })
+  async deleteMjJob(@Req() req: Request, @Param('id') id: string) {
+    const nid = parseInt(String(id || '').trim(), 10);
+    if (!Number.isFinite(nid) || nid < 1) {
+      throw new BadRequestException('无效的任务 id');
+    }
+    await this.drawingMjJobService.delete(req.user.id, nid);
+    return { ok: true };
+  }
+
   /** 校验余额 → 调用上游 → 成功码扣费 → 返回上游 JSON body */
   private async withBalance(
     req: Request,
     row: any,
+    mjMode: MjSpeedMode,
     charge:
       | string
       | {
-          /** 相对模型单次 deduct 的倍数 */
+          /** 相对 MJ 单次基准扣费的倍数 */
           mult: number;
         },
     fn: () => Promise<{ status: number; data: any }>,
@@ -104,7 +175,8 @@ export class DrawingMjController {
       typeof charge === 'string'
         ? this.drawingMjService.guessChargeMultiplier(charge || '')
         : charge.mult;
-    const amount = Number(row.deduct) * mult;
+    const base = this.drawingMjService.mjBaseDeductPerUnit(row, mjMode);
+    const amount = base * mult;
     await this.userBalanceService.validateBalance(req, row.deductType, amount);
     const out = await fn();
     const payload = out?.data;
@@ -113,12 +185,9 @@ export class DrawingMjController {
       typeof raw === 'number' && Number.isFinite(raw)
         ? raw
         : typeof raw === 'string' && raw.trim() !== ''
-          ? Number(raw.trim())
-          : NaN;
-    if (
-      !Number.isNaN(code) &&
-      (code === 0 || code === 1 || code === 21 || code === 22)
-    ) {
+        ? Number(raw.trim())
+        : NaN;
+    if (!Number.isNaN(code) && (code === 0 || code === 1 || code === 21 || code === 22)) {
       await this.userBalanceService.deductFromBalance(req.user.id, row.deductType, amount);
     }
     return payload;
@@ -140,7 +209,7 @@ export class DrawingMjController {
   ) {
     const row = await this.drawingMjService.resolveMjModel(body.model);
     const mode = body.mjMode || 'fast';
-    return this.withBalance(req, row, body.prompt || '', () =>
+    return this.withBalance(req, row, mode, body.prompt || '', () =>
       this.drawingMjService.requestUpstream(row, mode, '/submit/imagine', {
         data: {
           prompt: body.prompt,
@@ -169,7 +238,7 @@ export class DrawingMjController {
   ) {
     const row = await this.drawingMjService.resolveMjModel(body.model);
     const mode = body.mjMode || 'fast';
-    return this.withBalance(req, row, { mult: 1 }, () =>
+    return this.withBalance(req, row, mode, { mult: 1 }, () =>
       this.drawingMjService.requestUpstream(row, mode, '/submit/change', {
         data: {
           action: body.action,
@@ -192,20 +261,33 @@ export class DrawingMjController {
       mjMode?: MjSpeedMode;
       customId: string;
       taskId: string;
+      /** DMX 1.2：mj / niji；部分聚合对缺省敏感 */
+      botType?: string;
+      enableRemix?: boolean;
       notifyHook?: string;
       state?: string;
     },
   ) {
     const row = await this.drawingMjService.resolveMjModel(body.model);
     const mode = body.mjMode || 'fast';
-    return this.withBalance(req, row, { mult: 1 }, () =>
+    /** 常见 OpenAPI：action 仅 customId、taskId、notifyHook、state；多字段可能被 strict schema 判无效参数 */
+    const actionData: Record<string, unknown> = {
+      customId: body.customId,
+      taskId: body.taskId,
+    };
+    const nh = body.notifyHook != null ? String(body.notifyHook).trim() : '';
+    if (nh) actionData.notifyHook = nh;
+    const st = body.state != null ? String(body.state).trim() : '';
+    if (st) actionData.state = st;
+    if (process.env.MJ_ACTION_FORWARD_EXTRAS === '1') {
+      if (body.botType != null && String(body.botType).trim() !== '') {
+        actionData.botType = String(body.botType).trim();
+      }
+      if (body.enableRemix === true) actionData.enableRemix = true;
+    }
+    return this.withBalance(req, row, mode, { mult: 1 }, () =>
       this.drawingMjService.requestUpstream(row, mode, '/submit/action', {
-        data: {
-          customId: body.customId,
-          taskId: body.taskId,
-          notifyHook: body.notifyHook,
-          state: body.state,
-        },
+        data: actionData,
       }),
     );
   }
@@ -225,7 +307,7 @@ export class DrawingMjController {
   ) {
     const row = await this.drawingMjService.resolveMjModel(body.model);
     const mode = body.mjMode || 'fast';
-    return this.withBalance(req, row, { mult: 1 }, () =>
+    return this.withBalance(req, row, mode, { mult: 1 }, () =>
       this.drawingMjService.requestUpstream(row, mode, '/submit/simple-change', {
         data: {
           content: body.content,
@@ -252,7 +334,7 @@ export class DrawingMjController {
   ) {
     const row = await this.drawingMjService.resolveMjModel(body.model);
     const mode = body.mjMode || 'fast';
-    return this.withBalance(req, row, { mult: 4 }, () =>
+    return this.withBalance(req, row, mode, { mult: 4 }, () =>
       this.drawingMjService.requestUpstream(row, mode, '/submit/blend', {
         data: {
           base64Array: body.base64Array,
@@ -279,7 +361,7 @@ export class DrawingMjController {
   ) {
     const row = await this.drawingMjService.resolveMjModel(body.model);
     const mode = body.mjMode || 'fast';
-    return this.withBalance(req, row, { mult: 1 }, () =>
+    return this.withBalance(req, row, mode, { mult: 1 }, () =>
       this.drawingMjService.requestUpstream(row, mode, '/submit/describe', {
         data: {
           base64: body.base64,
@@ -301,17 +383,90 @@ export class DrawingMjController {
       taskId: string;
       prompt?: string;
       maskBase64?: string;
+      /** DMX 等：true 时返回原始图链 */
+      noStorage?: boolean;
+      notifyHook?: string;
+      state?: string;
     },
   ) {
     const row = await this.drawingMjService.resolveMjModel(body.model);
     const mode = body.mjMode || 'fast';
-    return this.withBalance(req, row, { mult: 1 }, () =>
-      this.drawingMjService.requestUpstream(row, mode, '/submit/modal', {
-        data: {
-          taskId: body.taskId,
-          prompt: body.prompt,
-          maskBase64: body.maskBase64,
-        },
+    const taskId = String(body.taskId ?? '').trim();
+    if (!taskId) {
+      throw new BadRequestException('缺少 taskId');
+    }
+    const maskFmt = resolveMjModalMaskFormat(body.maskBase64);
+    const rawMaskIn = body.maskBase64;
+    const rawLen = rawMaskIn != null && typeof rawMaskIn === 'string' ? rawMaskIn.trim().length : 0;
+    let mask = normalizeMjModalMaskForUpstream(body.maskBase64, maskFmt);
+    if (rawLen > 80 && !mask) {
+      throw new BadRequestException(
+        '蒙版无法解析（可能被网关截断 JSON，请调大 Nginx client_max_body_size 或缩小选区）',
+      );
+    }
+    if (mask && !mjModalMaskPayloadIsPng(mask)) {
+      this.logger.log(
+        `[MJ modal] 蒙版解码后非标准 PNG 文件头，仍尝试提交上游（若失败请检查选区/图片源）`,
+      );
+    }
+    const promptStr =
+      body.prompt != null && String(body.prompt).trim() !== '' ? String(body.prompt).trim() : '';
+    /**
+     * midjourney-proxy-plus / 常见 MJ 代理文档：modal 的 prompt「为空时使用原任务的 prompt」。
+     * 有蒙版时也不要强行塞占位词，否则会覆盖上游应继承的原文，易触发无效参数或关窗失败。
+     * 若某聚合仍要求非空，可设 `MJ_MODAL_EMPTY_PROMPT_FALLBACK` 恢复占位行为。
+     */
+    let effectivePrompt = promptStr;
+    if (mask && !effectivePrompt && process.env.MJ_MODAL_EMPTY_PROMPT_FALLBACK?.trim()) {
+      effectivePrompt = process.env.MJ_MODAL_EMPTY_PROMPT_FALLBACK.trim();
+    }
+    /**
+     * OpenAPI：prompt 可选，空则沿用原任务；**不要传 prompt:""**，部分网关会把空串判为无效参数。
+     */
+    const forwardExtras = mjModalForwardExtrasToUpstream();
+    const data: Record<string, unknown> = { taskId };
+    if (mask) {
+      if (effectivePrompt !== '') data.prompt = effectivePrompt;
+      data.maskBase64 = mask;
+      /** 个别网关读 `mask` 而非 `maskBase64`，且禁止多余字段时不要设。例：`MJ_MODAL_MASK_DUP_KEY=mask` */
+      const dupK = process.env.MJ_MODAL_MASK_DUP_KEY?.trim();
+      if (dupK && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(dupK)) {
+        data[dupK] = mask;
+      }
+    } else if (effectivePrompt !== '') {
+      data.prompt = effectivePrompt;
+    }
+    /**
+     * 部分聚合（DMX / ephone 等）在 Modal 要求 body.mode，且与是否转发 notifyHook 无关。
+     * 设 `MJ_MODAL_APPEND_MODE=1` 即附加，勿与 `MJ_MODAL_FORWARD_EXTRAS` 绑死。
+     */
+    if (process.env.MJ_MODAL_APPEND_MODE === '1') {
+      /** DMX 等：常见为 RELAX / FAST；turbo 通道多仍标为 FAST。若上游要 TURBO 字面量可设 `MJ_MODAL_MODE_TURBO_LITERAL=1`。 */
+      const turboLit = process.env.MJ_MODAL_MODE_TURBO_LITERAL === '1';
+      data.mode = mode === 'relax' ? 'RELAX' : mode === 'turbo' && turboLit ? 'TURBO' : 'FAST';
+    }
+    if (forwardExtras) {
+      if (typeof body.noStorage === 'boolean') {
+        data.noStorage = body.noStorage;
+      }
+      const nh = body.notifyHook != null ? String(body.notifyHook).trim() : '';
+      if (nh) data.notifyHook = nh;
+      const st = body.state != null ? String(body.state).trim() : '';
+      if (st) data.state = st;
+    }
+    /** 与 submit/action、task/fetch 使用同一 mj 前缀，保证 code=21 的 taskId 与通道一致。仅当上游只在标准 `/mj` 挂了 modal 时再设 `MJ_MODAL_FORCE_FAST_MJ_PATH=1`。 */
+    const upstreamMode: MjSpeedMode =
+      process.env.MJ_MODAL_FORCE_FAST_MJ_PATH === '1' ? 'fast' : mode;
+    this.logger.log(
+      `[MJ modal] forwardExtras=${forwardExtras} maskFmt=${maskFmt} upstreamMode=${upstreamMode} taskId.len=${
+        taskId.length
+      } prompt.len=${effectivePrompt.length} rawMask.len=${rawLen} outMask.len=${
+        mask?.length ?? 0
+      } reqMjMode=${mode}`,
+    );
+    return this.withBalance(req, row, upstreamMode, { mult: 1 }, () =>
+      this.drawingMjService.requestUpstream(row, upstreamMode, '/submit/modal', {
+        data,
       }),
     );
   }
@@ -332,7 +487,7 @@ export class DrawingMjController {
   ) {
     const row = await this.drawingMjService.resolveMjModel(body.model);
     const mode = body.mjMode || 'fast';
-    return this.withBalance(req, row, body.prompt || '', () =>
+    return this.withBalance(req, row, mode, body.prompt || '', () =>
       this.drawingMjService.requestUpstream(row, mode, '/submit/shorten', {
         data: {
           prompt: body.prompt,
