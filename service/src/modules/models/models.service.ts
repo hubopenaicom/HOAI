@@ -407,6 +407,9 @@ export class ModelsService {
         systemPrompt: modelDetail.systemPrompt,
         systemPromptType: modelDetail.systemPromptType,
         drawingType: modelDetail.drawingType,
+        deductMjRelax: modelDetail.deductMjRelax,
+        deductMjFast: modelDetail.deductMjFast,
+        deductMjTurbo: modelDetail.deductMjTurbo,
       };
     } catch (error) {
       if (error instanceof HttpException) {
@@ -429,6 +432,9 @@ export class ModelsService {
         keyType: t.keyType,
         model: t.model,
         deduct: t.deduct,
+        deductMjRelax: t.deductMjRelax,
+        deductMjFast: t.deductMjFast,
+        deductMjTurbo: t.deductMjTurbo,
         deductType: t.deductType,
         maxRounds: t.maxRounds,
         modelAvatar: t.modelAvatar,
