@@ -1,6 +1,11 @@
 import { get, post } from '@/utils/request'
 import service from '@/utils/request/axios'
 
+/** DELETE /drawing/mj/jobs/:id — 删除云端任务记录（需登录） */
+export function deleteMjDrawingJob(serverJobId: number) {
+  return service.delete(`/drawing/mj/jobs/${serverJobId}`)
+}
+
 export type MjSpeedMode = 'fast' | 'turbo' | 'relax'
 
 /** 上游返回体（经全局包装后取 res.data） */
@@ -27,6 +32,9 @@ export function submitMjAction<T = MjSubmitResult>(data: {
   mjMode?: MjSpeedMode
   customId: string
   taskId: string
+  /** 仅当服务端 `MJ_ACTION_FORWARD_EXTRAS=1` 时才会转发到上游（OpenAPI 默认不含此字段） */
+  botType?: string
+  enableRemix?: boolean
   notifyHook?: string
   state?: string
 }) {
@@ -98,6 +106,21 @@ export function submitMjShorten<T = MjSubmitResult>(data: {
   state?: string
 }) {
   return post<T>({ url: '/drawing/mj/submit/shorten', data })
+}
+
+/** POST /drawing/mj/submit/modal — 局部重绘 / Zoom（上游 /mj/submit/modal） */
+export function submitMjModal<T = MjSubmitResult>(data: {
+  model: string
+  mjMode?: MjSpeedMode
+  taskId: string
+  prompt?: string
+  maskBase64?: string
+  /** 部分上游（如 DMX）：true 返回原始图链 */
+  noStorage?: boolean
+  notifyHook?: string
+  state?: string
+}) {
+  return post<T>({ url: '/drawing/mj/submit/modal', data })
 }
 
 /** GET /drawing/mj/jobs 列表项 */
