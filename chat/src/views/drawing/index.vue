@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   batchUpsertMjDrawingJobs,
+  deleteMjDrawingJob,
   fetchMjDrawingJobsList,
   fetchMjImageSeed,
   fetchMjTask,
@@ -42,9 +43,22 @@ import {
   nestResultErrorMessage,
   parseMjImageSeedBody,
   parseMjProgressPercent,
+  normalizeMjSubmitCode,
   parseMjSubmitBody,
   parseMjTaskBody,
+  mjTaskFailureHintKey,
+  mjTaskFailureHintKeyFromTask,
 } from '@/utils/mjApiParse'
+import {
+  formatMjUpstreamButtonLabel,
+  groupMjMiscButtons,
+  mjButtonIsVaryRegion,
+  mjMiscButtonHintKey,
+  mjMiscGroupIntroKey,
+  mjMiscGroupTitleKey,
+  type MjMiscGroup,
+} from '@/utils/mjFollowUpUi'
+import MjVaryRegionModal from '@/components/drawing/MjVaryRegionModal.vue'
 import HeaderComponent from '@/views/chat/components/Header/index.vue'
 import Sider from '@/views/chat/components/sider/index.vue'
 import { useChat } from '@/views/chat/hooks/useChat'
@@ -98,6 +112,29 @@ interface MjJobItem {
 const MJ_TYPE = 3
 const MJ_JOBS_STORAGE_VER = 1
 const MAX_MJ_JOBS_STORED = 80
+const STORAGE_KEY_MJ_FOLLOWUP_LAYOUT = 'hoai_mj_followup_layout'
+
+type MjFollowUpLayout = 'tiled' | 'dropdown'
+
+function loadMjFollowUpLayout(): MjFollowUpLayout {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_MJ_FOLLOWUP_LAYOUT)
+    if (raw === 'dropdown' || raw === 'tiled') return raw
+  } catch {
+    /* ignore */
+  }
+  return 'tiled'
+}
+
+const mjFollowUpLayout = ref<MjFollowUpLayout>(loadMjFollowUpLayout())
+
+watch(mjFollowUpLayout, v => {
+  try {
+    localStorage.setItem(STORAGE_KEY_MJ_FOLLOWUP_LAYOUT, v)
+  } catch {
+    /* ignore */
+  }
+})
 const persistMjJobsReady = ref(false)
 
 const aspectKeyToSuffix: Record<string, string> = {
@@ -385,18 +422,19 @@ function applyMjSubmitResponse(r: unknown, job: MjJobItem): boolean {
     return false
   }
   const mj = parsed.mj
+  const tid = extractMjTaskId(mj as { result?: string | number; properties?: unknown })
+  // 部分上游把 taskId 放在 data.result 里且解包后丢失 code；只要有 tid 即视为提交成功并进入轮询
+  if (tid) {
+    job.taskId = tid
+    return true
+  }
   if (!isMjSubmitAcceptedCode(mj?.code)) {
     job.error =
       mj?.description || (mj?.code != null ? `submit code=${mj.code}` : '') || t('common.wrong')
     return false
   }
-  const tid = extractMjTaskId(mj as { result?: string | number; properties?: unknown })
-  if (!tid) {
-    job.error = mj?.description || t('drawing.mjNoTaskId')
-    return false
-  }
-  job.taskId = tid
-  return true
+  job.error = mj?.description || t('drawing.mjNoTaskId')
+  return false
 }
 
 const filteredMjJobs = computed(() => {
@@ -559,7 +597,9 @@ function startPollTask(taskId: string, job: MjJobItem) {
       stopPoll(taskId)
       live.loading = false
       if (outcome.phase === 'done_fail') {
-        live.error = outcome.message || 'FAILURE'
+        const raw = outcome.message || 'FAILURE'
+        const hintKey = mjTaskFailureHintKeyFromTask(task) ?? mjTaskFailureHintKey(raw)
+        live.error = hintKey ? t(hintKey) : raw
       }
       await authStore.getUserBalance()
     } catch {
@@ -1001,8 +1041,7 @@ watch(mjSeed, v => {
 
 watch(drawingSessionGroupId, v => {
   try {
-    if (v != null && v > 0)
-      sessionStorage.setItem(STORAGE_KEY_DRAWING_BIND_GROUP, String(v))
+    if (v != null && v > 0) sessionStorage.setItem(STORAGE_KEY_DRAWING_BIND_GROUP, String(v))
     else sessionStorage.removeItem(STORAGE_KEY_DRAWING_BIND_GROUP)
   } catch {
     /* ignore */
@@ -1070,16 +1109,346 @@ const badWordsDialog = computed(() => useGlobalStore.BadWordsDialog)
 const settingsDialog = computed(() => useGlobalStore.settingsDialog)
 const mobileSettingsDialog = computed(() => useGlobalStore.mobileSettingsDialog)
 
+type MjFollowBtn = { customId: string; label: string; emoji?: string }
+
 const mjButtons = (task: Record<string, unknown> | undefined) => {
-  const btns = task?.buttons as
-    | Array<{ customId: string; label: string; emoji?: string }>
-    | undefined
+  const btns = task?.buttons as MjFollowBtn[] | undefined
   return Array.isArray(btns) ? btns : []
+}
+
+/** U1–U4 / V1–V4 与四宫格对应（Midjourney 约定） */
+function mjUvQuadrantLabel(label: string): string {
+  const m = /^[UV]([1-4])$/i.exec(String(label).trim())
+  if (!m) return ''
+  const keys = ['mjQuadTL', 'mjQuadTR', 'mjQuadBL', 'mjQuadBR'] as const
+  const idx = Number(m[1]) - 1
+  return idx >= 0 && idx < 4 ? t(`drawing.${keys[idx]}`) : ''
+}
+
+function mjHasUvNumberedButtons(task: Record<string, unknown> | undefined): boolean {
+  return mjButtons(task).some(b => /^[UV][1-4]$/i.test(String(b.label || '').trim()))
+}
+
+/** 将上游按钮分组：放大 U、微调 V、其余（重绘图标等） */
+function mjButtonSegmentGroups(
+  task: Record<string, unknown> | undefined
+): Array<{ type: 'upscale' | 'variation' | 'misc'; items: MjFollowBtn[] }> {
+  const btns = mjButtons(task)
+  const out: Array<{ type: 'upscale' | 'variation' | 'misc'; items: MjFollowBtn[] }> = []
+  for (const btn of btns) {
+    const L = String(btn.label || '').trim()
+    let seg: 'upscale' | 'variation' | 'misc'
+    if (/^U[1-4]$/i.test(L)) seg = 'upscale'
+    else if (/^V[1-4]$/i.test(L)) seg = 'variation'
+    else seg = 'misc'
+
+    const last = out[out.length - 1]
+    if (last && last.type === seg) last.items.push(btn)
+    else out.push({ type: seg, items: [btn] })
+  }
+  return out
+}
+
+/** 刷新 / Reroll 类按钮（与 U/V 编号按钮区分） */
+function mjButtonIsRegenerate(btn: MjFollowBtn): boolean {
+  const L = String(btn.label || '').trim()
+  if (/^[UV][1-4]$/i.test(L)) return false
+  const low = L.toLowerCase()
+  const em = String(btn.emoji || '')
+  if (/reroll|regenerate|\bre\b|重新生成|重新绘制/.test(low)) return true
+  const refreshRe = /[\u{1F504}\u21BB]|🔄|↻|🔁|⟳/u
+  if (refreshRe.test(em)) return true
+  if (!em && refreshRe.test(L)) return true
+  return false
+}
+
+function onMjFollowUpSelect(ev: Event, taskId: string) {
+  const el = ev.target as HTMLSelectElement
+  const v = el.value
+  if (!v) return
+  void onMjButtonClick(taskId, v)
+  el.value = ''
+}
+
+function mjMiscHintText(btn: MjFollowBtn): string {
+  const key = mjMiscButtonHintKey(btn)
+  return key ? t(key) : ''
+}
+
+function mjMiscGroupIntroText(group: MjMiscGroup): string {
+  const k = mjMiscGroupIntroKey(group)
+  return k ? t(k) : ''
+}
+
+/** misc 按钮主文案：UV 编号保持原样，其余走上游美化 */
+function mjMiscBtnDisplayPrimary(btn: MjFollowBtn): string {
+  const raw = String(btn.label || '').trim()
+  if (mjUvQuadrantLabel(btn.label)) return raw
+  const pretty = formatMjUpstreamButtonLabel(btn.label)
+  return (pretty || raw || String(btn.emoji || '')).trim()
+}
+
+function mjMiscBucketBtnWrapClass(group: MjMiscGroup): string {
+  return group === 'pan' ? 'grid grid-cols-4 gap-1.5' : 'flex flex-col gap-2'
+}
+
+function mjMiscBucketBtnClass(group: MjMiscGroup): string {
+  const common =
+    'btn btn-xs inline-flex min-w-0 flex-col gap-1 border-slate-600 bg-slate-800/80 normal-case text-slate-200 hover:bg-slate-700'
+  if (group === 'pan') {
+    return `${common} min-h-[2.5rem] items-center justify-center px-1.5 py-1 text-center text-[11px] leading-tight`
+  }
+  return `${common} h-auto min-h-0 w-full items-start justify-start px-2.5 py-1.5 text-left text-[10px] leading-snug sm:text-[11px]`
+}
+
+function mjMiscOptionLabel(btn: MjFollowBtn): string {
+  const raw = String(btn.label || '').trim()
+  const text = mjUvQuadrantLabel(btn.label)
+    ? raw
+    : (formatMjUpstreamButtonLabel(btn.label) || raw || '').trim()
+  return `${btn.emoji ? `${btn.emoji} ` : ''}${text}`
+}
+
+function mjMiscBtnTooltip(btn: MjFollowBtn): string {
+  const hint = mjMiscHintText(btn)
+  const raw = String(btn.label || '').trim()
+  const pretty = formatMjUpstreamButtonLabel(btn.label)
+  if (mjButtonIsRegenerate(btn)) {
+    const base = t('drawing.mjRegenerate')
+    if (!hint) return raw && raw !== pretty ? `${base}\n${raw}` : base
+    return raw && raw !== pretty ? `${base}\n\n${hint}\n${raw}` : `${base}\n\n${hint}`
+  }
+  const quad = mjUvQuadrantLabel(btn.label)
+  const head = quad ? `${btn.label} · ${quad}` : mjMiscBtnDisplayPrimary(btn)
+  const parts = [head]
+  if (!quad && raw && pretty && raw !== pretty) parts.push(raw)
+  if (hint) parts.push('', hint)
+  return parts.join('\n')
+}
+
+const varyRegionOpen = ref(false)
+const varyRegionJob = ref<MjJobItem | null>(null)
+/** midjourney-proxy-plus：先 submit/action 返回 code=21「窗口等待」，result 才是 submit/modal 要传的 taskId（非父图任务 id） */
+const varyRegionModalTaskId = ref('')
+/** code=21 后立即 fetch 的 MODAL 任务快照：imageUrl 与蒙版坐标系一致，避免用父任务缩略图导致尺寸不符→无效参数 */
+const varyRegionModalTaskSnap = ref<Record<string, unknown> | null>(null)
+const varyRegionActionBusy = ref(false)
+
+const varyRegionImageUrl = computed(() => {
+  const snap = varyRegionModalTaskSnap.value
+  const fromModal = snap ? collectMjImageUrls(snap)[0] : ''
+  if (fromModal) return fromModal
+  const j = varyRegionJob.value
+  if (!j?.task) return ''
+  return collectMjImageUrls(j.task)[0] || ''
+})
+
+/** 任务上的提示词：填入局部重绘框作默认文案；用户清空且不提交 prompt 时由上游沿用原任务（见 modal 文档） */
+function mjTaskPromptForModal(task: Record<string, unknown> | undefined): string {
+  if (!task) return ''
+  const pr = task.properties as Record<string, unknown> | undefined
+  const pick = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : '')
+  const firstLine = (s: string) => {
+    const line = s.split(/\r?\n/)[0]?.trim() ?? ''
+    return line.replace(/^\/(?:imagine|describe|shorten)\s+/i, '').trim() || line
+  }
+  const tryPick = (v: unknown) => {
+    const s = pick(v)
+    return s ? firstLine(s) : ''
+  }
+  return (
+    tryPick(task.promptEn) ||
+    tryPick(task.prompt) ||
+    tryPick(pr?.finalPrompt) ||
+    tryPick(pr?.promptEn) ||
+    tryPick(pr?.prompt) ||
+    tryPick(task.description) ||
+    ''
+  )
+}
+
+/** MODAL 任务上的文案优先（与弹窗任务 id 一致），否则父任务 */
+const varyRegionFallbackPrompt = computed(() => {
+  const job = varyRegionJob.value
+  const snap = varyRegionModalTaskSnap.value
+  return mjTaskPromptForModal(snap ?? undefined) || mjTaskPromptForModal(job?.task) || ''
+})
+
+watch(varyRegionOpen, v => {
+  if (!v) {
+    varyRegionJob.value = null
+    varyRegionModalTaskId.value = ''
+    varyRegionModalTaskSnap.value = null
+  }
+})
+
+/**
+ * 局部重绘：必须先调 submit/action 进入 MODAL，再用返回的 taskId + 蒙版调 submit/modal。
+ * @see https://github.com/litter-coder/midjourney-proxy-plus/blob/main/docs/api.md
+ */
+async function beginVaryRegionFlow(job: MjJobItem, customId: string) {
+  const urls = mjJobImageUrls(job)
+  if (!job.taskId || !urls.length) {
+    ms.warning(t('drawing.mjVaryRegionNoImage'))
+    return
+  }
+  const m = resolveMjJobModelRow(job)
+  if (!m) {
+    ms.warning(t('drawing.needModel'))
+    return
+  }
+  varyRegionActionBusy.value = true
+  try {
+    /** 常见 OpenAPI：/mj/submit/action 仅 customId、taskId、notifyHook、state；勿默认带 botType */
+    const r = await submitMjAction({
+      model: m.model,
+      mjMode: job.mjModeSnapshot ?? mjMode.value,
+      taskId: String(job.taskId),
+      customId,
+    })
+    const parsed = parseMjSubmitBody(r)
+    if (!parsed.ok) {
+      ms.error(parsed.message || t('common.wrong'))
+      return
+    }
+    const mj = parsed.mj
+    const modalTid = extractMjTaskId(mj as { result?: string | number; properties?: unknown })
+    const code = normalizeMjSubmitCode(mj?.code)
+
+    if (code === 21 && modalTid) {
+      varyRegionJob.value = job
+      varyRegionModalTaskId.value = modalTid
+      varyRegionModalTaskSnap.value = null
+      const mode = job.mjModeSnapshot ?? mjMode.value
+      /** MODAL 任务刚创建时 imageUrl 可能未就绪；短暂重试，避免用父任务缩略图导致蒙版与画布尺寸不一致→上游「无效参数」 */
+      try {
+        let snap: Record<string, unknown> | null = null
+        for (let attempt = 0; attempt < 6; attempt++) {
+          const fr = await fetchMjTask(modalTid, m.model, mode)
+          if (!nestResultErrorMessage(fr)) {
+            const body = parseMjTaskBody(fr)
+            if (body) {
+              snap = body
+              if (collectMjImageUrls(body).length) break
+            }
+          }
+          if (attempt < 5) await new Promise<void>(r => setTimeout(r, 500))
+        }
+        if (snap) varyRegionModalTaskSnap.value = snap
+      } catch {
+        /* 无快照时仍用父任务图打开弹窗 */
+      }
+      varyRegionOpen.value = true
+      return
+    }
+
+    // 少数环境可能不经 MODAL 直接排队（不常见）
+    if ((code === 1 || code === 22) && modalTid) {
+      ms.info(t('drawing.mjVaryRegionDirectQueued'))
+      const newJob: MjJobItem = {
+        localId: Date.now(),
+        taskId: modalTid,
+        promptLabel: t('drawing.mjFollowUp'),
+        loading: true,
+        mjStyleSnapshot: mjStyle.value,
+      }
+      attachMjJobModelMeta(newJob, m)
+      mjJobs.value.unshift(newJob)
+      startPollTask(modalTid, newJob)
+      await authStore.getUserBalance()
+      return
+    }
+
+    const hint = mj?.description || (code != null ? `code=${code}` : '') || t('drawing.mjNoTaskId')
+    ms.error(t('drawing.mjVaryRegionEnterFail', { msg: hint }))
+  } catch (e: unknown) {
+    ms.error((e as Error)?.message || t('common.wrong'))
+  } finally {
+    varyRegionActionBusy.value = false
+  }
+}
+
+function handleMjMiscButtonClick(job: MjJobItem, btn: MjFollowBtn) {
+  if (mjButtonIsVaryRegion(btn)) {
+    void beginVaryRegionFlow(job, btn.customId)
+    return
+  }
+  void onMjButtonClick(String(job.taskId), btn.customId)
+}
+
+function onMjMiscDropdownChange(ev: Event, job: MjJobItem) {
+  const el = ev.target as HTMLSelectElement
+  const customId = el.value
+  if (!customId) return
+  el.value = ''
+  const btn = mjButtons(job.task).find(b => b.customId === customId)
+  if (btn && mjButtonIsVaryRegion(btn)) {
+    void beginVaryRegionFlow(job, customId)
+    return
+  }
+  void onMjButtonClick(String(job.taskId), customId)
+}
+
+async function onMjVaryRegionSubmitted(res: unknown) {
+  /** emit 同步触发，此时 varyRegionJob 仍在；须用源任务模型/速度与 submit/modal 一致，勿仅用当前选中项 */
+  const srcJob = varyRegionJob.value
+  const m = (srcJob && resolveMjJobModelRow(srcJob)) || selectedModel.value
+  if (!m) return
+  const job: MjJobItem = {
+    localId: Date.now(),
+    taskId: '',
+    promptLabel: t('drawing.mjFollowUp'),
+    loading: true,
+    mjStyleSnapshot: srcJob?.mjStyleSnapshot ?? mjStyle.value,
+  }
+  attachMjJobModelMeta(job, m)
+  if (srcJob?.mjModeSnapshot) job.mjModeSnapshot = srcJob.mjModeSnapshot
+  mjJobs.value.unshift(job)
+  try {
+    if (!applyMjSubmitResponse(res, job)) {
+      job.loading = false
+      if (job.error) ms.error(job.error)
+      return
+    }
+    startPollTask(job.taskId, job)
+    await authStore.getUserBalance()
+  } catch {
+    job.loading = false
+    job.error = t('common.wrong')
+  }
 }
 
 const mjJobSeedByLocalId = ref<Record<number, string>>({})
 const mjJobSeedErrByLocalId = ref<Record<number, string>>({})
 const mjJobSeedLoadingByLocalId = ref<Record<number, boolean>>({})
+
+function pruneMjJobSeedState(localId: number) {
+  const strip = <T extends Record<number, unknown>>(rec: T): T => {
+    const n = { ...rec }
+    delete n[localId]
+    return n
+  }
+  mjJobSeedByLocalId.value = strip(mjJobSeedByLocalId.value)
+  mjJobSeedErrByLocalId.value = strip(mjJobSeedErrByLocalId.value)
+  mjJobSeedLoadingByLocalId.value = strip(mjJobSeedLoadingByLocalId.value)
+}
+
+async function removeMjJob(job: MjJobItem) {
+  if (!window.confirm(t('drawing.mjDeleteConfirm'))) return
+  const tid = job.taskId
+  if (tid) stopPoll(tid)
+  if (authStore.isLogin && job.serverJobId) {
+    try {
+      await deleteMjDrawingJob(job.serverJobId)
+    } catch {
+      if (tid && job.loading) startPollTask(tid, job)
+      ms.error(t('drawing.mjDeleteFail'))
+      return
+    }
+  }
+  mjJobs.value = mjJobs.value.filter(j => j.localId !== job.localId)
+  pruneMjJobSeedState(job.localId)
+}
 
 function mjJobSeedToolbarVisible(job: MjJobItem): boolean {
   return !job.loading && !job.error && Boolean(job.taskId) && mjJobImageUrls(job).length > 0
@@ -1087,8 +1456,7 @@ function mjJobSeedToolbarVisible(job: MjJobItem): boolean {
 
 function resolveMjJobModelRow(job: MjJobItem): DrawingModel | undefined {
   return (
-    (job.modelKey && drawingModels.value.find(x => x.model === job.modelKey)) ||
-    selectedModel.value
+    (job.modelKey && drawingModels.value.find(x => x.model === job.modelKey)) || selectedModel.value
   )
 }
 
@@ -1108,8 +1476,7 @@ async function onMjJobFetchSeed(job: MjJobItem) {
     const r = await fetchMjImageSeed(live.taskId, modelRow.model, mode)
     const parsed = parseMjImageSeedBody(r)
     if (!parsed.ok) {
-      const msg =
-        parsed.message === 'no seed' ? t('drawing.mjSeedFetchNoValue') : parsed.message
+      const msg = parsed.message === 'no seed' ? t('drawing.mjSeedFetchNoValue') : parsed.message
       mjJobSeedErrByLocalId.value = { ...mjJobSeedErrByLocalId.value, [id]: msg }
       ms.error(msg)
       return
@@ -1118,8 +1485,7 @@ async function onMjJobFetchSeed(job: MjJobItem) {
     mjJobSeedErrByLocalId.value = { ...mjJobSeedErrByLocalId.value, [id]: '' }
     ms.success(t('drawing.mjSeedFetchedOk'))
   } catch (e: unknown) {
-    const msg =
-      e instanceof Error && e.message ? e.message : String(t('drawing.mjSeedFetchFail'))
+    const msg = e instanceof Error && e.message ? e.message : String(t('drawing.mjSeedFetchFail'))
     mjJobSeedErrByLocalId.value = { ...mjJobSeedErrByLocalId.value, [id]: msg }
     ms.error(msg)
   } finally {
@@ -1209,9 +1575,7 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
               <div
                 class="flex min-h-0 w-full shrink-0 flex-col border-slate-800/80 bg-[#06090e] lg:h-full lg:max-w-[min(100%,460px)] lg:w-[min(100%,460px)] lg:border-r lg:border-slate-700/35"
               >
-                <div
-                  class="custom-scrollbar lg:min-h-0 lg:flex-1 lg:overflow-y-auto"
-                >
+                <div class="custom-scrollbar lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
                   <DrawingStudioSidebar
                     embedded
                     :drawing-models="drawingModels"
@@ -1332,6 +1696,36 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                     class="input input-bordered input-sm min-w-[160px] flex-1 border-slate-600 bg-[#151b26] text-sm text-slate-200 placeholder:text-slate-600"
                     :placeholder="t('drawing.studioSearchPlaceholder')"
                   />
+                  <div
+                    class="inline-flex shrink-0 overflow-hidden rounded-lg border border-slate-600"
+                    role="group"
+                    :aria-label="t('drawing.mjFollowUpLayoutTiled')"
+                  >
+                    <button
+                      type="button"
+                      class="border-r border-slate-600 px-2.5 py-1.5 text-[11px] font-medium transition"
+                      :class="
+                        mjFollowUpLayout === 'tiled'
+                          ? 'bg-sky-900/55 text-sky-100'
+                          : 'bg-transparent text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
+                      "
+                      @click="mjFollowUpLayout = 'tiled'"
+                    >
+                      {{ t('drawing.mjFollowUpLayoutTiled') }}
+                    </button>
+                    <button
+                      type="button"
+                      class="px-2.5 py-1.5 text-[11px] font-medium transition"
+                      :class="
+                        mjFollowUpLayout === 'dropdown'
+                          ? 'bg-sky-900/55 text-sky-100'
+                          : 'bg-transparent text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
+                      "
+                      @click="mjFollowUpLayout = 'dropdown'"
+                    >
+                      {{ t('drawing.mjFollowUpLayoutDropdown') }}
+                    </button>
+                  </div>
                 </div>
                 <div class="flex-1 overflow-y-auto p-4 custom-scrollbar">
                   <div class="mb-3 space-y-1">
@@ -1546,11 +1940,22 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                           class="inline-flex items-center rounded-full border border-slate-600/60 bg-slate-800/50 px-2 py-0.5 text-[10px] font-medium text-slate-400"
                           >{{ mjStyleTag(job.mjStyleSnapshot) }}</span
                         >
-                        <span
-                          v-if="job.taskId"
-                          class="ml-auto hidden font-mono text-[10px] text-slate-600 sm:inline"
-                          >{{ job.taskId }}</span
-                        >
+                        <div class="ml-auto flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            class="inline-flex shrink-0 items-center rounded-full border border-slate-600/70 bg-slate-800/90 px-3 py-1 text-[11px] font-semibold leading-none text-slate-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition hover:border-rose-500/45 hover:bg-rose-950/35 hover:text-rose-100"
+                            :title="t('drawing.mjDelete')"
+                            :aria-label="t('drawing.mjDelete')"
+                            @click.stop="removeMjJob(job)"
+                          >
+                            {{ t('drawing.mjDelete') }}
+                          </button>
+                          <span
+                            v-if="job.taskId"
+                            class="hidden max-w-[min(100%,9rem)] truncate font-mono text-[10px] text-slate-600 sm:inline"
+                            >{{ job.taskId }}</span
+                          >
+                        </div>
                       </div>
                       <div
                         v-if="mjJobSeedToolbarVisible(job)"
@@ -1618,22 +2023,262 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                         >
                           {{ job.promptLabel }}
                         </p>
-                        <div v-if="mjButtons(job.task).length" class="flex flex-wrap gap-1.5 pb-1">
-                          <button
-                            v-for="(btn, bi) in mjButtons(job.task)"
-                            :key="bi"
-                            type="button"
-                            class="btn btn-xs border-slate-600 bg-slate-800/80 text-[11px] normal-case text-slate-200 hover:bg-slate-700"
-                            @click="onMjButtonClick(String(job.taskId), btn.customId)"
+                        <div v-if="mjButtons(job.task).length" class="pb-1">
+                          <p
+                            v-if="mjHasUvNumberedButtons(job.task)"
+                            class="mb-2 text-[10px] leading-snug text-slate-500"
                           >
-                            {{ btn.emoji || '' }} {{ btn.label }}
-                          </button>
+                            {{ t('drawing.mjUvGridLegend') }}
+                          </p>
+
+                          <template v-if="mjFollowUpLayout === 'tiled'">
+                            <div
+                              v-for="(seg, si) in mjButtonSegmentGroups(job.task)"
+                              :key="`tile-${si}`"
+                              class="mb-2 last:mb-0"
+                            >
+                              <template v-if="seg.type === 'upscale' || seg.type === 'variation'">
+                                <p
+                                  v-if="seg.type === 'upscale'"
+                                  class="mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-sky-400/95"
+                                >
+                                  {{ t('drawing.mjUpscaleSection') }}
+                                </p>
+                                <p
+                                  v-else
+                                  class="mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-violet-400/95"
+                                >
+                                  {{ t('drawing.mjVariationSection') }}
+                                </p>
+                                <div class="flex flex-wrap gap-1.5">
+                                  <button
+                                    v-for="(btn, bi) in seg.items"
+                                    :key="`${si}-${bi}`"
+                                    type="button"
+                                    class="btn btn-xs inline-flex flex-col justify-center gap-0.5 border-slate-600 bg-slate-800/80 px-2 py-1 text-[11px] normal-case leading-tight text-slate-200 hover:bg-slate-700"
+                                    :class="
+                                      mjUvQuadrantLabel(btn.label) || mjButtonIsRegenerate(btn)
+                                        ? 'min-h-[2.75rem]'
+                                        : ''
+                                    "
+                                    :title="
+                                      mjButtonIsRegenerate(btn)
+                                        ? t('drawing.mjRegenerate')
+                                        : mjUvQuadrantLabel(btn.label)
+                                          ? `${btn.label} · ${mjUvQuadrantLabel(btn.label)}`
+                                          : btn.label || btn.emoji || ''
+                                    "
+                                    @click="onMjButtonClick(String(job.taskId), btn.customId)"
+                                  >
+                                    <template v-if="mjButtonIsRegenerate(btn)">
+                                      <span
+                                        v-if="btn.emoji"
+                                        class="block text-center text-base leading-none"
+                                        aria-hidden="true"
+                                        >{{ btn.emoji }}</span
+                                      >
+                                      <span
+                                        class="block text-center text-[10px] font-semibold leading-tight text-slate-100"
+                                        >{{ t('drawing.mjRegenerate') }}</span
+                                      >
+                                    </template>
+                                    <template v-else>
+                                      <span>
+                                        <template v-if="btn.emoji">{{ btn.emoji }} </template
+                                        >{{ btn.label }}
+                                      </span>
+                                      <span
+                                        v-if="mjUvQuadrantLabel(btn.label)"
+                                        class="text-[9px] font-medium leading-none text-sky-400/90"
+                                      >
+                                        {{ mjUvQuadrantLabel(btn.label) }}
+                                      </span>
+                                    </template>
+                                  </button>
+                                </div>
+                              </template>
+                              <template v-else>
+                                <p
+                                  class="mb-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400/95"
+                                >
+                                  {{ t('drawing.mjMiscSection') }}
+                                </p>
+                                <div class="space-y-2">
+                                  <div
+                                    v-for="bucket in groupMjMiscButtons(seg.items)"
+                                    :key="`${si}-${bucket.group}`"
+                                    class="rounded-lg border border-slate-700/60 bg-[#0d1219]/90 px-2 py-1.5"
+                                  >
+                                    <p class="text-[10px] font-semibold text-slate-200">
+                                      {{ t(mjMiscGroupTitleKey(bucket.group)) }}
+                                    </p>
+                                    <p
+                                      v-if="mjMiscGroupIntroKey(bucket.group)"
+                                      class="mt-0.5 line-clamp-2 text-[9px] leading-snug text-slate-500"
+                                      :title="mjMiscGroupIntroText(bucket.group)"
+                                    >
+                                      {{ mjMiscGroupIntroText(bucket.group) }}
+                                    </p>
+                                    <div
+                                      class="mt-1.5"
+                                      :class="mjMiscBucketBtnWrapClass(bucket.group)"
+                                    >
+                                      <button
+                                        v-for="(btn, bi) in bucket.items"
+                                        :key="`${si}-${bucket.group}-${bi}`"
+                                        type="button"
+                                        :class="[
+                                          mjMiscBucketBtnClass(bucket.group),
+                                          mjMiscHintText(btn) ? 'cursor-help' : '',
+                                        ]"
+                                        :title="mjMiscBtnTooltip(btn)"
+                                        @click="handleMjMiscButtonClick(job, btn)"
+                                      >
+                                        <template v-if="mjButtonIsRegenerate(btn)">
+                                          <span
+                                            v-if="btn.emoji"
+                                            class="block w-full text-base leading-none"
+                                            :class="
+                                              bucket.group === 'pan' ? 'text-center' : 'text-left'
+                                            "
+                                            aria-hidden="true"
+                                            >{{ btn.emoji }}</span
+                                          >
+                                          <span
+                                            class="block w-full font-semibold leading-tight text-slate-100"
+                                            :class="
+                                              bucket.group === 'pan'
+                                                ? 'text-center text-[10px]'
+                                                : 'text-left text-[10px]'
+                                            "
+                                            >{{ t('drawing.mjRegenerate') }}</span
+                                          >
+                                        </template>
+                                        <template v-else>
+                                          <span
+                                            class="block w-full break-words [word-break:break-word]"
+                                            :class="
+                                              bucket.group === 'pan'
+                                                ? 'text-center text-[11px]'
+                                                : 'text-left'
+                                            "
+                                          >
+                                            <template v-if="btn.emoji"
+                                              >{{ btn.emoji }}&nbsp;</template
+                                            >{{ mjMiscBtnDisplayPrimary(btn) }}
+                                          </span>
+                                          <span
+                                            v-if="mjUvQuadrantLabel(btn.label)"
+                                            class="w-full text-[9px] font-medium leading-none text-sky-400/90"
+                                            :class="
+                                              bucket.group === 'pan' ? 'text-center' : 'text-left'
+                                            "
+                                          >
+                                            {{ mjUvQuadrantLabel(btn.label) }}
+                                          </span>
+                                        </template>
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </template>
+                            </div>
+                          </template>
+
+                          <template v-else>
+                            <div
+                              v-for="(seg, si) in mjButtonSegmentGroups(job.task)"
+                              :key="`drop-${si}`"
+                              class="mb-2 last:mb-0"
+                            >
+                              <template v-if="seg.type === 'upscale'">
+                                <label
+                                  class="mb-1 block text-[10px] font-semibold uppercase tracking-[0.08em] text-sky-400/95"
+                                  >{{ t('drawing.mjUpscaleSection') }}</label
+                                >
+                                <select
+                                  class="select select-bordered select-sm w-full border-slate-600 bg-[#151b26] text-xs text-slate-200"
+                                  @change="onMjFollowUpSelect($event, String(job.taskId))"
+                                >
+                                  <option value="">{{ t('drawing.mjFollowUpPlaceholder') }}</option>
+                                  <option
+                                    v-for="(btn, bi) in seg.items"
+                                    :key="`${si}-${bi}`"
+                                    :value="btn.customId"
+                                  >
+                                    {{ btn.label
+                                    }}<template v-if="mjUvQuadrantLabel(btn.label)"
+                                      >&nbsp;· {{ mjUvQuadrantLabel(btn.label) }}</template
+                                    >
+                                  </option>
+                                </select>
+                              </template>
+                              <template v-else-if="seg.type === 'variation'">
+                                <label
+                                  class="mb-1 block text-[10px] font-semibold uppercase tracking-[0.08em] text-violet-400/95"
+                                  >{{ t('drawing.mjVariationSection') }}</label
+                                >
+                                <select
+                                  class="select select-bordered select-sm w-full border-slate-600 bg-[#151b26] text-xs text-slate-200"
+                                  @change="onMjFollowUpSelect($event, String(job.taskId))"
+                                >
+                                  <option value="">{{ t('drawing.mjFollowUpPlaceholder') }}</option>
+                                  <option
+                                    v-for="(btn, bi) in seg.items"
+                                    :key="`${si}-${bi}`"
+                                    :value="btn.customId"
+                                  >
+                                    {{ btn.label
+                                    }}<template v-if="mjUvQuadrantLabel(btn.label)"
+                                      >&nbsp;· {{ mjUvQuadrantLabel(btn.label) }}</template
+                                    >
+                                  </option>
+                                </select>
+                              </template>
+                              <template v-else>
+                                <label
+                                  class="mb-1 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400/95"
+                                  >{{ t('drawing.mjMiscSection') }}</label
+                                >
+                                <select
+                                  class="select select-bordered select-sm w-full border-slate-600 bg-[#151b26] text-xs text-slate-200"
+                                  @change="onMjMiscDropdownChange($event, job)"
+                                >
+                                  <option value="">{{ t('drawing.mjFollowUpPlaceholder') }}</option>
+                                  <template
+                                    v-for="bucket in groupMjMiscButtons(seg.items)"
+                                    :key="`${si}-${bucket.group}`"
+                                  >
+                                    <optgroup :label="t(mjMiscGroupTitleKey(bucket.group))">
+                                      <option
+                                        v-for="(btn, bi) in bucket.items"
+                                        :key="`${si}-${bucket.group}-${bi}`"
+                                        :value="btn.customId"
+                                        :title="mjMiscBtnTooltip(btn)"
+                                      >
+                                        {{ mjMiscOptionLabel(btn) }}
+                                      </option>
+                                    </optgroup>
+                                  </template>
+                                </select>
+                              </template>
+                            </div>
+                          </template>
                         </div>
                       </div>
                     </article>
                   </div>
                 </div>
               </div>
+              <MjVaryRegionModal
+                v-model:open="varyRegionOpen"
+                :task-id="varyRegionModalTaskId"
+                :image-url="varyRegionImageUrl"
+                :model-key="varyRegionJob?.modelKey ?? selectedModelKey ?? ''"
+                :mj-mode="varyRegionJob?.mjModeSnapshot ?? mjMode"
+                :fallback-prompt="varyRegionFallbackPrompt"
+                @submitted="onMjVaryRegionSubmitted"
+              />
             </div>
 
             <!-- 非 MJ：通用流式 -->
