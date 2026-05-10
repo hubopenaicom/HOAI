@@ -37,6 +37,18 @@ export class ModelsEntity extends BaseEntity {
   @Column({ comment: '模型单次调用扣除的次数', default: 1 })
   deduct: number;
 
+  /** Midjourney（drawingType=3）：慢速 RELAX 通道单次基准扣费；空则使用 deduct */
+  @Column({ type: 'double', comment: 'MJ慢速(relax)单次扣除，空则同deduct', nullable: true })
+  deductMjRelax: number | null;
+
+  /** Midjourney：快速 FAST 通道单次基准扣费；空则使用 deduct */
+  @Column({ type: 'double', comment: 'MJ快速(fast)单次扣除，空则同deduct', nullable: true })
+  deductMjFast: number | null;
+
+  /** Midjourney：极速 TURBO 通道单次基准扣费；空则使用 deduct */
+  @Column({ type: 'double', comment: 'MJ极速(turbo)单次扣除，空则同deduct', nullable: true })
+  deductMjTurbo: number | null;
+
   @Column({ comment: '模型开启深度思考后积分扣除的系数', default: 1 })
   deductDeepThink: number;
 
