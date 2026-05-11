@@ -9,7 +9,9 @@ import { DrawingMjJobService } from './drawing-mj-job.service';
 import { DrawingMjService } from './drawing-mj.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ModelsEntity, DrawingMjJobEntity, UserEntity])],
+  imports: [
+    TypeOrmModule.forFeature([ModelsEntity, DrawingMjJobEntity, UserEntity]),
+  ],
   controllers: [DrawingMjController, DrawingMjAdminController],
   providers: [DrawingMjService, DrawingMjJobService],
   exports: [DrawingMjService],
