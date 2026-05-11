@@ -112,6 +112,8 @@ interface MjJobItem {
 const MJ_TYPE = 3
 const MJ_JOBS_STORAGE_VER = 1
 const MAX_MJ_JOBS_STORED = 80
+/** batch-upsert 与 DELETE 竞争时最多重试轮数（含 stale 重试） */
+const MAX_MJ_PERSIST_ROUNDS = 48
 
 /** 避免同一毫秒内多条任务共用 localId，导致 loadMjJobsFromApi 的 Map 覆盖、serverJobId 错乱 */
 let mjClientKeySeq = 0
@@ -249,6 +251,8 @@ const MJ_SEED_LS = 'hoai_drawing_mj_seed'
 const mjSubmitting = ref(false)
 const taskSearchQuery = ref('')
 const mjJobs = ref<MjJobItem[]>([])
+/** 与云端 users.mj_jobs_sync_seq 对齐；每次 DELETE 递增，batch-upsert 须带 baseSyncSeq */
+const mjListSyncSeq = ref(0)
 const implyBase64List = ref<string[]>([])
 const describeBase64 = ref('')
 const pollTimers = new Map<string, ReturnType<typeof setInterval>>()
@@ -330,12 +334,21 @@ function mjJobToSnapshot(job: MjJobItem): MjDrawingJobSnapshot {
   }
 }
 
+/** 用于判断 await batch-upsert 期间 mjJobs 是否已变（debounced watch 有延迟，仅靠 mjPersistDirty 会漏） */
+function mjPersistCoalesceSig(): string {
+  return mjJobs.value
+    .slice(0, MAX_MJ_JOBS_STORED)
+    .map(j => `${j.localId}:${j.serverJobId ?? ''}:${j.loading ? 1 : 0}:${j.taskId || ''}`)
+    .join('|')
+}
+
 async function loadMjJobsFromApi(): Promise<void> {
   if (!authStore.isLogin) return
   try {
     const res = await fetchMjDrawingJobsList({ limit: MAX_MJ_JOBS_STORED })
-    const wrap = res as unknown as { data?: { list?: MjDrawingJobDto[] } }
-    const incoming = (wrap.data?.list ?? []).map(mjDrawingJobDtoToLocal)
+    const payload = res.data
+    const incoming = (payload?.list ?? []).map(mjDrawingJobDtoToLocal)
+    if (typeof payload?.syncSeq === 'number') mjListSyncSeq.value = payload.syncSeq
     const map = new Map<number, MjJobItem>()
     for (const j of incoming) map.set(j.localId, j)
     /**
@@ -353,7 +366,11 @@ async function loadMjJobsFromApi(): Promise<void> {
   }
 }
 
-/** 并发 batch-upsert 若乱序完成，较慢的旧请求会把已删除任务重新写入库，刷新后「只删掉第一条」 */
+/**
+ * 并发 batch-upsert 若乱序完成，较慢的旧请求会把已删除任务重新写入库。
+ * - 前端：队列 + await 后比对 mjPersistCoalesceSig；
+ * - 服务端：DELETE 递增 mj_jobs_sync_seq，batch-upsert 携带 baseSyncSeq，陈旧快照直接拒绝（防复活）。
+ */
 let mjPersistInFlight = false
 let mjPersistDirty = false
 
@@ -365,12 +382,32 @@ async function persistMjJobsHybrid() {
   }
   mjPersistInFlight = true
   try {
+    let persistRound = 0
     do {
+      persistRound++
+      if (persistRound > MAX_MJ_PERSIST_ROUNDS) {
+        mjPersistDirty = false
+        break
+      }
       mjPersistDirty = false
       if (authStore.isLogin) {
         try {
+          const sigBefore = mjPersistCoalesceSig()
           const jobs = mjJobs.value.slice(0, MAX_MJ_JOBS_STORED).map(mjJobToSnapshot)
-          await batchUpsertMjDrawingJobs({ jobs })
+          const api = await batchUpsertMjDrawingJobs({
+            jobs,
+            baseSyncSeq: mjListSyncSeq.value,
+          })
+          const inner = api.data
+          if (inner?.stale === true) {
+            if (typeof inner.syncSeq === 'number') mjListSyncSeq.value = inner.syncSeq
+            mjPersistDirty = true
+            continue
+          }
+          if (typeof inner?.syncSeq === 'number') mjListSyncSeq.value = inner.syncSeq
+          if (sigBefore !== mjPersistCoalesceSig()) {
+            mjPersistDirty = true
+          }
         } catch {
           persistMjJobsToStorage()
         }
@@ -1470,7 +1507,9 @@ async function removeMjJob(job: MjJobItem) {
   if (tid) stopPoll(tid)
   if (authStore.isLogin && job.serverJobId) {
     try {
-      await deleteMjDrawingJob(job.serverJobId)
+      const ax = await deleteMjDrawingJob(job.serverJobId)
+      const delWrap = ax.data as { data?: { syncSeq?: number } }
+      if (typeof delWrap?.data?.syncSeq === 'number') mjListSyncSeq.value = delWrap.data.syncSeq
     } catch {
       if (tid && job.loading) startPollTask(tid, job)
       ms.error(t('drawing.mjDeleteFail'))
@@ -1479,7 +1518,7 @@ async function removeMjJob(job: MjJobItem) {
   }
   mjJobs.value = mjJobs.value.filter(j => j.localId !== job.localId)
   pruneMjJobSeedState(job.localId)
-  void persistMjJobsHybrid()
+  await persistMjJobsHybrid()
 }
 
 function mjJobSeedToolbarVisible(job: MjJobItem): boolean {
