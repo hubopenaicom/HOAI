@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /**
- * Midjourney 局部重绘（Vary Region）：绘制蒙版后调用 POST /mj/submit/modal
+ * Midjourney 二次编辑弹窗：Vary Region（蒙版 + modal）或 Custom Zoom（仅 prompt / --zoom，无蒙版）。
+ * 上游均为 POST /mj/submit/modal；前置 POST /mj/submit/action 由绘画页 beginVaryRegionFlow 完成。
  */
 import { submitMjModal } from '@/api/drawingMj'
 import type { MjSpeedMode } from '@/api/drawingMj'
@@ -13,6 +14,7 @@ import {
   normalizeMjSubmitCode,
   parseMjSubmitBody,
 } from '@/utils/mjApiParse'
+import { stripMjModalPromptModelVersionFlags } from '@/utils/mjFollowUpUi'
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 
 const props = defineProps<{
@@ -23,7 +25,56 @@ const props = defineProps<{
   mjMode: MjSpeedMode
   /** 无输入时合并进 prompt；若合并后仍为空则 **不传 prompt 字段**（上游沿用原任务，避免 prompt:"" 被判无效） */
   fallbackPrompt?: string
+  /** custom-zoom：仅编辑提示词/--zoom 等提交 modal，无需蒙版 */
+  variant?: 'vary-region' | 'custom-zoom'
 }>()
+
+const isCustomZoom = computed(() => props.variant === 'custom-zoom')
+
+const MJ_ZOOM_MIN = 1
+const MJ_ZOOM_MAX = 2
+const MJ_ZOOM_STEP = 0.05
+
+const customZoomLevel = ref(1.5)
+
+watch(customZoomLevel, z => {
+  if (typeof z !== 'number' || !Number.isFinite(z)) {
+    customZoomLevel.value = 1.5
+    return
+  }
+  const clamped = Math.min(MJ_ZOOM_MAX, Math.max(MJ_ZOOM_MIN, z))
+  const snapped = Math.round(clamped / MJ_ZOOM_STEP) * MJ_ZOOM_STEP
+  const fin = Math.min(MJ_ZOOM_MAX, Math.max(MJ_ZOOM_MIN, snapped))
+  if (Math.abs(fin - z) > 1e-5) customZoomLevel.value = fin
+})
+
+function parseZoomFromPromptText(s: string): number | null {
+  const m = /\s--zoom\s+([\d.]+)/i.exec(` ${s}`)
+  if (!m) return null
+  const n = parseFloat(m[1])
+  if (!Number.isFinite(n)) return null
+  return Math.min(MJ_ZOOM_MAX, Math.max(MJ_ZOOM_MIN, n))
+}
+
+function stripZoomFromPrompt(s: string): string {
+  return s
+    .replace(/\s--zoom\s+[\d.]+/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
+function formatZoomForMj(z: number): string {
+  const r = Math.round(z * 100) / 100
+  if (Math.abs(r - Math.round(r)) < 1e-6) return String(Math.round(r))
+  const t = r.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')
+  return t || String(r)
+}
+
+function applyCustomZoomToPrompt(mergedUserAndFallback: string): string {
+  const base = stripZoomFromPrompt(mergedUserAndFallback).trim()
+  const zoomArg = `--zoom ${formatZoomForMj(customZoomLevel.value)}`
+  return base ? `${base} ${zoomArg}` : zoomArg
+}
 
 const emit = defineEmits<{
   'update:open': [boolean]
@@ -42,7 +93,6 @@ const imgLoadErr = ref('')
 const imgEl = ref<HTMLImageElement | null>(null)
 const cvRef = ref<HTMLCanvasElement | null>(null)
 
-/** 显示像素尺寸（与 img 布局一致） */
 const dispW = ref(0)
 const dispH = ref(0)
 const natW = ref(0)
@@ -50,9 +100,7 @@ const natH = ref(0)
 
 let dragging = false
 let dragStart = { x: 0, y: 0 }
-/** 当前拖拽预览（显示坐标系） */
 const dragCur = ref<{ x: number; y: number; w: number; h: number } | null>(null)
-/** 已确认的一种形状 */
 const committed = ref<
   | { kind: 'rect'; x: number; y: number; w: number; h: number }
   | { kind: 'ellipse'; x: number; y: number; w: number; h: number }
@@ -60,7 +108,6 @@ const committed = ref<
   | null
 >(null)
 
-/** 多边形绘制中的点（显示坐标） */
 const polyDraft = ref<{ x: number; y: number }[]>([])
 
 const submitting = ref(false)
@@ -199,11 +246,12 @@ watch(
   () => props.open,
   v => {
     if (v) {
-      /**
-       * 参考 xifan CanvasMask 流程：modal 常与「继承原任务 prompt」一并提交。
-       * 勿每次清空输入框——否则易 omit prompt，strict 网关报「无效参数」。
-       */
       promptLocal.value = props.fallbackPrompt?.trim() || ''
+      if (props.variant === 'custom-zoom') {
+        const fromFb = parseZoomFromPromptText(props.fallbackPrompt?.trim() || '')
+        const fromLocal = parseZoomFromPromptText(promptLocal.value)
+        customZoomLevel.value = fromFb ?? fromLocal ?? 1.5
+      }
       committed.value = null
       polyDraft.value = []
       dragCur.value = null
@@ -228,13 +276,12 @@ watch(
   }
 )
 
-/** MODAL 任务快照晚于弹窗打开时到达：仍无输入则写入回退提示词 */
 watch(
   () => props.fallbackPrompt,
   fb => {
     if (!props.open) return
-    const t = typeof fb === 'string' ? fb.trim() : ''
-    if (t && !promptLocal.value.trim()) promptLocal.value = t
+    const tx = typeof fb === 'string' ? fb.trim() : ''
+    if (tx && !promptLocal.value.trim()) promptLocal.value = tx
   }
 )
 
@@ -325,7 +372,6 @@ function dispToNatRect(x: number, y: number, w: number, h: number) {
   }
 }
 
-/** 蒙版须与参考图像素对齐；取整并夹在画布内，减少上游「尺寸不匹配/无效参数」 */
 function clampNatRect(nw: number, nh: number, r: { x: number; y: number; w: number; h: number }) {
   let x = Math.floor(r.x)
   let y = Math.floor(r.y)
@@ -346,7 +392,6 @@ function dispToNatPt(p: { x: number; y: number }) {
   return { x: (p.x / dw) * nw, y: (p.y / dh) * nh }
 }
 
-/** 椭圆/抗锯齿可能产生灰像素，部分上游按「纯黑白」校验会判无效参数 */
 function binarizeInpaintMaskCanvas(c: HTMLCanvasElement) {
   const ctx = c.getContext('2d')
   if (!ctx) return
@@ -374,7 +419,6 @@ function binarizeInpaintMaskCanvas(c: HTMLCanvasElement) {
   ctx.putImageData(img, 0, 0)
 }
 
-/** 部分聚合对「仅中文」modal 文案敏感：有英文任务回退时合并提交 */
 function mergeVaryRegionModalPrompt(user: string, fallback: string): string {
   const u = user.trim()
   const fb = fallback.trim()
@@ -430,8 +474,9 @@ function buildMaskDataUrl(): string | null {
 }
 
 async function submitModal() {
-  const mask = buildMaskDataUrl()
-  if (!mask) {
+  const zoom = isCustomZoom.value
+  const mask = zoom ? null : buildMaskDataUrl()
+  if (!zoom && !mask) {
     ms.warning(t('drawing.mjVaryRegionNeedSelection'))
     return
   }
@@ -440,14 +485,16 @@ async function submitModal() {
   try {
     const userP = promptLocal.value.trim()
     const fb = props.fallbackPrompt?.trim() || ''
-    const promptOut = (mergeVaryRegionModalPrompt(userP, fb) || fb).trim()
+    let promptOut = (mergeVaryRegionModalPrompt(userP, fb) || fb).trim()
+    if (zoom) {
+      promptOut = stripMjModalPromptModelVersionFlags(applyCustomZoomToPrompt(promptOut))
+    }
     const r = await submitMjModal({
       model: props.modelKey,
       mjMode: props.mjMode,
       taskId: props.taskId,
       ...(promptOut ? { prompt: promptOut } : {}),
-      /** PNG data URL；服务端默认剥前缀送裸 base64（多数上游要求），见 MJ_MODAL_MASK_FORMAT */
-      maskBase64: mask,
+      ...(mask ? { maskBase64: mask } : {}),
     })
     const parsed = parseMjSubmitBody(r)
     if (!parsed.ok) {
@@ -489,7 +536,7 @@ async function submitModal() {
       class="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 p-3 backdrop-blur-[2px]"
       role="dialog"
       aria-modal="true"
-      :aria-label="t('drawing.mjVaryRegionTitle')"
+      :aria-label="isCustomZoom ? t('drawing.mjCustomZoomTitle') : t('drawing.mjVaryRegionTitle')"
       @click.self="openModel = false"
     >
       <div
@@ -499,7 +546,9 @@ async function submitModal() {
         <header
           class="flex shrink-0 items-center justify-between border-b border-slate-700/90 px-4 py-3"
         >
-          <h2 class="text-sm font-semibold text-slate-100">{{ t('drawing.mjVaryRegionTitle') }}</h2>
+          <h2 class="text-sm font-semibold text-slate-100">
+            {{ isCustomZoom ? t('drawing.mjCustomZoomTitle') : t('drawing.mjVaryRegionTitle') }}
+          </h2>
           <button
             type="button"
             class="btn btn-ghost btn-sm btn-circle text-slate-400 hover:bg-slate-800 hover:text-slate-100"
@@ -511,102 +560,174 @@ async function submitModal() {
         </header>
 
         <div class="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-          <div
-            v-if="imgLoading"
-            class="flex min-h-[200px] items-center justify-center gap-2 text-sm text-sky-400"
-          >
-            <span class="loading loading-spinner loading-md" />
-            {{ t('drawing.mjVaryRegionLoadingImage') }}
-          </div>
-          <p v-else-if="imgLoadErr" class="py-8 text-center text-sm text-rose-300">
+          <p v-if="imgLoadErr" class="py-8 text-center text-sm text-rose-300">
             {{ imgLoadErr }}
           </p>
           <template v-else>
-            <div class="mb-3 flex flex-wrap items-center justify-center gap-2">
-              <button
-                type="button"
-                class="rounded-full border px-3 py-1 text-[11px] font-medium transition"
-                :class="
-                  tool === 'rect'
-                    ? 'border-sky-500 bg-sky-900/50 text-sky-100'
-                    : 'border-slate-600 text-slate-400 hover:border-slate-500'
-                "
-                @click="tool = 'rect'"
-              >
-                {{ t('drawing.mjVaryRegionToolRect') }}
-              </button>
-              <button
-                type="button"
-                class="rounded-full border px-3 py-1 text-[11px] font-medium transition"
-                :class="
-                  tool === 'ellipse'
-                    ? 'border-sky-500 bg-sky-900/50 text-sky-100'
-                    : 'border-slate-600 text-slate-400 hover:border-slate-500'
-                "
-                @click="tool = 'ellipse'"
-              >
-                {{ t('drawing.mjVaryRegionToolEllipse') }}
-              </button>
-              <button
-                type="button"
-                class="rounded-full border px-3 py-1 text-[11px] font-medium transition"
-                :class="
-                  tool === 'polygon'
-                    ? 'border-sky-500 bg-sky-900/50 text-sky-100'
-                    : 'border-slate-600 text-slate-400 hover:border-slate-500'
-                "
-                @click="tool = 'polygon'"
-              >
-                {{ t('drawing.mjVaryRegionToolPoly') }}
-              </button>
-            </div>
-            <p class="mb-2 text-center text-[10px] text-slate-500">
-              {{
-                tool === 'polygon'
-                  ? t('drawing.mjVaryRegionHintPoly')
-                  : t('drawing.mjVaryRegionHintDrag')
-              }}
-            </p>
-
-            <div class="relative flex justify-center overflow-auto rounded-xl bg-black/30 p-2">
-              <div class="relative inline-block max-w-full">
-                <img
-                  ref="imgEl"
-                  :src="blobUrl"
-                  alt=""
-                  class="block max-h-[min(56vh,480px)] w-auto max-w-full select-none"
-                  draggable="false"
-                  @load="onImgLoad"
-                />
-                <canvas
-                  ref="cvRef"
-                  class="absolute left-0 top-0 touch-none"
-                  :class="tool === 'polygon' ? 'cursor-crosshair' : 'cursor-crosshair'"
-                  @mousedown="onPointerDown"
-                  @mousemove="onPointerMove"
-                  @mouseup="onPointerUp"
-                  @mouseleave="onPointerUp"
-                  @click="onCanvasClick"
-                />
+            <div
+              v-if="isCustomZoom"
+              class="mb-4 rounded-xl border border-sky-900/50 bg-[#151b26]/95 px-3 py-3 shadow-inner"
+            >
+              <div class="mb-2 flex items-center justify-between gap-2">
+                <span class="text-[11px] font-medium text-slate-200">{{
+                  t('drawing.mjCustomZoomSliderLabel')
+                }}</span>
+                <span class="font-mono text-sm tabular-nums text-sky-300"
+                  >×{{ formatZoomForMj(customZoomLevel) }}</span
+                >
+              </div>
+              <input
+                v-model.number="customZoomLevel"
+                type="range"
+                :min="MJ_ZOOM_MIN"
+                :max="MJ_ZOOM_MAX"
+                :step="MJ_ZOOM_STEP"
+                class="mj-cz-zoom-range w-full"
+                :aria-label="t('drawing.mjCustomZoomSliderLabel')"
+              />
+              <div class="mt-2 flex justify-between px-0.5 font-mono text-[10px] text-slate-500">
+                <span>1×</span>
+                <span>1.5×</span>
+                <span>2×</span>
+              </div>
+              <p class="mt-2 text-[10px] leading-snug text-slate-500">
+                {{ t('drawing.mjCustomZoomSliderFootnote') }}
+              </p>
+              <div class="mt-3 flex flex-wrap justify-center gap-2">
+                <button
+                  type="button"
+                  class="btn btn-xs border-slate-600 bg-slate-800/80 text-slate-200 hover:bg-slate-700"
+                  @click="customZoomLevel = 1"
+                >
+                  {{ t('drawing.mjCustomZoomPreset100') }}
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-xs border-slate-600 bg-slate-800/80 text-slate-200 hover:bg-slate-700"
+                  @click="customZoomLevel = 1.5"
+                >
+                  {{ t('drawing.mjCustomZoomPreset150') }}
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-xs border-slate-600 bg-slate-800/80 text-slate-200 hover:bg-slate-700"
+                  @click="customZoomLevel = 2"
+                >
+                  {{ t('drawing.mjCustomZoomPreset200') }}
+                </button>
               </div>
             </div>
 
-            <textarea
-              v-model="promptLocal"
-              rows="2"
-              class="textarea textarea-bordered mt-3 w-full resize-none border-slate-600 bg-[#151b26] text-sm text-slate-100 placeholder:text-slate-600"
-              :placeholder="t('drawing.mjVaryRegionPromptPlaceholder')"
-            />
+            <p
+              v-if="isCustomZoom"
+              class="mb-3 text-center text-[11px] leading-relaxed text-slate-400"
+            >
+              {{ t('drawing.mjCustomZoomHint') }}
+            </p>
 
-            <div v-if="tool === 'polygon'" class="mt-2 flex justify-center">
-              <button
-                type="button"
-                class="btn btn-outline btn-xs border-slate-600 text-slate-300"
-                @click="closePolygon"
-              >
-                {{ t('drawing.mjVaryRegionClosePolygon') }}
-              </button>
+            <div
+              v-if="imgLoading"
+              class="flex min-h-[160px] items-center justify-center gap-2 text-sm text-sky-400"
+            >
+              <span class="loading loading-spinner loading-md" />
+              {{ t('drawing.mjVaryRegionLoadingImage') }}
             </div>
+
+            <template v-else>
+              <div
+                v-if="!isCustomZoom"
+                class="mb-3 flex flex-wrap items-center justify-center gap-2"
+              >
+                <button
+                  type="button"
+                  class="rounded-full border px-3 py-1 text-[11px] font-medium transition"
+                  :class="
+                    tool === 'rect'
+                      ? 'border-sky-500 bg-sky-900/50 text-sky-100'
+                      : 'border-slate-600 text-slate-400 hover:border-slate-500'
+                  "
+                  @click="tool = 'rect'"
+                >
+                  {{ t('drawing.mjVaryRegionToolRect') }}
+                </button>
+                <button
+                  type="button"
+                  class="rounded-full border px-3 py-1 text-[11px] font-medium transition"
+                  :class="
+                    tool === 'ellipse'
+                      ? 'border-sky-500 bg-sky-900/50 text-sky-100'
+                      : 'border-slate-600 text-slate-400 hover:border-slate-500'
+                  "
+                  @click="tool = 'ellipse'"
+                >
+                  {{ t('drawing.mjVaryRegionToolEllipse') }}
+                </button>
+                <button
+                  type="button"
+                  class="rounded-full border px-3 py-1 text-[11px] font-medium transition"
+                  :class="
+                    tool === 'polygon'
+                      ? 'border-sky-500 bg-sky-900/50 text-sky-100'
+                      : 'border-slate-600 text-slate-400 hover:border-slate-500'
+                  "
+                  @click="tool = 'polygon'"
+                >
+                  {{ t('drawing.mjVaryRegionToolPoly') }}
+                </button>
+              </div>
+              <p v-if="!isCustomZoom" class="mb-2 text-center text-[10px] text-slate-500">
+                {{
+                  tool === 'polygon'
+                    ? t('drawing.mjVaryRegionHintPoly')
+                    : t('drawing.mjVaryRegionHintDrag')
+                }}
+              </p>
+
+              <div class="relative flex justify-center overflow-auto rounded-xl bg-black/30 p-2">
+                <div class="relative inline-block max-w-full">
+                  <img
+                    ref="imgEl"
+                    :src="blobUrl"
+                    alt=""
+                    class="block max-h-[min(56vh,480px)] w-auto max-w-full select-none"
+                    draggable="false"
+                    @load="onImgLoad"
+                  />
+                  <canvas
+                    v-if="!isCustomZoom"
+                    ref="cvRef"
+                    class="absolute left-0 top-0 touch-none"
+                    :class="tool === 'polygon' ? 'cursor-crosshair' : 'cursor-crosshair'"
+                    @mousedown="onPointerDown"
+                    @mousemove="onPointerMove"
+                    @mouseup="onPointerUp"
+                    @mouseleave="onPointerUp"
+                    @click="onCanvasClick"
+                  />
+                </div>
+              </div>
+
+              <textarea
+                v-model="promptLocal"
+                :rows="isCustomZoom ? 4 : 2"
+                class="textarea textarea-bordered mt-3 w-full resize-none border-slate-600 bg-[#151b26] text-sm text-slate-100 placeholder:text-slate-600"
+                :placeholder="
+                  isCustomZoom
+                    ? t('drawing.mjCustomZoomPromptPlaceholder')
+                    : t('drawing.mjVaryRegionPromptPlaceholder')
+                "
+              />
+
+              <div v-if="!isCustomZoom && tool === 'polygon'" class="mt-2 flex justify-center">
+                <button
+                  type="button"
+                  class="btn btn-outline btn-xs border-slate-600 text-slate-300"
+                  @click="closePolygon"
+                >
+                  {{ t('drawing.mjVaryRegionClosePolygon') }}
+                </button>
+              </div>
+            </template>
           </template>
         </div>
 
@@ -614,6 +735,7 @@ async function submitModal() {
           class="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-slate-700/90 px-4 py-3"
         >
           <button
+            v-if="!isCustomZoom"
             type="button"
             class="btn btn-ghost btn-sm border border-slate-600 text-slate-300"
             :disabled="!committed && polyDraft.length === 0"
@@ -627,10 +749,59 @@ async function submitModal() {
             :disabled="submitting || imgLoading || !!imgLoadErr"
             @click="submitModal"
           >
-            {{ submitting ? t('drawing.mjVaryRegionSubmitting') : t('drawing.mjVaryRegionSubmit') }}
+            {{
+              submitting
+                ? t('drawing.mjVaryRegionSubmitting')
+                : isCustomZoom
+                  ? t('drawing.mjCustomZoomSubmit')
+                  : t('drawing.mjVaryRegionSubmit')
+            }}
           </button>
         </footer>
       </div>
     </div>
   </Teleport>
 </template>
+
+<style scoped>
+.mj-cz-zoom-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 10px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #1e293b 0%, #334155 50%, #475569 100%);
+  outline: none;
+}
+.mj-cz-zoom-range:focus-visible {
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.45);
+  border-radius: 9999px;
+}
+.mj-cz-zoom-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #38bdf8;
+  cursor: grab;
+  border: 2px solid #0f172a;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+.mj-cz-zoom-range:active::-webkit-slider-thumb {
+  cursor: grabbing;
+}
+.mj-cz-zoom-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #38bdf8;
+  cursor: grab;
+  border: 2px solid #0f172a;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+.mj-cz-zoom-range::-moz-range-track {
+  height: 10px;
+  border-radius: 9999px;
+  background: #334155;
+}
+</style>
