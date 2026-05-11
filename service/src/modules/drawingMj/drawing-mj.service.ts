@@ -3,6 +3,15 @@ import { InjectRepository } from '@nestjs/typeorm';
 import axios, { AxiosRequestConfig } from 'axios';
 import { Repository } from 'typeorm';
 import { ModelsEntity } from '../models/models.entity';
+import {
+  buildCustomZoomModalPromptFromTask,
+  isPresetOutpaintCustomId,
+  mjTaskButtonCustomZoomCustomId,
+  outpaintTargetZoomNumber,
+  presetOutpaintCustomZoomEnabledForProxy,
+  unwrapMjSubmitEnvelope,
+  unwrapMjTaskFromFetchData,
+} from './mj-outpaint-cz';
 
 export type MjSpeedMode = 'fast' | 'turbo' | 'relax';
 
@@ -237,6 +246,90 @@ export class DrawingMjService {
       Logger.error(`MJ upstream error: ${e?.message}`, 'DrawingMjService');
       throw new HttpException(e?.message || '上游请求失败', HttpStatus.BAD_GATEWAY);
     }
+  }
+
+  /** 预设 Zoom Out 改走 Custom Zoom + submit/modal（默认 ephone.ai）；见 `MJ_OUTPAINT_PRESET_USE_CUSTOM_ZOOM` */
+  presetOutpaintCustomZoomEnabled(row: ModelsEntity): boolean {
+    return presetOutpaintCustomZoomEnabledForProxy(row.proxyUrl || '');
+  }
+
+  /**
+   * ephone 等：预设 Outpaint 直连执行期 invalid_parameter → 先点 Custom Zoom（code=21）再 submit/modal。
+   * 上游 Body 与 OpenAPI 一致：action 仅 tid+customId；modal 仅 taskId+prompt。
+   */
+  async submitPresetOutpaintViaCustomZoom(
+    row: ModelsEntity,
+    mode: MjSpeedMode,
+    parentTaskId: string,
+    outpaintCustomId: string,
+  ): Promise<{ status: number; data: unknown }> {
+    const tid = String(parentTaskId || '').trim();
+    const cid = String(outpaintCustomId || '').trim();
+    const zoomNum = outpaintTargetZoomNumber(cid);
+    const direct = (): Promise<{ status: number; data: unknown }> =>
+      this.requestUpstream(row, mode, '/submit/action', {
+        data: { taskId: tid, customId: cid },
+      });
+
+    if (!tid || !zoomNum || !isPresetOutpaintCustomId(cid)) {
+      return direct();
+    }
+
+    let fetchRes: { status: number; data: unknown };
+    try {
+      fetchRes = await this.requestUpstream(row, mode, `/task/${encodeURIComponent(tid)}/fetch`, {
+        method: 'GET',
+      });
+    } catch {
+      return direct();
+    }
+
+    if (fetchRes.status >= 400 || fetchRes.data == null) {
+      Logger.warn('[MJ] Outpaint→CZ: parent fetch failed, direct Outpaint', 'DrawingMjService');
+      return direct();
+    }
+
+    const task = unwrapMjTaskFromFetchData(fetchRes.data);
+    const czCid = mjTaskButtonCustomZoomCustomId(task);
+    if (!czCid) {
+      Logger.warn('[MJ] Outpaint→CZ: no Custom Zoom button, direct Outpaint', 'DrawingMjService');
+      return direct();
+    }
+
+    Logger.log('[MJ] Outpaint→CZ: preset button → Custom Zoom chain', 'DrawingMjService');
+
+    const step1 = await this.requestUpstream(row, mode, '/submit/action', {
+      data: { taskId: tid, customId: czCid },
+    });
+    if (step1.status >= 400) return step1;
+
+    const envl = unwrapMjSubmitEnvelope(step1.data);
+    const code = Number(envl.code);
+    const modalTaskId = envl.result != null ? String(envl.result).trim() : '';
+
+    if (code !== 21 || !modalTaskId) {
+      Logger.log(
+        `[MJ] Outpaint→CZ: open modal code=${code} (expected 21), return upstream response`,
+        'DrawingMjService',
+      );
+      return step1;
+    }
+
+    const delayRaw = parseInt(String(process.env.MJ_OUTPAINT_CZ_MODAL_DELAY_MS || '').trim(), 10);
+    const delayMs = Number.isFinite(delayRaw) ? Math.min(10_000, Math.max(0, delayRaw)) : 400;
+    if (delayMs > 0) {
+      await new Promise<void>(r => setTimeout(r, delayMs));
+    }
+
+    const modalPrompt = buildCustomZoomModalPromptFromTask(task, zoomNum);
+    Logger.log(
+      `[MJ] Outpaint→CZ: POST /submit/modal promptLen=${modalPrompt.length}`,
+      'DrawingMjService',
+    );
+
+    return this.requestUpstream(row, mode, '/submit/modal', {
+      data: { taskId: modalTaskId, prompt: modalPrompt },
+    });
   }
 
   guessChargeMultiplier(prompt: string): number {
