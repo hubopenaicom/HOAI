@@ -50,12 +50,15 @@ import {
   mjTaskFailureHintKeyFromTask,
 } from '@/utils/mjApiParse'
 import {
+  buildMjFollowUpPromptLabel,
   formatMjUpstreamButtonLabel,
   groupMjMiscButtons,
   mjButtonIsVaryRegion,
+  mjButtonIsCustomZoom,
   mjMiscButtonHintKey,
   mjMiscGroupIntroKey,
   mjMiscGroupTitleKey,
+  type MjFollowBtn,
   type MjMiscGroup,
 } from '@/utils/mjFollowUpUi'
 import MjVaryRegionModal from '@/components/drawing/MjVaryRegionModal.vue'
@@ -266,9 +269,19 @@ function mjJobsStorageKey(): string {
   return `hoai_drawing_mj_jobs_v${MJ_JOBS_STORAGE_VER}_${uid ?? 'guest'}`
 }
 
-function attachMjJobModelMeta(job: MjJobItem, m: DrawingModel) {
+function attachMjJobModelMeta(job: MjJobItem, m: DrawingModel, opts?: { mjMode?: MjSpeedMode }) {
   job.modelKey = m.model
-  job.mjModeSnapshot = mjMode.value
+  job.mjModeSnapshot = opts?.mjMode ?? mjMode.value
+}
+
+/**
+ * 父任务链上的后续操作（U/V/放大/扩图/局部重绘/Custom Zoom 弹窗提交等）必须与**该任务出图时**的速度一致：
+ * 快速 → `/mj`、极速 → `/mj-turbo/mj`、慢速 → `/mj-relax/mj`。
+ * 勿使用侧栏当前选中模式，否则与上游任务通道不一致，易出现 invalid_parameter。
+ * 无父任务或旧数据缺 mjModeSnapshot 时回退为侧栏当前模式。
+ */
+function mjModeForFollowUp(parent: MjJobItem | undefined | null): MjSpeedMode {
+  return parent?.mjModeSnapshot ?? mjMode.value
 }
 
 function persistMjJobsToStorage() {
@@ -624,7 +637,7 @@ function startPollTask(taskId: string, job: MjJobItem) {
     const modelRow =
       (live.modelKey && drawingModels.value.find(x => x.model === live.modelKey)) ||
       selectedModel.value
-    const mode = live.mjModeSnapshot ?? mjMode.value
+    const mode = mjModeForFollowUp(live)
     if (!modelRow) {
       stopPoll(taskId)
       live.loading = false
@@ -821,22 +834,43 @@ async function handleMjShorten() {
   }
 }
 
-async function onMjButtonClick(taskId: string, customId: string) {
+async function onMjButtonClick(
+  taskId: string,
+  customId: string,
+  sourceJob?: MjJobItem,
+  actionBtn?: MjFollowBtn
+) {
   const m = selectedModel.value
   if (!m) return
+  const btn =
+    actionBtn ??
+    (sourceJob?.task
+      ? (mjButtons(sourceJob.task).find(b => b.customId === customId) ?? null)
+      : null)
+  const q = btn ? mjUvQuadrantLabel(btn.label) : ''
+  const promptLabel = buildMjFollowUpPromptLabel(
+    sourceJob,
+    {
+      btn,
+      customId,
+      quadrantText: q,
+      regenerateLabel: t('drawing.mjRegenerate'),
+    },
+    (key, params) => t(key, params)
+  )
   const job: MjJobItem = {
     localId: nextMjClientKey(),
     taskId: '',
-    promptLabel: t('drawing.mjFollowUp'),
+    promptLabel,
     loading: true,
     mjStyleSnapshot: mjStyle.value,
   }
-  attachMjJobModelMeta(job, m)
+  attachMjJobModelMeta(job, m, { mjMode: mjModeForFollowUp(sourceJob) })
   mjJobs.value.unshift(job)
   try {
     const r = await submitMjAction({
       model: m.model,
-      mjMode: mjMode.value,
+      mjMode: mjModeForFollowUp(sourceJob),
       taskId,
       customId,
     })
@@ -1177,8 +1211,6 @@ const badWordsDialog = computed(() => useGlobalStore.BadWordsDialog)
 const settingsDialog = computed(() => useGlobalStore.settingsDialog)
 const mobileSettingsDialog = computed(() => useGlobalStore.mobileSettingsDialog)
 
-type MjFollowBtn = { customId: string; label: string; emoji?: string }
-
 const mjButtons = (task: Record<string, unknown> | undefined) => {
   const btns = task?.buttons as MjFollowBtn[] | undefined
   return Array.isArray(btns) ? btns : []
@@ -1234,7 +1266,9 @@ function onMjFollowUpSelect(ev: Event, taskId: string) {
   const el = ev.target as HTMLSelectElement
   const v = el.value
   if (!v) return
-  void onMjButtonClick(taskId, v)
+  const src = mjJobs.value.find(j => String(j.taskId) === taskId)
+  const btn = src?.task ? mjButtons(src.task).find(b => b.customId === v) : undefined
+  void onMjButtonClick(taskId, v, src, btn)
   el.value = ''
 }
 
@@ -1296,6 +1330,8 @@ function mjMiscBtnTooltip(btn: MjFollowBtn): string {
 
 const varyRegionOpen = ref(false)
 const varyRegionJob = ref<MjJobItem | null>(null)
+/** 与局部重绘共用弹窗壳：custom-zoom 仅提交 prompt/--zoom，无蒙版 */
+const mjModalFollowVariant = ref<'vary-region' | 'custom-zoom'>('vary-region')
 /** midjourney-proxy-plus：先 submit/action 返回 code=21「窗口等待」，result 才是 submit/modal 要传的 taskId（非父图任务 id） */
 const varyRegionModalTaskId = ref('')
 /** code=21 后立即 fetch 的 MODAL 任务快照：imageUrl 与蒙版坐标系一致，避免用父任务缩略图导致尺寸不符→无效参数 */
@@ -1347,6 +1383,7 @@ watch(varyRegionOpen, v => {
     varyRegionJob.value = null
     varyRegionModalTaskId.value = ''
     varyRegionModalTaskSnap.value = null
+    mjModalFollowVariant.value = 'vary-region'
   }
 })
 
@@ -1354,7 +1391,12 @@ watch(varyRegionOpen, v => {
  * 局部重绘：必须先调 submit/action 进入 MODAL，再用返回的 taskId + 蒙版调 submit/modal。
  * @see https://github.com/litter-coder/midjourney-proxy-plus/blob/main/docs/api.md
  */
-async function beginVaryRegionFlow(job: MjJobItem, customId: string) {
+async function beginVaryRegionFlow(
+  job: MjJobItem,
+  customId: string,
+  variant: 'vary-region' | 'custom-zoom' = 'vary-region'
+) {
+  mjModalFollowVariant.value = variant
   const urls = mjJobImageUrls(job)
   if (!job.taskId || !urls.length) {
     ms.warning(t('drawing.mjVaryRegionNoImage'))
@@ -1370,7 +1412,7 @@ async function beginVaryRegionFlow(job: MjJobItem, customId: string) {
     /** 常见 OpenAPI：/mj/submit/action 仅 customId、taskId、notifyHook、state；勿默认带 botType */
     const r = await submitMjAction({
       model: m.model,
-      mjMode: job.mjModeSnapshot ?? mjMode.value,
+      mjMode: mjModeForFollowUp(job),
       taskId: String(job.taskId),
       customId,
     })
@@ -1383,11 +1425,14 @@ async function beginVaryRegionFlow(job: MjJobItem, customId: string) {
     const modalTid = extractMjTaskId(mj as { result?: string | number; properties?: unknown })
     const code = normalizeMjSubmitCode(mj?.code)
 
-    if (code === 21 && modalTid) {
+    const openModalFollowUp =
+      !!modalTid && (code === 21 || (variant === 'custom-zoom' && (code === 1 || code === 22)))
+
+    if (openModalFollowUp) {
       varyRegionJob.value = job
       varyRegionModalTaskId.value = modalTid
       varyRegionModalTaskSnap.value = null
-      const mode = job.mjModeSnapshot ?? mjMode.value
+      const mode = mjModeForFollowUp(job)
       /** MODAL 任务刚创建时 imageUrl 可能未就绪；短暂重试，避免用父任务缩略图导致蒙版与画布尺寸不一致→上游「无效参数」 */
       try {
         let snap: Record<string, unknown> | null = null
@@ -1410,17 +1455,29 @@ async function beginVaryRegionFlow(job: MjJobItem, customId: string) {
       return
     }
 
-    // 少数环境可能不经 MODAL 直接排队（不常见）
-    if ((code === 1 || code === 22) && modalTid) {
+    // 少数环境：局部重绘可能不经 MODAL 直接排队（自定义变焦已在上方强制弹窗）
+    if ((code === 1 || code === 22) && modalTid && variant !== 'custom-zoom') {
       ms.info(t('drawing.mjVaryRegionDirectQueued'))
+      const actionBtn = mjButtons(job.task).find(b => b.customId === customId) ?? null
+      const q = actionBtn ? mjUvQuadrantLabel(actionBtn.label) : ''
+      const promptLabel = buildMjFollowUpPromptLabel(
+        job,
+        {
+          btn: actionBtn,
+          customId,
+          quadrantText: q,
+          regenerateLabel: t('drawing.mjRegenerate'),
+        },
+        (key, params) => t(key, params)
+      )
       const newJob: MjJobItem = {
         localId: nextMjClientKey(),
         taskId: modalTid,
-        promptLabel: t('drawing.mjFollowUp'),
+        promptLabel,
         loading: true,
         mjStyleSnapshot: mjStyle.value,
       }
-      attachMjJobModelMeta(newJob, m)
+      attachMjJobModelMeta(newJob, m, { mjMode: mjModeForFollowUp(job) })
       mjJobs.value.unshift(newJob)
       startPollTask(modalTid, newJob)
       await authStore.getUserBalance()
@@ -1428,7 +1485,11 @@ async function beginVaryRegionFlow(job: MjJobItem, customId: string) {
     }
 
     const hint = mj?.description || (code != null ? `code=${code}` : '') || t('drawing.mjNoTaskId')
-    ms.error(t('drawing.mjVaryRegionEnterFail', { msg: hint }))
+    ms.error(
+      variant === 'custom-zoom'
+        ? t('drawing.mjCustomZoomEnterFail', { msg: hint })
+        : t('drawing.mjVaryRegionEnterFail', { msg: hint })
+    )
   } catch (e: unknown) {
     ms.error((e as Error)?.message || t('common.wrong'))
   } finally {
@@ -1438,10 +1499,14 @@ async function beginVaryRegionFlow(job: MjJobItem, customId: string) {
 
 function handleMjMiscButtonClick(job: MjJobItem, btn: MjFollowBtn) {
   if (mjButtonIsVaryRegion(btn)) {
-    void beginVaryRegionFlow(job, btn.customId)
+    void beginVaryRegionFlow(job, btn.customId, 'vary-region')
     return
   }
-  void onMjButtonClick(String(job.taskId), btn.customId)
+  if (mjButtonIsCustomZoom(btn)) {
+    void beginVaryRegionFlow(job, btn.customId, 'custom-zoom')
+    return
+  }
+  void onMjButtonClick(String(job.taskId), btn.customId, job, btn)
 }
 
 function onMjMiscDropdownChange(ev: Event, job: MjJobItem) {
@@ -1451,10 +1516,14 @@ function onMjMiscDropdownChange(ev: Event, job: MjJobItem) {
   el.value = ''
   const btn = mjButtons(job.task).find(b => b.customId === customId)
   if (btn && mjButtonIsVaryRegion(btn)) {
-    void beginVaryRegionFlow(job, customId)
+    void beginVaryRegionFlow(job, customId, 'vary-region')
     return
   }
-  void onMjButtonClick(String(job.taskId), customId)
+  if (btn && mjButtonIsCustomZoom(btn)) {
+    void beginVaryRegionFlow(job, customId, 'custom-zoom')
+    return
+  }
+  void onMjButtonClick(String(job.taskId), customId, job, btn)
 }
 
 async function onMjVaryRegionSubmitted(res: unknown) {
@@ -1462,15 +1531,23 @@ async function onMjVaryRegionSubmitted(res: unknown) {
   const srcJob = varyRegionJob.value
   const m = (srcJob && resolveMjJobModelRow(srcJob)) || selectedModel.value
   if (!m) return
+  const actionOverride =
+    mjModalFollowVariant.value === 'custom-zoom'
+      ? t('drawing.mjFollowUpActionInModalCustomZoom')
+      : t('drawing.mjFollowUpActionInModalVaryRegion')
+  const promptLabel = buildMjFollowUpPromptLabel(
+    srcJob ?? undefined,
+    { actionOverride },
+    (key, params) => t(key, params)
+  )
   const job: MjJobItem = {
     localId: nextMjClientKey(),
     taskId: '',
-    promptLabel: t('drawing.mjFollowUp'),
+    promptLabel,
     loading: true,
     mjStyleSnapshot: srcJob?.mjStyleSnapshot ?? mjStyle.value,
   }
-  attachMjJobModelMeta(job, m)
-  if (srcJob?.mjModeSnapshot) job.mjModeSnapshot = srcJob.mjModeSnapshot
+  attachMjJobModelMeta(job, m, { mjMode: mjModeForFollowUp(srcJob) })
   mjJobs.value.unshift(job)
   try {
     if (!applyMjSubmitResponse(res, job)) {
@@ -1539,7 +1616,7 @@ async function onMjJobFetchSeed(job: MjJobItem) {
     ms.error(t('drawing.needModel'))
     return
   }
-  const mode = live.mjModeSnapshot ?? mjMode.value
+  const mode = mjModeForFollowUp(live)
   const id = live.localId
   mjJobSeedLoadingByLocalId.value = { ...mjJobSeedLoadingByLocalId.value, [id]: true }
   mjJobSeedErrByLocalId.value = { ...mjJobSeedErrByLocalId.value, [id]: '' }
@@ -2139,7 +2216,9 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                                           ? `${btn.label} · ${mjUvQuadrantLabel(btn.label)}`
                                           : btn.label || btn.emoji || ''
                                     "
-                                    @click="onMjButtonClick(String(job.taskId), btn.customId)"
+                                    @click="
+                                      onMjButtonClick(String(job.taskId), btn.customId, job, btn)
+                                    "
                                   >
                                     <template v-if="mjButtonIsRegenerate(btn)">
                                       <span
@@ -2346,8 +2425,9 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                 :task-id="varyRegionModalTaskId"
                 :image-url="varyRegionImageUrl"
                 :model-key="varyRegionJob?.modelKey ?? selectedModelKey ?? ''"
-                :mj-mode="varyRegionJob?.mjModeSnapshot ?? mjMode"
+                :mj-mode="varyRegionJob ? mjModeForFollowUp(varyRegionJob) : mjMode"
                 :fallback-prompt="varyRegionFallbackPrompt"
+                :variant="mjModalFollowVariant"
                 @submitted="onMjVaryRegionSubmitted"
               />
             </div>
