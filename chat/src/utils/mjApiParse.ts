@@ -64,37 +64,77 @@ export function isMjSubmitAcceptedCode(code: unknown): boolean {
   return n === 0 || n === 1 || n === 21 || n === 22
 }
 
+function mjPickTaskIdPrimitive(v: unknown): string {
+  if (v == null || typeof v === 'object') return ''
+  const s = String(v).trim()
+  return s || ''
+}
+
+/**
+ * 从 submit/action、submit/imagine 等上游返回体提取用于轮询的任务 ID。
+ * 兼容 midjourney-proxy-plus / 聚合网关多种字段名与一层嵌套。
+ */
 export function extractMjTaskId(
   mj: { result?: string | number; properties?: any } | undefined
 ): string {
   if (!mj) return ''
   const anyMj = mj as Record<string, unknown>
   const props = mj.properties as Record<string, unknown> | undefined
+
   const dataVal = anyMj.data
   if (typeof dataVal === 'string' && dataVal.trim()) return dataVal.trim()
   if (dataVal && typeof dataVal === 'object' && !Array.isArray(dataVal)) {
     const d = dataVal as Record<string, unknown>
-    const nested = d.result ?? d.taskId ?? d.task_id ?? d.id ?? d.hash
-    if (nested != null) return String(nested)
+    const nested = d.result ?? d.taskId ?? d.task_id ?? d.id ?? d.hash ?? d.jobId ?? d.recordId
+    const ns = mjPickTaskIdPrimitive(nested)
+    if (ns) return ns
+    const innerData = d.data
+    if (innerData && typeof innerData === 'object' && !Array.isArray(innerData)) {
+      const id = mjPickTaskIdPrimitive(
+        (innerData as Record<string, unknown>).taskId ??
+          (innerData as Record<string, unknown>).task_id ??
+          (innerData as Record<string, unknown>).id ??
+          (innerData as Record<string, unknown>).result
+      )
+      if (id) return id
+    }
   }
+
   const rawResult = mj.result
   if (rawResult != null && typeof rawResult === 'object' && !Array.isArray(rawResult)) {
     const ro = rawResult as Record<string, unknown>
     const nid = ro.id ?? ro.taskId ?? ro.task_id ?? ro.hash ?? ro.result
-    if (nid != null && typeof nid !== 'object') return String(nid)
+    const ns = mjPickTaskIdPrimitive(nid)
+    if (ns) return ns
   }
 
   const primResult =
     typeof rawResult === 'string' || typeof rawResult === 'number' ? rawResult : undefined
+  const fromTop =
+    mjPickTaskIdPrimitive(primResult) ||
+    mjPickTaskIdPrimitive(anyMj.taskId) ||
+    mjPickTaskIdPrimitive(anyMj.task_id) ||
+    mjPickTaskIdPrimitive(anyMj.jobId) ||
+    mjPickTaskIdPrimitive(anyMj.id)
+  if (fromTop) return fromTop
+
+  const propNested = props?.data
+  if (propNested && typeof propNested === 'object' && !Array.isArray(propNested)) {
+    const pn = propNested as Record<string, unknown>
+    const pid =
+      mjPickTaskIdPrimitive(pn.taskId) ||
+      mjPickTaskIdPrimitive(pn.task_id) ||
+      mjPickTaskIdPrimitive(pn.id) ||
+      mjPickTaskIdPrimitive(pn.result)
+    if (pid) return pid
+  }
+
   const r =
-    primResult ??
-    anyMj.taskId ??
-    anyMj.task_id ??
-    props?.result ??
-    props?.taskId ??
-    props?.id ??
-    props?.hash
-  return r != null ? String(r) : ''
+    mjPickTaskIdPrimitive(props?.result) ??
+    mjPickTaskIdPrimitive(props?.taskId) ??
+    mjPickTaskIdPrimitive(props?.id) ??
+    mjPickTaskIdPrimitive(props?.hash)
+  return r || ''
 }
 
 /** 任务轮询接口返回 success:false 时的可读说明 */
