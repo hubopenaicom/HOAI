@@ -22,6 +22,7 @@ import { Repository } from 'typeorm';
 import { UserEntity } from '../user/user.entity';
 import { DrawingMjJobEntity } from './drawing-mj-job.entity';
 import { CreateDrawingMjJobDto, DrawingMjJobService } from './drawing-mj-job.service';
+import { isPresetOutpaintCustomId, stripMjModelVersionFlags } from './mj-outpaint-cz';
 import { DrawingMjService, MjSpeedMode } from './drawing-mj.service';
 
 /** 蒙版转发格式；`passthrough` = trim 后原样上传（调试用） */
@@ -303,10 +304,26 @@ export class DrawingMjController {
   ) {
     const row = await this.drawingMjService.resolveMjModel(body.model);
     const mode = body.mjMode || 'fast';
+    const cidRaw = String(body.customId || '');
+    /** ephone：预设 Zoom Out 直连常执行期 invalid_parameter → 服务端改走 Custom Zoom + submit/modal（OpenAPI 最小字段） */
+    if (
+      isPresetOutpaintCustomId(cidRaw) &&
+      this.drawingMjService.presetOutpaintCustomZoomEnabled(row)
+    ) {
+      return this.withBalance(req, row, mode, { mult: 1 }, () =>
+        this.drawingMjService.submitPresetOutpaintViaCustomZoom(
+          row,
+          mode,
+          String(body.taskId ?? '').trim(),
+          cidRaw,
+        ),
+      );
+    }
     /** 常见 OpenAPI：action 仅 customId、taskId、notifyHook、state；多字段可能被 strict schema 判无效参数 */
+    /** ephone 等 Go 反序列化要求 taskId 为 JSON 字符串；传 number 会 400 */
     const actionData: Record<string, unknown> = {
       customId: body.customId,
-      taskId: body.taskId,
+      taskId: String(body.taskId ?? '').trim(),
     };
     const nh = body.notifyHook != null ? String(body.notifyHook).trim() : '';
     if (nh) actionData.notifyHook = nh;
@@ -452,6 +469,10 @@ export class DrawingMjController {
     let effectivePrompt = promptStr;
     if (mask && !effectivePrompt && process.env.MJ_MODAL_EMPTY_PROMPT_FALLBACK?.trim()) {
       effectivePrompt = process.env.MJ_MODAL_EMPTY_PROMPT_FALLBACK.trim();
+    }
+    /** Custom Zoom 的 modal prompt 常含 `--zoom`；ephone 等同条里带 `--v` 会失败（见 out.log invalid_parameter） */
+    if (effectivePrompt && /\s--zoom\s/i.test(effectivePrompt)) {
+      effectivePrompt = stripMjModelVersionFlags(effectivePrompt);
     }
     /**
      * OpenAPI：prompt 可选，空则沿用原任务；**不要传 prompt:""**，部分网关会把空串判为无效参数。
