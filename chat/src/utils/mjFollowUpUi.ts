@@ -193,6 +193,20 @@ export function mjButtonIsVaryRegion(btn: MjFollowBtn): boolean {
   return false
 }
 
+/**
+ * Custom Zoom：与 OpenAPI `/mj/submit/action` + `/mj/submit/modal` 一致——先 action 打开 MODAL（code=21），再 modal 提交 prompt/--zoom 等。
+ * 不可仅单次 submit/action（与 Zoom Out 1.5x 等一键动作不同）。
+ */
+export function mjButtonIsCustomZoom(btn: MjFollowBtn): boolean {
+  const raw = `${btn.emoji || ''} ${btn.label || ''}`.trim()
+  const s = raw.toLowerCase().replace(/\s+/g, ' ')
+  if (/custom zoom|自定义变焦|自定义缩放|定制变焦/i.test(s)) return true
+  const cid = String(btn.customId || '')
+  if (/custom.?zoom|zoom.?custom|custom_zoom|CUSTOM_ZOOM/i.test(cid)) return true
+  if (/::custom.?zoom::|::zoom.?custom::/i.test(cid)) return true
+  return false
+}
+
 /** 将 misc 段按钮按组拆分，保持组内相对顺序 */
 export function groupMjMiscButtons(
   items: MjFollowBtn[]
@@ -207,4 +221,145 @@ export function groupMjMiscButtons(
     group: g,
     items: buckets.get(g)!,
   }))
+}
+
+/** 列表项上用于解析「父任务摘要」的最小结构 */
+export type MjParentJobLike = {
+  promptLabel?: string
+  task?: Record<string, unknown>
+}
+
+function clampOneLine(s: string, max: number): string {
+  const t = s.replace(/\s+/g, ' ').trim()
+  if (!t) return ''
+  if (t.length <= max) return t
+  return `${t.slice(0, Math.max(0, max - 1))}…`
+}
+
+function isGenericFollowUpLabel(s: string): boolean {
+  const x = s.trim().toLowerCase()
+  return x === '后续任务' || x === 'follow-up' || x === 'follow up'
+}
+
+function mjExtractPromptFirstLineFromTask(task: Record<string, unknown> | undefined): string {
+  if (!task) return ''
+  const pr = task.properties as Record<string, unknown> | undefined
+  const pick = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : '')
+  const firstLine = (s: string) => {
+    const line = s.split(/\r?\n/)[0]?.trim() ?? ''
+    return line.replace(/^\/(?:imagine|describe|shorten)\s+/i, '').trim() || line
+  }
+  const tryPick = (v: unknown) => {
+    const s = pick(v)
+    return s ? firstLine(s) : ''
+  }
+  return (
+    tryPick(task.promptEn) ||
+    tryPick(task.prompt) ||
+    tryPick(pr?.finalPrompt) ||
+    tryPick(pr?.promptEn) ||
+    tryPick(pr?.prompt) ||
+    tryPick(task.description) ||
+    ''
+  )
+}
+
+function mjFollowBtnIsRegenerate(btn: MjFollowBtn): boolean {
+  const L = String(btn.label || '').trim()
+  if (/^[UV][1-4]$/i.test(L)) return false
+  const low = L.toLowerCase()
+  const em = String(btn.emoji || '')
+  if (/reroll|regenerate|\bre\b|重新生成|重新绘制/.test(low)) return true
+  const refreshRe = /[\u{1F504}\u21BB]|🔄|↻|🔁|⟳/u
+  if (refreshRe.test(em)) return true
+  if (!em && refreshRe.test(L)) return true
+  return false
+}
+
+/**
+ * 父任务在列表中的摘要一行（用于后续任务标题里的「来自哪张图/哪条提示」）。
+ * 若 promptLabel 仅为「后续任务」等泛称，则回退到任务对象里的首行提示。
+ */
+export function mjParentLineForFollowUp(job: MjParentJobLike | undefined): string {
+  if (!job) return ''
+  const pl = (job.promptLabel || '').trim()
+  if (pl && !isGenericFollowUpLabel(pl)) {
+    return clampOneLine(pl, 52)
+  }
+  const fromTask = mjExtractPromptFirstLineFromTask(job.task)
+  if (fromTask) return clampOneLine(fromTask, 52)
+  return pl ? clampOneLine(pl, 52) : ''
+}
+
+/**
+ * 后续操作的人类可读摘要（与平铺按钮 / 下拉共用一套逻辑）。
+ * @param quadrantText 已本地化文案（如「左上」），仅当 label 为 U1–V4 时使用
+ */
+export function mjFollowUpActionDisplay(
+  btn: MjFollowBtn | null,
+  customId: string,
+  quadrantText?: string,
+  opts?: { regenerateLabel?: string }
+): string {
+  const cid = String(customId || '').trim()
+  const L = btn ? String(btn.label || '').trim() : ''
+  if (btn && opts?.regenerateLabel && mjFollowBtnIsRegenerate(btn)) {
+    return opts.regenerateLabel
+  }
+  if (/^[UV][1-4]$/i.test(L) && quadrantText) {
+    return `${L} · ${quadrantText}`
+  }
+  if (btn) {
+    const raw = `${btn.emoji ? `${btn.emoji} ` : ''}${L}`.trim()
+    const pretty = formatMjUpstreamButtonLabel(btn.label)
+    const primary = (pretty || raw).trim()
+    if (primary) return clampOneLine(primary, 64)
+  }
+  if (cid.length > 72) return `${cid.slice(0, 69)}…`
+  return cid || '—'
+}
+
+export type MjFollowUpPromptTranslate = (key: string, params?: Record<string, string>) => string
+
+/**
+ * 生成任务卡片上展示的「后续任务」标题：来源摘要 + 本次操作。
+ */
+export function buildMjFollowUpPromptLabel(
+  parent: MjParentJobLike | undefined,
+  opts: {
+    btn?: MjFollowBtn | null
+    customId?: string
+    quadrantText?: string
+    actionOverride?: string
+    regenerateLabel?: string
+  },
+  translate: MjFollowUpPromptTranslate
+): string {
+  const src = mjParentLineForFollowUp(parent)
+  const act =
+    opts.actionOverride?.trim() ||
+    mjFollowUpActionDisplay(opts.btn ?? null, opts.customId || '', opts.quadrantText, {
+      regenerateLabel: opts.regenerateLabel,
+    })
+  const generic = translate('drawing.mjFollowUp')
+  if (!src) return act && act !== '—' ? act : generic
+  if (!act || act === '—') {
+    return translate('drawing.mjFollowUpLabeled', { source: src, action: generic })
+  }
+  return translate('drawing.mjFollowUpLabeled', { source: src, action: act })
+}
+
+/**
+ * Custom Zoom 提交 modal：与后端 `mj-outpaint-cz.stripMjModelVersionFlags` 一致。
+ * api.ephone.ai 等在「含 --zoom 的 prompt」里若带 --v/--niji 会执行期 invalid_parameter。
+ */
+export function stripMjModalPromptModelVersionFlags(line: string): string {
+  return line
+    .replace(/(^|\s)--v\s+\d+\b/gi, '$1')
+    .replace(/(^|\s)--v\d+\b/gi, '$1')
+    .replace(/(^|\s)--niji\s+\d+\b/gi, '$1')
+    .replace(/(^|\s)--niji\d+\b/gi, '$1')
+    .replace(/(^|\s)--draft\b/gi, '$1')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
 }
