@@ -81,4 +81,8 @@ export class UserEntity extends BaseEntity {
 
   @Column({ comment: '身份证号', nullable: true })
   idCard: string;
+
+  /** MJ 绘画任务列表同步序号：每次 DELETE 云端任务递增；batch-upsert 须携带匹配的 baseSyncSeq，防止陈旧快照把已删任务写回库 */
+  @Column({ type: 'int', unsigned: true, default: 0, name: 'mj_jobs_sync_seq' })
+  mjJobsSyncSeq: number;
 }
