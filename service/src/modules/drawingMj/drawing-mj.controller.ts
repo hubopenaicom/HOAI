@@ -17,6 +17,9 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { UserEntity } from '../user/user.entity';
 import { DrawingMjJobEntity } from './drawing-mj-job.entity';
 import { CreateDrawingMjJobDto, DrawingMjJobService } from './drawing-mj-job.service';
 import { DrawingMjService, MjSpeedMode } from './drawing-mj.service';
@@ -90,7 +93,23 @@ export class DrawingMjController {
     private readonly drawingMjService: DrawingMjService,
     private readonly drawingMjJobService: DrawingMjJobService,
     private readonly userBalanceService: UserBalanceService,
+    @InjectRepository(UserEntity)
+    private readonly userRepo: Repository<UserEntity>,
   ) {}
+
+  private async getMjJobsSyncSeq(userId: number): Promise<number> {
+    const u = await this.userRepo.findOne({
+      where: { id: userId },
+      select: ['id', 'mjJobsSyncSeq'],
+    });
+    return Number(u?.mjJobsSyncSeq ?? 0);
+  }
+
+  /** 删除成功后递增，防止晚到的 batch-upsert 用旧快照复活记录 */
+  private async bumpMjJobsSyncSeq(userId: number): Promise<number> {
+    await this.userRepo.increment({ id: userId }, 'mjJobsSyncSeq', 1);
+    return this.getMjJobsSyncSeq(userId);
+  }
 
   @Get('proxy-image')
   @ApiOperation({ summary: '代理下载远程图片（前端另存为，服务端拉取绕开浏览器跨域）' })
@@ -136,15 +155,28 @@ export class DrawingMjController {
   async listMjJobs(@Req() req: Request, @Query('limit') limit?: string) {
     const lim = Math.min(100, Math.max(1, parseInt(String(limit || '80'), 10) || 80));
     const rows = await this.drawingMjJobService.listForUser(req.user.id, lim);
-    return { list: rows.map(r => this.mjJobEntityToDto(r)) };
+    const syncSeq = await this.getMjJobsSyncSeq(req.user.id);
+    return { list: rows.map(r => this.mjJobEntityToDto(r)), syncSeq };
   }
 
   @Post('jobs/batch-upsert')
   @ApiOperation({ summary: '批量同步 MJ 任务快照（按 clientKey 与账号幂等合并）' })
-  async batchUpsertMjJobs(@Req() req: Request, @Body() body: { jobs?: CreateDrawingMjJobDto[] }) {
+  async batchUpsertMjJobs(
+    @Req() req: Request,
+    @Body() body: { jobs?: CreateDrawingMjJobDto[]; baseSyncSeq?: number },
+  ) {
     const jobs = Array.isArray(body?.jobs) ? body.jobs : [];
-    const n = await this.drawingMjJobService.batchUpsert(req.user.id, jobs);
-    return { synced: n };
+    const uid = req.user.id;
+    const serverSeq = await this.getMjJobsSyncSeq(uid);
+    const clientSeq = body?.baseSyncSeq;
+    if (clientSeq !== undefined && clientSeq !== null && String(clientSeq) !== '') {
+      const c = Number(clientSeq);
+      if (Number.isFinite(c) && c !== serverSeq) {
+        return { synced: 0, stale: true as const, syncSeq: serverSeq };
+      }
+    }
+    const n = await this.drawingMjJobService.batchUpsert(uid, jobs);
+    return { synced: n, syncSeq: serverSeq };
   }
 
   @Delete('jobs/:id')
@@ -155,7 +187,8 @@ export class DrawingMjController {
       throw new BadRequestException('无效的任务 id');
     }
     await this.drawingMjJobService.delete(req.user.id, nid);
-    return { ok: true };
+    const syncSeq = await this.bumpMjJobsSyncSeq(req.user.id);
+    return { ok: true, syncSeq };
   }
 
   /** 校验余额 → 调用上游 → 成功码扣费 → 返回上游 JSON body */
