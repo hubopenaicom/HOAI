@@ -150,17 +150,32 @@ export interface MjDrawingJobSnapshot {
   task?: Record<string, unknown>
 }
 
+/** GET /drawing/mj/jobs 返回体内字段 */
+export interface MjDrawingJobsListPayload {
+  list?: MjDrawingJobDto[]
+  /** 与服务端 users.mj_jobs_sync_seq 对齐；DELETE 会递增 */
+  syncSeq?: number
+}
+
 export function fetchMjDrawingJobsList(params?: { limit?: number }) {
-  return get({
+  return get<MjDrawingJobsListPayload>({
     url: '/drawing/mj/jobs',
     data: { limit: params?.limit ?? 80 },
   })
 }
 
-export function batchUpsertMjDrawingJobs<T = { synced: number }>(data: {
+export interface MjBatchUpsertResult {
+  synced: number
+  stale?: boolean
+  syncSeq?: number
+}
+
+export function batchUpsertMjDrawingJobs(data: {
   jobs: MjDrawingJobSnapshot[]
+  /** 须与最近一次 GET /drawing/mj/jobs 或 DELETE 返回的 syncSeq 一致；陈旧快照会被拒绝以防复活已删任务 */
+  baseSyncSeq?: number
 }) {
-  return post<T>({ url: '/drawing/mj/jobs/batch-upsert', data })
+  return post<MjBatchUpsertResult>({ url: '/drawing/mj/jobs/batch-upsert', data })
 }
 
 /** 服务端代理拉取远程图（绕开浏览器跨域），需登录 */
