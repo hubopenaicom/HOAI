@@ -438,26 +438,26 @@ const autoReply_module_1 = __webpack_require__(134);
 const badWords_module_1 = __webpack_require__(142);
 const chat_module_1 = __webpack_require__(152);
 const drawing_mj_module_1 = __webpack_require__(169);
-const chatGroup_module_1 = __webpack_require__(182);
-const chatLog_module_1 = __webpack_require__(187);
-const crami_module_1 = __webpack_require__(198);
-const database_module_1 = __webpack_require__(210);
-const globalConfig_module_1 = __webpack_require__(216);
-const models_module_1 = __webpack_require__(220);
-const official_module_1 = __webpack_require__(232);
-const order_module_1 = __webpack_require__(237);
-const pay_module_1 = __webpack_require__(244);
-const plugin_module_1 = __webpack_require__(246);
+const chatGroup_module_1 = __webpack_require__(184);
+const chatLog_module_1 = __webpack_require__(189);
+const crami_module_1 = __webpack_require__(200);
+const database_module_1 = __webpack_require__(212);
+const globalConfig_module_1 = __webpack_require__(218);
+const models_module_1 = __webpack_require__(222);
+const official_module_1 = __webpack_require__(234);
+const order_module_1 = __webpack_require__(239);
+const pay_module_1 = __webpack_require__(246);
+const plugin_module_1 = __webpack_require__(248);
 const redisCache_module_1 = __webpack_require__(27);
-const share_module_1 = __webpack_require__(249);
-const signin_module_1 = __webpack_require__(252);
-const spa_module_1 = __webpack_require__(255);
-const statistic_module_1 = __webpack_require__(257);
-const task_module_1 = __webpack_require__(261);
-const upload_module_1 = __webpack_require__(264);
+const share_module_1 = __webpack_require__(251);
+const signin_module_1 = __webpack_require__(254);
+const spa_module_1 = __webpack_require__(257);
+const statistic_module_1 = __webpack_require__(259);
+const task_module_1 = __webpack_require__(263);
+const upload_module_1 = __webpack_require__(266);
 const user_module_1 = __webpack_require__(123);
-const userBalance_module_1 = __webpack_require__(267);
-const verification_module_1 = __webpack_require__(269);
+const userBalance_module_1 = __webpack_require__(269);
+const verification_module_1 = __webpack_require__(271);
 let AppModule = class AppModule {
     configure(consumer) {
         consumer;
@@ -9536,8 +9536,8 @@ const userBalance_service_1 = __webpack_require__(35);
 const verification_entity_1 = __webpack_require__(102);
 const verification_service_1 = __webpack_require__(101);
 const drawing_mj_module_1 = __webpack_require__(169);
-const chat_controller_1 = __webpack_require__(178);
-const chat_service_2 = __webpack_require__(179);
+const chat_controller_1 = __webpack_require__(179);
+const chat_service_2 = __webpack_require__(180);
 let ChatModule = class ChatModule {
 };
 exports.ChatModule = ChatModule;
@@ -11358,11 +11358,17 @@ let UploadService = class UploadService {
             common_1.Logger.error(`文件保存失败: ${filePath}`, err);
             throw err;
         }
-        let fileUrl = `file/${normalizedDir}/${normalizedFilename}`;
-        const siteUrl = await this.globalConfigService.getConfigs(['siteUrl']);
-        if (siteUrl) {
-            const url = (0, utils_1.formatUrl)(siteUrl);
-            fileUrl = `${url}/${fileUrl}`;
+        const relPath = `file/${normalizedDir}/${normalizedFilename}`;
+        const siteUrlRaw = await this.globalConfigService.getConfigs(['siteUrl']);
+        const fromDb = typeof siteUrlRaw === 'string' ? siteUrlRaw.trim() : '';
+        const fromEnv = String(process.env.PUBLIC_SITE_URL ?? process.env.SITE_URL ?? '').trim();
+        const base = fromDb || fromEnv;
+        let fileUrl = relPath;
+        if (base) {
+            fileUrl = `${(0, utils_1.formatUrl)(base)}/${relPath}`;
+        }
+        if (!/^https?:\/\//i.test(fileUrl)) {
+            throw new common_1.HttpException('本地存储已写入文件，但未配置可公网访问的站点根地址：请在后台「系统设置」填写 siteUrl（完整 https 域名，无尾斜杠），或设置环境变量 PUBLIC_SITE_URL / SITE_URL。否则无法生成 Midjourney --cref/--sref/--oref 所需的 https 直链。', common_1.HttpStatus.BAD_REQUEST);
         }
         return fileUrl;
     }
@@ -11514,7 +11520,7 @@ const drawing_mj_admin_controller_1 = __webpack_require__(170);
 const drawing_mj_controller_1 = __webpack_require__(175);
 const drawing_mj_job_entity_1 = __webpack_require__(173);
 const drawing_mj_job_service_1 = __webpack_require__(172);
-const drawing_mj_service_1 = __webpack_require__(177);
+const drawing_mj_service_1 = __webpack_require__(178);
 let DrawingMjModule = class DrawingMjModule {
 };
 exports.DrawingMjModule = DrawingMjModule;
@@ -12049,7 +12055,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 var DrawingMjController_1;
-var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s;
+var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DrawingMjController = void 0;
 const jwtAuth_guard_1 = __webpack_require__(88);
@@ -12062,7 +12068,9 @@ const typeorm_2 = __webpack_require__(3);
 const user_entity_1 = __webpack_require__(84);
 const drawing_mj_job_service_1 = __webpack_require__(172);
 const mj_outpaint_cz_1 = __webpack_require__(176);
-const drawing_mj_service_1 = __webpack_require__(177);
+const mj_proxy_host_markers_1 = __webpack_require__(177);
+const upload_service_1 = __webpack_require__(162);
+const drawing_mj_service_1 = __webpack_require__(178);
 function resolveMjModalMaskFormat(_maskIn) {
     const v = process.env.MJ_MODAL_MASK_FORMAT?.trim().toLowerCase();
     if (v === 'raw' || v === 'dataurl' || v === 'passthrough')
@@ -12076,7 +12084,94 @@ function resolveMjModalMaskFormat(_maskIn) {
 function mjModalForwardExtrasToUpstream() {
     return process.env.MJ_MODAL_FORWARD_EXTRAS === '1';
 }
-function normalizeMjModalMaskForUpstream(raw, format) {
+function resolveMjSubmitImageBase64Format() {
+    const v = process.env.MJ_SUBMIT_IMAGE_BASE64_FORMAT?.trim().toLowerCase();
+    if (v === 'raw' || v === 'dataurl' || v === 'passthrough')
+        return v;
+    return 'raw';
+}
+function resolveMjBlendSubmitBase64Format() {
+    const v = process.env.MJ_BLEND_IMAGE_BASE64_FORMAT?.trim().toLowerCase();
+    if (v === 'raw' || v === 'dataurl' || v === 'passthrough')
+        return v;
+    return 'dataurl';
+}
+function guessImageDataUrlPrefixForRawBase64(b64) {
+    try {
+        const buf = Buffer.from(b64, 'base64');
+        if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
+            return 'data:image/jpeg;base64,';
+        }
+        if (buf.length >= 8 &&
+            buf[0] === 0x89 &&
+            buf[1] === 0x50 &&
+            buf[2] === 0x4e &&
+            buf[3] === 0x47) {
+            return 'data:image/png;base64,';
+        }
+        if (buf.length >= 12 &&
+            buf[0] === 0x52 &&
+            buf[1] === 0x49 &&
+            buf[2] === 0x46 &&
+            buf[3] === 0x46 &&
+            buf.toString('ascii', 8, 12) === 'WEBP') {
+            return 'data:image/webp;base64,';
+        }
+        if (buf.length >= 6 && buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46) {
+            return 'data:image/gif;base64,';
+        }
+        if (buf.length >= 2 && buf[0] === 0x42 && buf[1] === 0x4d) {
+            return 'data:image/bmp;base64,';
+        }
+    }
+    catch {
+    }
+    return 'data:image/png;base64,';
+}
+function alignDataUrlImageMimeFromMagicBytes(s) {
+    const m = s.match(/^data:(image\/[^;]+);base64,(.+)$/i);
+    if (!m)
+        return s;
+    const declared = m[1].toLowerCase();
+    const b64 = m[2];
+    try {
+        const prefix = guessImageDataUrlPrefixForRawBase64(b64);
+        const cm = prefix.match(/^data:(image\/[^;]+);base64,$/i);
+        const correct = cm?.[1]?.toLowerCase();
+        if (correct && correct !== declared) {
+            return `${prefix}${b64}`;
+        }
+    }
+    catch {
+    }
+    return s;
+}
+function mjBlendUseDiscordUploadFirst(proxyUrl) {
+    const v = process.env.MJ_BLEND_VIA_DISCORD_UPLOAD?.trim().toLowerCase();
+    if (v === '0' || v === 'false' || v === 'off' || v === 'no')
+        return false;
+    if (v === '1' || v === 'true' || v === 'on' || v === 'yes')
+        return true;
+    return (0, mj_proxy_host_markers_1.proxyUrlMatchesMjHostMarkers)(proxyUrl);
+}
+function resolveMjBlendBotType(bodyBot, proxyUrl) {
+    if (process.env.MJ_BLEND_OMIT_BOT_TYPE === '1')
+        return undefined;
+    const fromEnv = process.env.MJ_BLEND_BOT_TYPE?.trim();
+    if (fromEnv && /^(none|omit|off|0)$/i.test(fromEnv))
+        return undefined;
+    const fromBody = bodyBot?.trim();
+    if (fromBody)
+        return fromBody;
+    if (fromEnv)
+        return fromEnv;
+    const hostMatchesMarkers = (0, mj_proxy_host_markers_1.proxyUrlMatchesMjHostMarkers)(proxyUrl);
+    if (hostMatchesMarkers && process.env.MJ_BLEND_EP_FORCE_BOT_TYPE !== '1') {
+        return undefined;
+    }
+    return 'MID_JOURNEY';
+}
+function normalizeMjDataUrlOrRawString(raw, format) {
     if (raw == null || typeof raw !== 'string')
         return undefined;
     if (format === 'passthrough') {
@@ -12088,13 +12183,29 @@ function normalizeMjModalMaskForUpstream(raw, format) {
         return undefined;
     if (format === 'dataurl') {
         if (/^data:image\/[^;]+;base64,/i.test(s))
-            return s;
-        return `data:image/png;base64,${s}`;
+            return alignDataUrlImageMimeFromMagicBytes(s);
+        return `${guessImageDataUrlPrefixForRawBase64(s)}${s}`;
     }
     const stripped = s.match(/^data:image\/[^;]+;base64,(.+)$/i);
     if (stripped)
         return stripped[1] || undefined;
     return s || undefined;
+}
+function normalizeMjModalMaskForUpstream(raw, format) {
+    return normalizeMjDataUrlOrRawString(raw, format);
+}
+function normalizeMjSubmitBase64Array(arr, format) {
+    if (!arr?.length)
+        return undefined;
+    const out = [];
+    for (const x of arr) {
+        if (typeof x !== 'string')
+            continue;
+        const n = normalizeMjDataUrlOrRawString(x, format);
+        if (n)
+            out.push(n);
+    }
+    return out.length ? out : undefined;
 }
 function mjModalMaskPayloadIsPng(mask) {
     let b64 = mask;
@@ -12109,16 +12220,58 @@ function mjModalMaskPayloadIsPng(mask) {
         return false;
     }
 }
+function resolveMjRefCdnUploadStrategy(refStorage) {
+    const q = refStorage?.trim().toLowerCase();
+    if (q === 'self' || q === 'upstream' || q === 'prefer_self')
+        return q;
+    const env = process.env.MJ_REF_CDN_STRATEGY?.trim().toLowerCase();
+    if (env === 'self' || env === 'upstream' || env === 'prefer_self')
+        return env;
+    return 'prefer_self';
+}
+function mjRefImageBufferAndMimeFromSubmitString(item) {
+    const t = item.trim();
+    const dm = /^data:(image\/[^;]+);base64,(.+)$/i.exec(t);
+    if (dm) {
+        return { buffer: Buffer.from(dm[2], 'base64'), mimetype: dm[1].toLowerCase() };
+    }
+    try {
+        const buf = Buffer.from(t, 'base64');
+        if (!buf.length) {
+            throw new common_1.BadRequestException('参考图解码后为空');
+        }
+        const prefix = guessImageDataUrlPrefixForRawBase64(t);
+        const cm = /^data:(image\/[^;]+);base64,$/i.exec(prefix);
+        const mimetype = cm?.[1]?.toLowerCase() || 'image/png';
+        return { buffer: buf, mimetype };
+    }
+    catch (e) {
+        if (e instanceof common_1.BadRequestException)
+            throw e;
+        throw new common_1.BadRequestException('无法将参考图解码为图片数据');
+    }
+}
+function assertHttpsUrlForMjRef(url) {
+    const u = String(url ?? '').trim();
+    if (/^https:\/\//i.test(u))
+        return u;
+    if (/^http:\/\//i.test(u)) {
+        return `https://${u.slice(7)}`;
+    }
+    throw new common_1.BadRequestException('本站生成的图链须为公网 https（请在后台将「站点地址」配为 https，或改用环境变量 MJ_REF_CDN_STRATEGY=upstream 仅走上游图床）');
+}
 let DrawingMjController = DrawingMjController_1 = class DrawingMjController {
     drawingMjService;
     drawingMjJobService;
     userBalanceService;
+    uploadService;
     userRepo;
     logger = new common_1.Logger(DrawingMjController_1.name);
-    constructor(drawingMjService, drawingMjJobService, userBalanceService, userRepo) {
+    constructor(drawingMjService, drawingMjJobService, userBalanceService, uploadService, userRepo) {
         this.drawingMjService = drawingMjService;
         this.drawingMjJobService = drawingMjJobService;
         this.userBalanceService = userBalanceService;
+        this.uploadService = uploadService;
         this.userRepo = userRepo;
     }
     async getMjJobsSyncSeq(userId) {
@@ -12142,6 +12295,47 @@ let DrawingMjController = DrawingMjController_1 = class DrawingMjController {
             type: out.contentType,
             disposition: `attachment; filename="${safeName}"`,
         });
+    }
+    async uploadRefCdnUrl(req, body) {
+        const row = await this.drawingMjService.resolveMjModel(body.model);
+        const mode = body.mjMode || 'fast';
+        const b64Fmt = resolveMjSubmitImageBase64Format();
+        const one = normalizeMjDataUrlOrRawString(body.base64, b64Fmt);
+        if (!one) {
+            throw new common_1.BadRequestException('需要有效的图片 base64（解析后为空）');
+        }
+        const arr = normalizeMjSubmitBase64Array([one], b64Fmt);
+        if (!arr?.length) {
+            throw new common_1.BadRequestException('需要有效的图片 base64（解析后为空）');
+        }
+        const strategy = resolveMjRefCdnUploadStrategy(body.refStorage);
+        const { buffer, mimetype } = mjRefImageBufferAndMimeFromSubmitString(arr[0]);
+        const uploadUpstream = async () => {
+            const urls = await this.drawingMjService.uploadDiscordImagesToCdnHttpsUrls(row, mode, arr);
+            return urls[0];
+        };
+        const uploadSelf = async () => {
+            const safeMime = mimetype.startsWith('image/') ? mimetype : 'image/jpeg';
+            const rawUrl = await this.uploadService.uploadFile({ buffer, mimetype: safeMime }, 'drawing/mj-ref', req.user);
+            return assertHttpsUrlForMjRef(String(rawUrl));
+        };
+        if (strategy === 'self') {
+            const url = await uploadSelf();
+            return { url, refSource: 'self' };
+        }
+        if (strategy === 'upstream') {
+            const url = await uploadUpstream();
+            return { url, refSource: 'upstream' };
+        }
+        try {
+            const url = await uploadSelf();
+            return { url, refSource: 'self' };
+        }
+        catch (e) {
+            this.logger.warn(`MJ 参考图本站存储未成功，回退上游图床: ${e?.message ?? String(e)}`);
+            const url = await uploadUpstream();
+            return { url, refSource: 'upstream' };
+        }
     }
     mjJobEntityToDto(e) {
         let task;
@@ -12220,10 +12414,12 @@ let DrawingMjController = DrawingMjController_1 = class DrawingMjController {
     async imagine(req, body) {
         const row = await this.drawingMjService.resolveMjModel(body.model);
         const mode = body.mjMode || 'fast';
+        const b64Fmt = resolveMjSubmitImageBase64Format();
+        const base64Array = normalizeMjSubmitBase64Array(body.base64Array, b64Fmt);
         return this.withBalance(req, row, mode, body.prompt || '', () => this.drawingMjService.requestUpstream(row, mode, '/submit/imagine', {
             data: {
                 prompt: body.prompt,
-                base64Array: body.base64Array,
+                base64Array,
                 notifyHook: body.notifyHook,
                 state: body.state,
             },
@@ -12285,10 +12481,21 @@ let DrawingMjController = DrawingMjController_1 = class DrawingMjController {
     async blend(req, body) {
         const row = await this.drawingMjService.resolveMjModel(body.model);
         const mode = body.mjMode || 'fast';
+        const b64Fmt = resolveMjBlendSubmitBase64Format();
+        let base64Array = normalizeMjSubmitBase64Array(body.base64Array, b64Fmt);
+        if (!base64Array?.length) {
+            throw new common_1.BadRequestException('Blend 需要有效的图片 base64（解析后为空）');
+        }
+        if (mjBlendUseDiscordUploadFirst(row.proxyUrl)) {
+            base64Array = await this.drawingMjService.uploadDiscordImagesForBlend(row, mode, base64Array);
+        }
+        const dimensions = (body.dimensions && String(body.dimensions).trim()) || 'SQUARE';
+        const botType = resolveMjBlendBotType(body.botType, row.proxyUrl);
         return this.withBalance(req, row, mode, { mult: 4 }, () => this.drawingMjService.requestUpstream(row, mode, '/submit/blend', {
             data: {
-                base64Array: body.base64Array,
-                dimensions: body.dimensions,
+                base64Array,
+                dimensions,
+                ...(botType ? { botType } : {}),
                 notifyHook: body.notifyHook,
                 state: body.state,
             },
@@ -12297,9 +12504,14 @@ let DrawingMjController = DrawingMjController_1 = class DrawingMjController {
     async describe(req, body) {
         const row = await this.drawingMjService.resolveMjModel(body.model);
         const mode = body.mjMode || 'fast';
+        const b64Fmt = resolveMjSubmitImageBase64Format();
+        const base64 = normalizeMjDataUrlOrRawString(body.base64, b64Fmt);
+        if (!base64) {
+            throw new common_1.BadRequestException('Describe 需要有效的图片 base64（解析后为空）');
+        }
         return this.withBalance(req, row, mode, { mult: 1 }, () => this.drawingMjService.requestUpstream(row, mode, '/submit/describe', {
             data: {
-                base64: body.base64,
+                base64,
                 notifyHook: body.notifyHook,
                 state: body.state,
             },
@@ -12365,6 +12577,46 @@ let DrawingMjController = DrawingMjController_1 = class DrawingMjController {
             data,
         }));
     }
+    async edits(req, body) {
+        const row = await this.drawingMjService.resolveMjModel(body.model);
+        const mode = body.mjMode || 'fast';
+        const prompt = String(body.prompt ?? '').trim();
+        const image = String(body.image ?? '').trim();
+        if (!prompt) {
+            throw new common_1.BadRequestException('缺少 prompt');
+        }
+        if (!image) {
+            throw new common_1.BadRequestException('缺少 image');
+        }
+        const maskFmt = resolveMjModalMaskFormat(body.maskBase64);
+        const rawMaskIn = body.maskBase64;
+        const rawLen = rawMaskIn != null && typeof rawMaskIn === 'string' ? rawMaskIn.trim().length : 0;
+        const mask = normalizeMjModalMaskForUpstream(body.maskBase64, maskFmt);
+        if (rawLen > 80 && !mask) {
+            throw new common_1.BadRequestException('蒙版无法解析（可能被网关截断 JSON，请调大 Nginx client_max_body_size 或缩小选区）');
+        }
+        const data = { prompt, image };
+        if (mask) {
+            data.maskBase64 = mask;
+            const dupK = process.env.MJ_MODAL_MASK_DUP_KEY?.trim();
+            if (dupK && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(dupK)) {
+                data[dupK] = mask;
+            }
+        }
+        const nh = body.notifyHook != null ? String(body.notifyHook).trim() : '';
+        if (nh) {
+            data.notifyHook = nh;
+        }
+        if (process.env.MJ_EDITS_FORWARD_EXTRAS === '1') {
+            const st = body.state != null ? String(body.state).trim() : '';
+            if (st)
+                data.state = st;
+        }
+        this.logger.log(`[MJ edits] prompt.len=${prompt.length} image.len=${image.length} maskFmt=${maskFmt} rawMask.len=${rawLen} outMask.len=${mask?.length ?? 0}`);
+        return this.withBalance(req, row, mode, { mult: 1 }, () => this.drawingMjService.requestUpstream(row, mode, '/submit/edits', {
+            data,
+        }));
+    }
     async shorten(req, body) {
         const row = await this.drawingMjService.resolveMjModel(body.model);
         const mode = body.mjMode || 'fast';
@@ -12413,12 +12665,23 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], DrawingMjController.prototype, "proxyImageDownload", null);
 __decorate([
+    (0, common_1.Post)('upload/ref-cdn-url'),
+    (0, swagger_1.ApiOperation)({
+        summary: '上传参考图并返回 https 直链（--cref/--sref/--oref）。未配置 MJ_REF_CDN_STRATEGY 时默认 prefer_self：先试本站存储（本地/COS/OSS 等），失败再回退上游 upload-discord-images；亦可设 upstream|self 强制策略',
+    }),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_f = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _f : Object, Object]),
+    __metadata("design:returntype", Promise)
+], DrawingMjController.prototype, "uploadRefCdnUrl", null);
+__decorate([
     (0, common_1.Get)('jobs'),
     (0, swagger_1.ApiOperation)({ summary: '列举当前账号的 MJ 绘画任务（云端，可跨设备）' }),
     __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Query)('limit')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [typeof (_e = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _e : Object, String]),
+    __metadata("design:paramtypes", [typeof (_g = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _g : Object, String]),
     __metadata("design:returntype", Promise)
 ], DrawingMjController.prototype, "listMjJobs", null);
 __decorate([
@@ -12427,7 +12690,7 @@ __decorate([
     __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [typeof (_f = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _f : Object, Object]),
+    __metadata("design:paramtypes", [typeof (_h = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _h : Object, Object]),
     __metadata("design:returntype", Promise)
 ], DrawingMjController.prototype, "batchUpsertMjJobs", null);
 __decorate([
@@ -12436,7 +12699,7 @@ __decorate([
     __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [typeof (_g = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _g : Object, String]),
+    __metadata("design:paramtypes", [typeof (_j = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _j : Object, String]),
     __metadata("design:returntype", Promise)
 ], DrawingMjController.prototype, "deleteMjJob", null);
 __decorate([
@@ -12445,7 +12708,7 @@ __decorate([
     __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [typeof (_h = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _h : Object, Object]),
+    __metadata("design:paramtypes", [typeof (_k = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _k : Object, Object]),
     __metadata("design:returntype", Promise)
 ], DrawingMjController.prototype, "imagine", null);
 __decorate([
@@ -12454,7 +12717,7 @@ __decorate([
     __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [typeof (_j = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _j : Object, Object]),
+    __metadata("design:paramtypes", [typeof (_l = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _l : Object, Object]),
     __metadata("design:returntype", Promise)
 ], DrawingMjController.prototype, "change", null);
 __decorate([
@@ -12463,7 +12726,7 @@ __decorate([
     __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [typeof (_k = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _k : Object, Object]),
+    __metadata("design:paramtypes", [typeof (_m = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _m : Object, Object]),
     __metadata("design:returntype", Promise)
 ], DrawingMjController.prototype, "action", null);
 __decorate([
@@ -12472,7 +12735,7 @@ __decorate([
     __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [typeof (_l = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _l : Object, Object]),
+    __metadata("design:paramtypes", [typeof (_o = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _o : Object, Object]),
     __metadata("design:returntype", Promise)
 ], DrawingMjController.prototype, "simpleChange", null);
 __decorate([
@@ -12481,7 +12744,7 @@ __decorate([
     __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [typeof (_m = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _m : Object, Object]),
+    __metadata("design:paramtypes", [typeof (_p = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _p : Object, Object]),
     __metadata("design:returntype", Promise)
 ], DrawingMjController.prototype, "blend", null);
 __decorate([
@@ -12490,7 +12753,7 @@ __decorate([
     __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [typeof (_o = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _o : Object, Object]),
+    __metadata("design:paramtypes", [typeof (_q = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _q : Object, Object]),
     __metadata("design:returntype", Promise)
 ], DrawingMjController.prototype, "describe", null);
 __decorate([
@@ -12499,16 +12762,25 @@ __decorate([
     __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [typeof (_p = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _p : Object, Object]),
+    __metadata("design:paramtypes", [typeof (_r = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _r : Object, Object]),
     __metadata("design:returntype", Promise)
 ], DrawingMjController.prototype, "modal", null);
+__decorate([
+    (0, common_1.Post)('submit/edits'),
+    (0, swagger_1.ApiOperation)({ summary: 'MJ Edits（图 URL + prompt + 可选蒙版，依赖上游支持）' }),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_s = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _s : Object, Object]),
+    __metadata("design:returntype", Promise)
+], DrawingMjController.prototype, "edits", null);
 __decorate([
     (0, common_1.Post)('submit/shorten'),
     (0, swagger_1.ApiOperation)({ summary: 'MJ Shorten 提示词分析' }),
     __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [typeof (_q = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _q : Object, Object]),
+    __metadata("design:paramtypes", [typeof (_t = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _t : Object, Object]),
     __metadata("design:returntype", Promise)
 ], DrawingMjController.prototype, "shorten", null);
 __decorate([
@@ -12526,7 +12798,7 @@ __decorate([
     __param(1, (0, common_1.Query)('model')),
     __param(2, (0, common_1.Query)('mjMode')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, typeof (_r = typeof drawing_mj_service_1.MjSpeedMode !== "undefined" && drawing_mj_service_1.MjSpeedMode) === "function" ? _r : Object]),
+    __metadata("design:paramtypes", [String, String, typeof (_u = typeof drawing_mj_service_1.MjSpeedMode !== "undefined" && drawing_mj_service_1.MjSpeedMode) === "function" ? _u : Object]),
     __metadata("design:returntype", Promise)
 ], DrawingMjController.prototype, "taskFetch", null);
 __decorate([
@@ -12536,7 +12808,7 @@ __decorate([
     __param(1, (0, common_1.Query)('model')),
     __param(2, (0, common_1.Query)('mjMode')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, typeof (_s = typeof drawing_mj_service_1.MjSpeedMode !== "undefined" && drawing_mj_service_1.MjSpeedMode) === "function" ? _s : Object]),
+    __metadata("design:paramtypes", [String, String, typeof (_v = typeof drawing_mj_service_1.MjSpeedMode !== "undefined" && drawing_mj_service_1.MjSpeedMode) === "function" ? _v : Object]),
     __metadata("design:returntype", Promise)
 ], DrawingMjController.prototype, "imageSeed", null);
 exports.DrawingMjController = DrawingMjController = DrawingMjController_1 = __decorate([
@@ -12544,14 +12816,14 @@ exports.DrawingMjController = DrawingMjController = DrawingMjController_1 = __de
     (0, common_1.Controller)('drawing/mj'),
     (0, common_1.UseGuards)(jwtAuth_guard_1.JwtAuthGuard),
     (0, swagger_1.ApiBearerAuth)(),
-    __param(3, (0, typeorm_1.InjectRepository)(user_entity_1.UserEntity)),
-    __metadata("design:paramtypes", [typeof (_a = typeof drawing_mj_service_1.DrawingMjService !== "undefined" && drawing_mj_service_1.DrawingMjService) === "function" ? _a : Object, typeof (_b = typeof drawing_mj_job_service_1.DrawingMjJobService !== "undefined" && drawing_mj_job_service_1.DrawingMjJobService) === "function" ? _b : Object, typeof (_c = typeof userBalance_service_1.UserBalanceService !== "undefined" && userBalance_service_1.UserBalanceService) === "function" ? _c : Object, typeof (_d = typeof typeorm_2.Repository !== "undefined" && typeorm_2.Repository) === "function" ? _d : Object])
+    __param(4, (0, typeorm_1.InjectRepository)(user_entity_1.UserEntity)),
+    __metadata("design:paramtypes", [typeof (_a = typeof drawing_mj_service_1.DrawingMjService !== "undefined" && drawing_mj_service_1.DrawingMjService) === "function" ? _a : Object, typeof (_b = typeof drawing_mj_job_service_1.DrawingMjJobService !== "undefined" && drawing_mj_job_service_1.DrawingMjJobService) === "function" ? _b : Object, typeof (_c = typeof userBalance_service_1.UserBalanceService !== "undefined" && userBalance_service_1.UserBalanceService) === "function" ? _c : Object, typeof (_d = typeof upload_service_1.UploadService !== "undefined" && upload_service_1.UploadService) === "function" ? _d : Object, typeof (_e = typeof typeorm_2.Repository !== "undefined" && typeorm_2.Repository) === "function" ? _e : Object])
 ], DrawingMjController);
 
 
 /***/ }),
 /* 176 */
-/***/ ((__unused_webpack_module, exports) => {
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
@@ -12563,6 +12835,7 @@ exports.mjTaskButtonCustomZoomCustomId = mjTaskButtonCustomZoomCustomId;
 exports.stripMjModelVersionFlags = stripMjModelVersionFlags;
 exports.buildCustomZoomModalPromptFromTask = buildCustomZoomModalPromptFromTask;
 exports.presetOutpaintCustomZoomEnabledForProxy = presetOutpaintCustomZoomEnabledForProxy;
+const mj_proxy_host_markers_1 = __webpack_require__(177);
 function unwrapMjSubmitEnvelope(data) {
     if (data == null || typeof data !== 'object' || Array.isArray(data))
         return {};
@@ -12726,13 +12999,39 @@ function presetOutpaintCustomZoomEnabledForProxy(proxyUrl) {
         return false;
     if (v === '1' || v === 'true' || v === 'yes' || v === 'on' || v === 'all')
         return true;
-    const base = String(proxyUrl || '').toLowerCase();
-    return base.includes('ephone.ai');
+    return (0, mj_proxy_host_markers_1.proxyUrlMatchesMjHostMarkers)(proxyUrl);
 }
 
 
 /***/ }),
 /* 177 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.proxyUrlMatchesMjHostMarkers = proxyUrlMatchesMjHostMarkers;
+function parseMjProxyHostMarkers(env) {
+    const raw = env.MJ_PROXY_HOST_MARKERS?.trim();
+    if (!raw)
+        return [];
+    return raw
+        .split(/[,;]/)
+        .map(s => s.trim().toLowerCase())
+        .filter(s => s.length > 0);
+}
+function proxyUrlMatchesMjHostMarkers(proxyUrl, env = process.env) {
+    const markers = parseMjProxyHostMarkers(env);
+    if (!markers.length)
+        return false;
+    const u = String(proxyUrl || '').toLowerCase();
+    if (!u)
+        return false;
+    return markers.some(m => u.includes(m));
+}
+
+
+/***/ }),
+/* 178 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -12757,6 +13056,7 @@ const axios_1 = __webpack_require__(40);
 const typeorm_2 = __webpack_require__(3);
 const models_entity_1 = __webpack_require__(79);
 const mj_outpaint_cz_1 = __webpack_require__(176);
+const mj_proxy_host_markers_1 = __webpack_require__(177);
 function mjApiPrefix(mode) {
     switch (mode) {
         case 'turbo':
@@ -12783,8 +13083,39 @@ function mjSafeUrlForLog(fullUrl) {
 function mjSummarizePostBody(data) {
     const out = {};
     for (const [k, v] of Object.entries(data)) {
+        const lk = k.toLowerCase();
+        if (lk === 'prompt' && typeof v === 'string') {
+            const s = v;
+            out.prompt = s.length <= 260 ? s : `${s.slice(0, 260)}…`;
+            out.promptMeta = {
+                len: s.length,
+                cref: /--cref\b/i.test(s),
+                sref: /--sref\b/i.test(s),
+                oref: /--oref\b/i.test(s),
+                iw: /--iw\b/i.test(s),
+                stylize: /\s--s\s+\d/.test(s),
+                raw: /(^|\s)--raw\b/i.test(s) || /(^|\s)--style\s+raw\b/i.test(s),
+                draft: /--draft\b/i.test(s),
+                hd: /(^|\s)--hd\b/i.test(s),
+                sd: /(^|\s)--sd\b/i.test(s),
+                cw: /--cw\b/i.test(s),
+                sw: /--sw\b/i.test(s),
+                ow: /--ow\b/i.test(s),
+            };
+            continue;
+        }
+        if (lk === 'base64array' && Array.isArray(v)) {
+            const arr = v;
+            const lens = arr.map(x => (typeof x === 'string' ? x.length : 0));
+            const total = lens.reduce((a, b) => a + b, 0);
+            out.base64Array = {
+                count: arr.length,
+                totalChars: total,
+                firstLens: lens.slice(0, 3),
+            };
+            continue;
+        }
         if (typeof v === 'string') {
-            const lk = k.toLowerCase();
             if (lk.includes('base64') || lk === 'mask' || v.length > 240) {
                 out[k] = `<string len=${v.length}>`;
             }
@@ -12835,6 +13166,29 @@ function joinUrl(base, path) {
     const b = base.replace(/\/+$/, '');
     const p = path.startsWith('/') ? path : `/${path}`;
     return `${b}${p}`;
+}
+function mjDataUrlPrefixFromImageBuffer(buf) {
+    if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
+        return 'data:image/jpeg;base64,';
+    }
+    if (buf.length >= 8 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) {
+        return 'data:image/png;base64,';
+    }
+    if (buf.length >= 12 &&
+        buf[0] === 0x52 &&
+        buf[1] === 0x49 &&
+        buf[2] === 0x46 &&
+        buf[3] === 0x46 &&
+        buf.toString('ascii', 8, 12) === 'WEBP') {
+        return 'data:image/webp;base64,';
+    }
+    if (buf.length >= 6 && buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46) {
+        return 'data:image/gif;base64,';
+    }
+    if (buf.length >= 2 && buf[0] === 0x42 && buf[1] === 0x4d) {
+        return 'data:image/bmp;base64,';
+    }
+    return 'data:image/png;base64,';
 }
 function normalizeMjProxyBaseUrl(raw) {
     let url = raw.trim();
@@ -12958,6 +13312,101 @@ let DrawingMjService = class DrawingMjService {
         catch (e) {
             common_1.Logger.error(`MJ upstream error: ${e?.message}`, 'DrawingMjService');
             throw new common_1.HttpException(e?.message || '上游请求失败', common_1.HttpStatus.BAD_GATEWAY);
+        }
+    }
+    async uploadDiscordImagesToCdnHttpsUrls(row, mode, base64Array) {
+        if (!Array.isArray(base64Array) || base64Array.length === 0) {
+            throw new common_1.BadRequestException('upload-discord-images：base64Array 为空');
+        }
+        const res = await this.requestUpstream(row, mode, '/submit/upload-discord-images', {
+            data: { base64Array },
+        });
+        if (res.status >= 400) {
+            throw new common_1.HttpException(`upload-discord-images 上游 HTTP ${res.status}`, common_1.HttpStatus.BAD_GATEWAY);
+        }
+        const env = (0, mj_outpaint_cz_1.unwrapMjSubmitEnvelope)(res.data);
+        const code = Number(env.code);
+        if (code !== 1 && code !== 22) {
+            throw new common_1.BadRequestException(`upload-discord-images 未成功: ${JSON.stringify({
+                code: env.code,
+                description: env.description,
+            })}`);
+        }
+        const raw = env.result;
+        if (!Array.isArray(raw)) {
+            throw new common_1.BadRequestException('upload-discord-images 返回 result 非数组');
+        }
+        const urls = raw.map(x => String(x ?? '').trim()).filter(Boolean);
+        if (urls.length < base64Array.length) {
+            throw new common_1.BadRequestException(`upload-discord-images 返回条数不足：需 ${base64Array.length}，实际 ${urls.length}`);
+        }
+        const slice = urls.slice(0, base64Array.length);
+        for (const u of slice) {
+            if (!/^https:\/\//i.test(u)) {
+                throw new common_1.BadRequestException(`upload-discord-images 返回非 https 图链，无法用于 cref/sref/oref：${u.slice(0, 120)}`);
+            }
+        }
+        return slice;
+    }
+    async uploadDiscordImagesForBlend(row, mode, base64Array) {
+        const slice = await this.uploadDiscordImagesToCdnHttpsUrls(row, mode, base64Array);
+        if (process.env.MJ_BLEND_AFTER_UPLOAD_KEEP_URLS === '1') {
+            return slice;
+        }
+        const timeoutMs = Math.max(15_000, Math.min(300_000, (row.timeout || 300) * 1000));
+        const dataUrls = [];
+        for (const u of slice) {
+            dataUrls.push(await this.mjFetchBlendImageUrlAsDataUrl(u, timeoutMs));
+        }
+        const hostMatchesMarkers = (0, mj_proxy_host_markers_1.proxyUrlMatchesMjHostMarkers)(row.proxyUrl);
+        if (hostMatchesMarkers &&
+            process.env.MJ_BLEND_AFTER_UPLOAD_DATAURL !== '1' &&
+            process.env.MJ_BLEND_AFTER_UPLOAD_KEEP_URLS !== '1') {
+            return dataUrls.map(s => {
+                const m = s.match(/^data:image\/[^;]+;base64,(.+)$/i);
+                return m ? m[1] : s;
+            });
+        }
+        return dataUrls;
+    }
+    async mjFetchBlendImageUrlAsDataUrl(imageUrl, timeoutMs) {
+        const u = String(imageUrl || '').trim();
+        if (!/^https?:\/\//i.test(u)) {
+            throw new common_1.BadRequestException(`上传返回的图片地址无效: ${u.slice(0, 96)}`);
+        }
+        try {
+            const getRes = await axios_1.default.get(u, {
+                responseType: 'arraybuffer',
+                timeout: timeoutMs,
+                maxContentLength: 25 * 1024 * 1024,
+                maxBodyLength: 25 * 1024 * 1024,
+                validateStatus: () => true,
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (compatible; HOAI-MJ-Blend/1.0)',
+                    Accept: 'image/*,*/*;q=0.8',
+                },
+            });
+            if (getRes.status >= 400) {
+                throw new common_1.BadRequestException(`拉取上传图失败 HTTP ${getRes.status}: ${mjSafeUrlForLog(u)}`);
+            }
+            const buf = Buffer.from(getRes.data);
+            if (!buf.length) {
+                throw new common_1.BadRequestException(`拉取上传图为空: ${mjSafeUrlForLog(u)}`);
+            }
+            const ct = String(getRes.headers['content-type'] || '')
+                .split(';')[0]
+                .trim()
+                .toLowerCase();
+            const prefix = ct.startsWith('image/') && ct.length < 40
+                ? `data:${ct};base64,`
+                : mjDataUrlPrefixFromImageBuffer(buf);
+            return `${prefix}${buf.toString('base64')}`;
+        }
+        catch (e) {
+            if (e instanceof common_1.BadRequestException)
+                throw e;
+            const msg = e && typeof e === 'object' && 'message' in e ? String(e.message) : String(e);
+            throw new common_1.BadRequestException(`拉取上传图失败: ${msg} (${mjSafeUrlForLog(u)})`);
         }
     }
     presetOutpaintCustomZoomEnabled(row) {
@@ -13180,7 +13629,7 @@ exports.DrawingMjService = DrawingMjService = __decorate([
 
 
 /***/ }),
-/* 178 */
+/* 179 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -13201,10 +13650,10 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ChatController = void 0;
 const swagger_1 = __webpack_require__(14);
 const jwtAuth_guard_1 = __webpack_require__(88);
-const chat_service_1 = __webpack_require__(179);
+const chat_service_1 = __webpack_require__(180);
 const common_1 = __webpack_require__(2);
 const express_1 = __webpack_require__(105);
-const chatProcess_dto_1 = __webpack_require__(180);
+const chatProcess_dto_1 = __webpack_require__(182);
 let ChatController = class ChatController {
     chatService;
     constructor(chatService) {
@@ -13250,7 +13699,7 @@ exports.ChatController = ChatController = __decorate([
 
 
 /***/ }),
-/* 179 */
+/* 180 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -13269,6 +13718,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ChatService = void 0;
+const midjourney_constant_1 = __webpack_require__(181);
 const utils_1 = __webpack_require__(37);
 const common_1 = __webpack_require__(2);
 const typeorm_1 = __webpack_require__(34);
@@ -13281,7 +13731,7 @@ const autoReply_service_1 = __webpack_require__(136);
 const badWords_service_1 = __webpack_require__(144);
 const chatGroup_service_1 = __webpack_require__(157);
 const chatLog_service_1 = __webpack_require__(159);
-const drawing_mj_service_1 = __webpack_require__(177);
+const drawing_mj_service_1 = __webpack_require__(178);
 const globalConfig_service_1 = __webpack_require__(75);
 const models_service_1 = __webpack_require__(77);
 const plugin_entity_1 = __webpack_require__(161);
@@ -13876,7 +14326,8 @@ let ChatService = class ChatService {
             })}`);
         };
         writeProgress(`任务已提交（${taskId}），正在生成…\n`);
-        for (let i = 0; i < 120; i++) {
+        const pollMax = (0, midjourney_constant_1.mjUpstreamPollMaxIterations)(mode);
+        for (let i = 0; i < pollMax; i++) {
             if (abortController.signal.aborted) {
                 await this.chatLogService.updateChatLog(assistantLogId, {
                     content: '已取消',
@@ -13884,7 +14335,7 @@ let ChatService = class ChatService {
                 });
                 return;
             }
-            await new Promise(r => setTimeout(r, 2500));
+            await new Promise(r => setTimeout(r, midjourney_constant_1.MJ_UPSTREAM_POLL_INTERVAL_MS));
             let fetchOut;
             try {
                 fetchOut = await this.drawingMjService.requestUpstream(mjRow, mode, `/task/${encodeURIComponent(taskId)}/fetch`, { method: 'GET' });
@@ -13969,7 +14420,8 @@ let ChatService = class ChatService {
                 return;
             }
         }
-        const timeoutMsg = '生成超时，请稍后在记录中查看或重试';
+        const waitedMin = Math.round((pollMax * midjourney_constant_1.MJ_UPSTREAM_POLL_INTERVAL_MS) / 60000);
+        const timeoutMsg = `生成超时（已等待约 ${waitedMin} 分钟仍未完成），请稍后在记录中查看或重试`;
         await this.chatLogService.updateChatLog(assistantLogId, {
             content: timeoutMsg,
             status: 4,
@@ -14240,7 +14692,42 @@ exports.ChatService = ChatService = __decorate([
 
 
 /***/ }),
-/* 180 */
+/* 181 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.MidjourneyActionEnum = exports.MJ_UPSTREAM_POLL_INTERVAL_MS = exports.MidjourneyStatusEnum = void 0;
+exports.mjUpstreamPollMaxIterations = mjUpstreamPollMaxIterations;
+var MidjourneyStatusEnum;
+(function (MidjourneyStatusEnum) {
+    MidjourneyStatusEnum[MidjourneyStatusEnum["WAITING"] = 1] = "WAITING";
+    MidjourneyStatusEnum[MidjourneyStatusEnum["DRAWING"] = 2] = "DRAWING";
+    MidjourneyStatusEnum[MidjourneyStatusEnum["DRAWED"] = 3] = "DRAWED";
+    MidjourneyStatusEnum[MidjourneyStatusEnum["DRAWFAIL"] = 4] = "DRAWFAIL";
+    MidjourneyStatusEnum[MidjourneyStatusEnum["DRAWTIMEOUT"] = 5] = "DRAWTIMEOUT";
+})(MidjourneyStatusEnum || (exports.MidjourneyStatusEnum = MidjourneyStatusEnum = {}));
+exports.MJ_UPSTREAM_POLL_INTERVAL_MS = 2500;
+function mjUpstreamPollMaxIterations(mjMode) {
+    const m = String(mjMode ?? 'fast').toLowerCase();
+    if (m === 'relax')
+        return 720;
+    return 480;
+}
+var MidjourneyActionEnum;
+(function (MidjourneyActionEnum) {
+    MidjourneyActionEnum[MidjourneyActionEnum["DRAW"] = 1] = "DRAW";
+    MidjourneyActionEnum[MidjourneyActionEnum["UPSCALE"] = 2] = "UPSCALE";
+    MidjourneyActionEnum[MidjourneyActionEnum["VARIATION"] = 3] = "VARIATION";
+    MidjourneyActionEnum[MidjourneyActionEnum["GENERATE"] = 4] = "GENERATE";
+    MidjourneyActionEnum[MidjourneyActionEnum["REGENERATE"] = 5] = "REGENERATE";
+    MidjourneyActionEnum[MidjourneyActionEnum["VARY"] = 6] = "VARY";
+    MidjourneyActionEnum[MidjourneyActionEnum["ZOOM"] = 7] = "ZOOM";
+})(MidjourneyActionEnum || (exports.MidjourneyActionEnum = MidjourneyActionEnum = {}));
+
+
+/***/ }),
+/* 182 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14257,7 +14744,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ChatProcessDto = exports.Options = void 0;
 const class_validator_1 = __webpack_require__(111);
 const swagger_1 = __webpack_require__(14);
-const class_transformer_1 = __webpack_require__(181);
+const class_transformer_1 = __webpack_require__(183);
 class Options {
     parentMessageId;
     model;
@@ -14326,13 +14813,13 @@ __decorate([
 
 
 /***/ }),
-/* 181 */
+/* 183 */
 /***/ ((module) => {
 
 module.exports = require("class-transformer");
 
 /***/ }),
-/* 182 */
+/* 184 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14345,7 +14832,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ChatGroupModule = void 0;
 const common_1 = __webpack_require__(2);
-const chatGroup_controller_1 = __webpack_require__(183);
+const chatGroup_controller_1 = __webpack_require__(185);
 const chatGroup_service_1 = __webpack_require__(157);
 const typeorm_1 = __webpack_require__(34);
 const chatGroup_entity_1 = __webpack_require__(83);
@@ -14365,7 +14852,7 @@ exports.ChatGroupModule = ChatGroupModule = __decorate([
 
 
 /***/ }),
-/* 183 */
+/* 185 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14387,11 +14874,11 @@ exports.ChatGroupController = void 0;
 const swagger_1 = __webpack_require__(14);
 const chatGroup_service_1 = __webpack_require__(157);
 const common_1 = __webpack_require__(2);
-const createGroup_dto_1 = __webpack_require__(184);
+const createGroup_dto_1 = __webpack_require__(186);
 const express_1 = __webpack_require__(105);
 const jwtAuth_guard_1 = __webpack_require__(88);
-const delGroup_dto_1 = __webpack_require__(185);
-const updateGroup_dto_1 = __webpack_require__(186);
+const delGroup_dto_1 = __webpack_require__(187);
+const updateGroup_dto_1 = __webpack_require__(188);
 let ChatGroupController = class ChatGroupController {
     chatGroupService;
     constructor(chatGroupService) {
@@ -14475,7 +14962,7 @@ exports.ChatGroupController = ChatGroupController = __decorate([
 
 
 /***/ }),
-/* 184 */
+/* 186 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14522,7 +15009,7 @@ __decorate([
 
 
 /***/ }),
-/* 185 */
+/* 187 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14549,7 +15036,7 @@ __decorate([
 
 
 /***/ }),
-/* 186 */
+/* 188 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14599,7 +15086,7 @@ __decorate([
 
 
 /***/ }),
-/* 187 */
+/* 189 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14615,7 +15102,7 @@ const common_1 = __webpack_require__(2);
 const typeorm_1 = __webpack_require__(34);
 const chatGroup_entity_1 = __webpack_require__(83);
 const user_entity_1 = __webpack_require__(84);
-const chatLog_controller_1 = __webpack_require__(188);
+const chatLog_controller_1 = __webpack_require__(190);
 const chatLog_entity_1 = __webpack_require__(76);
 const chatLog_service_1 = __webpack_require__(159);
 let ChatLogModule = class ChatLogModule {
@@ -14633,7 +15120,7 @@ exports.ChatLogModule = ChatLogModule = __decorate([
 
 
 /***/ }),
-/* 188 */
+/* 190 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14659,15 +15146,15 @@ const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
 const express_1 = __webpack_require__(105);
 const chatLog_service_1 = __webpack_require__(159);
-const chatList_dto_1 = __webpack_require__(189);
-const del_dto_1 = __webpack_require__(190);
-const delByGroup_dto_1 = __webpack_require__(191);
-const exportExcelChatlog_dto_1 = __webpack_require__(192);
-const queryAllChatLog_dto_1 = __webpack_require__(193);
-const queryByAppId_dto_1 = __webpack_require__(194);
-const queryMyChatLog_dto_1 = __webpack_require__(195);
-const querySingleChat_dto_1 = __webpack_require__(196);
-const recDrawImg_dto_1 = __webpack_require__(197);
+const chatList_dto_1 = __webpack_require__(191);
+const del_dto_1 = __webpack_require__(192);
+const delByGroup_dto_1 = __webpack_require__(193);
+const exportExcelChatlog_dto_1 = __webpack_require__(194);
+const queryAllChatLog_dto_1 = __webpack_require__(195);
+const queryByAppId_dto_1 = __webpack_require__(196);
+const queryMyChatLog_dto_1 = __webpack_require__(197);
+const querySingleChat_dto_1 = __webpack_require__(198);
+const recDrawImg_dto_1 = __webpack_require__(199);
 let ChatLogController = class ChatLogController {
     chatLogService;
     constructor(chatLogService) {
@@ -14821,7 +15308,7 @@ exports.ChatLogController = ChatLogController = __decorate([
 
 
 /***/ }),
-/* 189 */
+/* 191 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14850,7 +15337,7 @@ __decorate([
 
 
 /***/ }),
-/* 190 */
+/* 192 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14877,7 +15364,7 @@ __decorate([
 
 
 /***/ }),
-/* 191 */
+/* 193 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14904,7 +15391,7 @@ __decorate([
 
 
 /***/ }),
-/* 192 */
+/* 194 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -14959,7 +15446,7 @@ __decorate([
 
 
 /***/ }),
-/* 193 */
+/* 195 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15027,7 +15514,7 @@ __decorate([
 
 
 /***/ }),
-/* 194 */
+/* 196 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15068,7 +15555,7 @@ __decorate([
 
 
 /***/ }),
-/* 195 */
+/* 197 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15097,7 +15584,7 @@ __decorate([
 
 
 /***/ }),
-/* 196 */
+/* 198 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15126,7 +15613,7 @@ __decorate([
 
 
 /***/ }),
-/* 197 */
+/* 199 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15153,7 +15640,7 @@ __decorate([
 
 
 /***/ }),
-/* 198 */
+/* 200 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15176,9 +15663,9 @@ const balance_entity_1 = __webpack_require__(81);
 const fingerprint_entity_1 = __webpack_require__(85);
 const userBalance_entity_1 = __webpack_require__(82);
 const userBalance_service_1 = __webpack_require__(35);
-const crami_controller_1 = __webpack_require__(199);
-const crami_entity_1 = __webpack_require__(201);
-const crami_service_1 = __webpack_require__(200);
+const crami_controller_1 = __webpack_require__(201);
+const crami_entity_1 = __webpack_require__(203);
+const crami_service_1 = __webpack_require__(202);
 const cramiPackage_entity_1 = __webpack_require__(72);
 let CramiModule = class CramiModule {
 };
@@ -15208,7 +15695,7 @@ exports.CramiModule = CramiModule = __decorate([
 
 
 /***/ }),
-/* 199 */
+/* 201 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15233,15 +15720,15 @@ const superAuth_guard_1 = __webpack_require__(104);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
 const express_1 = __webpack_require__(105);
-const crami_service_1 = __webpack_require__(200);
-const batchDelCrami_dto_1 = __webpack_require__(202);
-const createCrami_dto_1 = __webpack_require__(203);
-const createPackage_dto_1 = __webpack_require__(204);
-const deletePackage_dto_1 = __webpack_require__(205);
-const queryAllCrami_dto_1 = __webpack_require__(206);
-const queryAllPackage_dto_1 = __webpack_require__(207);
-const updatePackage_dto_1 = __webpack_require__(208);
-const useCrami_dto_1 = __webpack_require__(209);
+const crami_service_1 = __webpack_require__(202);
+const batchDelCrami_dto_1 = __webpack_require__(204);
+const createCrami_dto_1 = __webpack_require__(205);
+const createPackage_dto_1 = __webpack_require__(206);
+const deletePackage_dto_1 = __webpack_require__(207);
+const queryAllCrami_dto_1 = __webpack_require__(208);
+const queryAllPackage_dto_1 = __webpack_require__(209);
+const updatePackage_dto_1 = __webpack_require__(210);
+const useCrami_dto_1 = __webpack_require__(211);
 let CramiController = class CramiController {
     cramiService;
     constructor(cramiService) {
@@ -15385,7 +15872,7 @@ exports.CramiController = CramiController = __decorate([
 
 
 /***/ }),
-/* 200 */
+/* 202 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15411,7 +15898,7 @@ const typeorm_1 = __webpack_require__(34);
 const typeorm_2 = __webpack_require__(3);
 const user_entity_1 = __webpack_require__(84);
 const userBalance_service_1 = __webpack_require__(35);
-const crami_entity_1 = __webpack_require__(201);
+const crami_entity_1 = __webpack_require__(203);
 const cramiPackage_entity_1 = __webpack_require__(72);
 let CramiService = class CramiService {
     cramiEntity;
@@ -15629,7 +16116,7 @@ exports.CramiService = CramiService = __decorate([
 
 
 /***/ }),
-/* 201 */
+/* 203 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15714,7 +16201,7 @@ exports.CramiEntity = CramiEntity = __decorate([
 
 
 /***/ }),
-/* 202 */
+/* 204 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15744,7 +16231,7 @@ __decorate([
 
 
 /***/ }),
-/* 203 */
+/* 205 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15804,7 +16291,7 @@ __decorate([
 
 
 /***/ }),
-/* 204 */
+/* 206 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15820,7 +16307,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CreatePackageDto = void 0;
 const swagger_1 = __webpack_require__(14);
-const class_transformer_1 = __webpack_require__(181);
+const class_transformer_1 = __webpack_require__(183);
 const class_validator_1 = __webpack_require__(111);
 class CreatePackageDto {
     name;
@@ -15925,7 +16412,7 @@ __decorate([
 
 
 /***/ }),
-/* 205 */
+/* 207 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15954,7 +16441,7 @@ __decorate([
 
 
 /***/ }),
-/* 206 */
+/* 208 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16005,7 +16492,7 @@ __decorate([
 
 
 /***/ }),
-/* 207 */
+/* 209 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16066,7 +16553,7 @@ __decorate([
 
 
 /***/ }),
-/* 208 */
+/* 210 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16083,7 +16570,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UpdatePackageDto = void 0;
 const class_validator_1 = __webpack_require__(111);
 const swagger_1 = __webpack_require__(14);
-const createPackage_dto_1 = __webpack_require__(204);
+const createPackage_dto_1 = __webpack_require__(206);
 class UpdatePackageDto extends createPackage_dto_1.CreatePackageDto {
     id;
 }
@@ -16096,7 +16583,7 @@ __decorate([
 
 
 /***/ }),
-/* 209 */
+/* 211 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16129,7 +16616,7 @@ __decorate([
 
 
 /***/ }),
-/* 210 */
+/* 212 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16149,7 +16636,7 @@ exports.DatabaseModule = void 0;
 const common_1 = __webpack_require__(2);
 const typeorm_1 = __webpack_require__(34);
 const typeorm_2 = __webpack_require__(3);
-const database_service_1 = __webpack_require__(211);
+const database_service_1 = __webpack_require__(213);
 const app_entity_1 = __webpack_require__(107);
 const appCats_entity_1 = __webpack_require__(108);
 const userApps_entity_1 = __webpack_require__(109);
@@ -16158,16 +16645,16 @@ const badWords_entity_1 = __webpack_require__(145);
 const violationLog_entity_1 = __webpack_require__(146);
 const chatGroup_entity_1 = __webpack_require__(83);
 const chatLog_entity_1 = __webpack_require__(76);
-const crami_entity_1 = __webpack_require__(201);
+const crami_entity_1 = __webpack_require__(203);
 const cramiPackage_entity_1 = __webpack_require__(72);
 const drawing_mj_job_entity_1 = __webpack_require__(173);
 const config_entity_1 = __webpack_require__(74);
 const models_entity_1 = __webpack_require__(79);
-const model_token_catalog_entity_1 = __webpack_require__(212);
-const order_entity_1 = __webpack_require__(213);
+const model_token_catalog_entity_1 = __webpack_require__(214);
+const order_entity_1 = __webpack_require__(215);
 const plugin_entity_1 = __webpack_require__(161);
-const share_entity_1 = __webpack_require__(214);
-const signIn_entity_1 = __webpack_require__(215);
+const share_entity_1 = __webpack_require__(216);
+const signIn_entity_1 = __webpack_require__(217);
 const user_entity_1 = __webpack_require__(84);
 const accountLog_entity_1 = __webpack_require__(80);
 const balance_entity_1 = __webpack_require__(81);
@@ -16237,7 +16724,7 @@ exports.DatabaseModule = DatabaseModule = DatabaseModule_1 = __decorate([
 
 
 /***/ }),
-/* 211 */
+/* 213 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16422,7 +16909,7 @@ exports.DatabaseService = DatabaseService = __decorate([
 
 
 /***/ }),
-/* 212 */
+/* 214 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16487,7 +16974,7 @@ exports.ModelTokenCatalogEntity = ModelTokenCatalogEntity = __decorate([
 
 
 /***/ }),
-/* 213 */
+/* 215 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16581,7 +17068,7 @@ exports.OrderEntity = OrderEntity = __decorate([
 
 
 /***/ }),
-/* 214 */
+/* 216 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16627,7 +17114,7 @@ exports.Share = Share = __decorate([
 
 
 /***/ }),
-/* 215 */
+/* 217 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16674,7 +17161,7 @@ exports.SigninEntity = SigninEntity = __decorate([
 
 
 /***/ }),
-/* 216 */
+/* 218 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16690,7 +17177,7 @@ const common_1 = __webpack_require__(2);
 const typeorm_1 = __webpack_require__(34);
 const chatLog_entity_1 = __webpack_require__(76);
 const config_entity_1 = __webpack_require__(74);
-const globalConfig_controller_1 = __webpack_require__(217);
+const globalConfig_controller_1 = __webpack_require__(219);
 const globalConfig_service_1 = __webpack_require__(75);
 let GlobalConfigModule = class GlobalConfigModule {
 };
@@ -16707,7 +17194,7 @@ exports.GlobalConfigModule = GlobalConfigModule = __decorate([
 
 
 /***/ }),
-/* 217 */
+/* 219 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16731,8 +17218,8 @@ const superAuth_guard_1 = __webpack_require__(104);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
 const express_1 = __webpack_require__(105);
-const queryConfig_dto_1 = __webpack_require__(218);
-const setConfig_dto_1 = __webpack_require__(219);
+const queryConfig_dto_1 = __webpack_require__(220);
+const setConfig_dto_1 = __webpack_require__(221);
 const globalConfig_service_1 = __webpack_require__(75);
 let GlobalConfigController = class GlobalConfigController {
     globalConfigService;
@@ -16811,7 +17298,7 @@ exports.GlobalConfigController = GlobalConfigController = __decorate([
 
 
 /***/ }),
-/* 218 */
+/* 220 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16827,7 +17314,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.QueryConfigDto = void 0;
 const class_validator_1 = __webpack_require__(111);
-const class_transformer_1 = __webpack_require__(181);
+const class_transformer_1 = __webpack_require__(183);
 const swagger_1 = __webpack_require__(14);
 class QueryConfigDto {
     keys;
@@ -16846,7 +17333,7 @@ __decorate([
 
 
 /***/ }),
-/* 219 */
+/* 221 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16862,7 +17349,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.SetConfigDto = void 0;
 const swagger_1 = __webpack_require__(14);
-const class_transformer_1 = __webpack_require__(181);
+const class_transformer_1 = __webpack_require__(183);
 const class_validator_1 = __webpack_require__(111);
 class SetConfigDto {
     settings;
@@ -16882,7 +17369,7 @@ __decorate([
 
 
 /***/ }),
-/* 220 */
+/* 222 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16895,12 +17382,12 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ModelsModule = void 0;
 const common_1 = __webpack_require__(2);
-const models_controller_1 = __webpack_require__(221);
+const models_controller_1 = __webpack_require__(223);
 const models_service_1 = __webpack_require__(77);
 const typeorm_1 = __webpack_require__(34);
 const models_entity_1 = __webpack_require__(79);
-const model_token_catalog_entity_1 = __webpack_require__(212);
-const model_token_catalog_service_1 = __webpack_require__(229);
+const model_token_catalog_entity_1 = __webpack_require__(214);
+const model_token_catalog_service_1 = __webpack_require__(231);
 let ModelsModule = class ModelsModule {
 };
 exports.ModelsModule = ModelsModule;
@@ -16916,7 +17403,7 @@ exports.ModelsModule = ModelsModule = __decorate([
 
 
 /***/ }),
-/* 221 */
+/* 223 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16939,14 +17426,14 @@ const adminAuth_guard_1 = __webpack_require__(87);
 const superAuth_guard_1 = __webpack_require__(104);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
-const queryModel_dto_1 = __webpack_require__(222);
-const queryModelType_dto_1 = __webpack_require__(223);
-const queryTokenCatalog_dto_1 = __webpack_require__(224);
-const setModel_dto_1 = __webpack_require__(225);
-const setModelType_dto_1 = __webpack_require__(226);
-const setTokenCatalog_dto_1 = __webpack_require__(227);
-const syncTokenCatalog_dto_1 = __webpack_require__(228);
-const model_token_catalog_service_1 = __webpack_require__(229);
+const queryModel_dto_1 = __webpack_require__(224);
+const queryModelType_dto_1 = __webpack_require__(225);
+const queryTokenCatalog_dto_1 = __webpack_require__(226);
+const setModel_dto_1 = __webpack_require__(227);
+const setModelType_dto_1 = __webpack_require__(228);
+const setTokenCatalog_dto_1 = __webpack_require__(229);
+const syncTokenCatalog_dto_1 = __webpack_require__(230);
+const model_token_catalog_service_1 = __webpack_require__(231);
 const models_service_1 = __webpack_require__(77);
 let ModelsController = class ModelsController {
     modelsService;
@@ -17150,7 +17637,7 @@ exports.ModelsController = ModelsController = __decorate([
 
 
 /***/ }),
-/* 222 */
+/* 224 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17214,7 +17701,7 @@ __decorate([
 
 
 /***/ }),
-/* 223 */
+/* 225 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17260,7 +17747,7 @@ __decorate([
 
 
 /***/ }),
-/* 224 */
+/* 226 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17302,7 +17789,7 @@ __decorate([
 
 
 /***/ }),
-/* 225 */
+/* 227 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17470,7 +17957,7 @@ __decorate([
 
 
 /***/ }),
-/* 226 */
+/* 228 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17611,7 +18098,7 @@ __decorate([
 
 
 /***/ }),
-/* 227 */
+/* 229 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17673,7 +18160,7 @@ __decorate([
 
 
 /***/ }),
-/* 228 */
+/* 230 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17705,7 +18192,7 @@ __decorate([
 
 
 /***/ }),
-/* 229 */
+/* 231 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17728,11 +18215,11 @@ exports.ModelTokenCatalogService = void 0;
 const common_1 = __webpack_require__(2);
 const typeorm_1 = __webpack_require__(34);
 const axios_1 = __webpack_require__(40);
-const https = __webpack_require__(230);
+const https = __webpack_require__(232);
 const crypto_1 = __webpack_require__(17);
 const typeorm_2 = __webpack_require__(3);
-const model_limits_openrouter_litellm_1 = __webpack_require__(231);
-const model_token_catalog_entity_1 = __webpack_require__(212);
+const model_limits_openrouter_litellm_1 = __webpack_require__(233);
+const model_token_catalog_entity_1 = __webpack_require__(214);
 let ModelTokenCatalogService = ModelTokenCatalogService_1 = class ModelTokenCatalogService {
     catalogRepo;
     logger = new common_1.Logger(ModelTokenCatalogService_1.name);
@@ -18173,13 +18660,13 @@ exports.ModelTokenCatalogService = ModelTokenCatalogService = ModelTokenCatalogS
 
 
 /***/ }),
-/* 230 */
+/* 232 */
 /***/ ((module) => {
 
 module.exports = require("https");
 
 /***/ }),
-/* 231 */
+/* 233 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -18434,7 +18921,7 @@ function openRouterListToMap(data) {
 
 
 /***/ }),
-/* 232 */
+/* 234 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18447,8 +18934,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.OfficialModule = void 0;
 const common_1 = __webpack_require__(2);
-const official_controller_1 = __webpack_require__(233);
-const official_service_1 = __webpack_require__(236);
+const official_controller_1 = __webpack_require__(235);
+const official_service_1 = __webpack_require__(238);
 let OfficialModule = class OfficialModule {
 };
 exports.OfficialModule = OfficialModule;
@@ -18463,7 +18950,7 @@ exports.OfficialModule = OfficialModule = __decorate([
 
 
 /***/ }),
-/* 233 */
+/* 235 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18488,9 +18975,9 @@ const utils_1 = __webpack_require__(37);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
 const express_1 = __webpack_require__(105);
-const createMenu_dto_1 = __webpack_require__(234);
-const getQrCode_dto_1 = __webpack_require__(235);
-const official_service_1 = __webpack_require__(236);
+const createMenu_dto_1 = __webpack_require__(236);
+const getQrCode_dto_1 = __webpack_require__(237);
+const official_service_1 = __webpack_require__(238);
 let OfficialController = class OfficialController {
     officialService;
     constructor(officialService) {
@@ -18842,7 +19329,7 @@ exports.OfficialController = OfficialController = __decorate([
 
 
 /***/ }),
-/* 234 */
+/* 236 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18858,7 +19345,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CreateMenuDto = void 0;
 const swagger_1 = __webpack_require__(14);
-const class_transformer_1 = __webpack_require__(181);
+const class_transformer_1 = __webpack_require__(183);
 const class_validator_1 = __webpack_require__(111);
 class ButtonBase {
     name;
@@ -18978,7 +19465,7 @@ __decorate([
 
 
 /***/ }),
-/* 235 */
+/* 237 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19011,7 +19498,7 @@ __decorate([
 
 
 /***/ }),
-/* 236 */
+/* 238 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19032,7 +19519,7 @@ const common_1 = __webpack_require__(2);
 const axios_1 = __webpack_require__(40);
 const crypto = __webpack_require__(17);
 const autoReply_service_1 = __webpack_require__(136);
-const chat_service_1 = __webpack_require__(179);
+const chat_service_1 = __webpack_require__(180);
 const auth_service_1 = __webpack_require__(91);
 const globalConfig_service_1 = __webpack_require__(75);
 const user_service_1 = __webpack_require__(98);
@@ -19441,7 +19928,7 @@ exports.OfficialService = OfficialService = __decorate([
 
 
 /***/ }),
-/* 237 */
+/* 239 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19455,9 +19942,9 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.OrderModule = void 0;
 const cramiPackage_entity_1 = __webpack_require__(72);
 const common_1 = __webpack_require__(2);
-const order_controller_1 = __webpack_require__(238);
-const order_service_1 = __webpack_require__(239);
-const order_entity_1 = __webpack_require__(213);
+const order_controller_1 = __webpack_require__(240);
+const order_service_1 = __webpack_require__(241);
+const order_entity_1 = __webpack_require__(215);
 const typeorm_1 = __webpack_require__(34);
 const user_entity_1 = __webpack_require__(84);
 let OrderModule = class OrderModule {
@@ -19473,7 +19960,7 @@ exports.OrderModule = OrderModule = __decorate([
 
 
 /***/ }),
-/* 238 */
+/* 240 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19496,12 +19983,12 @@ const superAuth_guard_1 = __webpack_require__(104);
 const jwtAuth_guard_1 = __webpack_require__(88);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
-const order_service_1 = __webpack_require__(239);
+const order_service_1 = __webpack_require__(241);
 const express_1 = __webpack_require__(105);
-const buy_dto_1 = __webpack_require__(241);
-const queryByOrder_dto_1 = __webpack_require__(242);
+const buy_dto_1 = __webpack_require__(243);
+const queryByOrder_dto_1 = __webpack_require__(244);
 const adminAuth_guard_1 = __webpack_require__(87);
-const queryAllOrder_dto_1 = __webpack_require__(243);
+const queryAllOrder_dto_1 = __webpack_require__(245);
 let OrderController = class OrderController {
     orderService;
     constructor(orderService) {
@@ -19581,7 +20068,7 @@ exports.OrderController = OrderController = __decorate([
 
 
 /***/ }),
-/* 239 */
+/* 241 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19606,9 +20093,9 @@ const typeorm_1 = __webpack_require__(34);
 const typeorm_2 = __webpack_require__(3);
 const cramiPackage_entity_1 = __webpack_require__(72);
 const globalConfig_service_1 = __webpack_require__(75);
-const pay_service_1 = __webpack_require__(240);
+const pay_service_1 = __webpack_require__(242);
 const user_entity_1 = __webpack_require__(84);
-const order_entity_1 = __webpack_require__(213);
+const order_entity_1 = __webpack_require__(215);
 let OrderService = class OrderService {
     orderEntity;
     cramiPackageEntity;
@@ -19743,7 +20230,7 @@ exports.OrderService = OrderService = __decorate([
 
 
 /***/ }),
-/* 240 */
+/* 242 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19770,7 +20257,7 @@ const crypto = __webpack_require__(17);
 const typeorm_2 = __webpack_require__(3);
 const cramiPackage_entity_1 = __webpack_require__(72);
 const globalConfig_service_1 = __webpack_require__(75);
-const order_entity_1 = __webpack_require__(213);
+const order_entity_1 = __webpack_require__(215);
 const user_service_1 = __webpack_require__(98);
 const userBalance_service_1 = __webpack_require__(35);
 let PayService = class PayService {
@@ -20465,7 +20952,7 @@ exports.PayService = PayService = __decorate([
 
 
 /***/ }),
-/* 241 */
+/* 243 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20502,7 +20989,7 @@ __decorate([
 
 
 /***/ }),
-/* 242 */
+/* 244 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20533,7 +21020,7 @@ __decorate([
 
 
 /***/ }),
-/* 243 */
+/* 245 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20586,7 +21073,7 @@ __decorate([
 
 
 /***/ }),
-/* 244 */
+/* 246 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20599,9 +21086,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PayModule = void 0;
 const common_1 = __webpack_require__(2);
-const pay_controller_1 = __webpack_require__(245);
-const pay_service_1 = __webpack_require__(240);
-const order_entity_1 = __webpack_require__(213);
+const pay_controller_1 = __webpack_require__(247);
+const pay_service_1 = __webpack_require__(242);
+const order_entity_1 = __webpack_require__(215);
 const cramiPackage_entity_1 = __webpack_require__(72);
 const typeorm_1 = __webpack_require__(34);
 let PayModule = class PayModule {
@@ -20619,7 +21106,7 @@ exports.PayModule = PayModule = __decorate([
 
 
 /***/ }),
-/* 245 */
+/* 247 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20640,7 +21127,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PayController = void 0;
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
-const pay_service_1 = __webpack_require__(240);
+const pay_service_1 = __webpack_require__(242);
 let PayController = class PayController {
     payService;
     constructor(payService) {
@@ -20704,7 +21191,7 @@ exports.PayController = PayController = __decorate([
 
 
 /***/ }),
-/* 246 */
+/* 248 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20718,9 +21205,9 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PluginModule = void 0;
 const common_1 = __webpack_require__(2);
 const typeorm_1 = __webpack_require__(34);
-const plugin_controller_1 = __webpack_require__(247);
+const plugin_controller_1 = __webpack_require__(249);
 const plugin_entity_1 = __webpack_require__(161);
-const plugin_service_1 = __webpack_require__(248);
+const plugin_service_1 = __webpack_require__(250);
 let PluginModule = class PluginModule {
 };
 exports.PluginModule = PluginModule;
@@ -20734,7 +21221,7 @@ exports.PluginModule = PluginModule = __decorate([
 
 
 /***/ }),
-/* 247 */
+/* 249 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20757,7 +21244,7 @@ const superAuth_guard_1 = __webpack_require__(104);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
 const express_1 = __webpack_require__(105);
-const plugin_service_1 = __webpack_require__(248);
+const plugin_service_1 = __webpack_require__(250);
 let PluginController = class PluginController {
     pluginService;
     constructor(pluginService) {
@@ -20823,7 +21310,7 @@ exports.PluginController = PluginController = __decorate([
 
 
 /***/ }),
-/* 248 */
+/* 250 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20953,7 +21440,7 @@ exports.PluginService = PluginService = __decorate([
 
 
 /***/ }),
-/* 249 */
+/* 251 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20967,9 +21454,9 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ShareModule = void 0;
 const common_1 = __webpack_require__(2);
 const typeorm_1 = __webpack_require__(34);
-const share_controller_1 = __webpack_require__(250);
-const share_entity_1 = __webpack_require__(214);
-const share_service_1 = __webpack_require__(251);
+const share_controller_1 = __webpack_require__(252);
+const share_entity_1 = __webpack_require__(216);
+const share_service_1 = __webpack_require__(253);
 let ShareModule = class ShareModule {
 };
 exports.ShareModule = ShareModule;
@@ -20983,7 +21470,7 @@ exports.ShareModule = ShareModule = __decorate([
 
 
 /***/ }),
-/* 250 */
+/* 252 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21005,7 +21492,7 @@ exports.ShareController = void 0;
 const jwtAuth_guard_1 = __webpack_require__(88);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
-const share_service_1 = __webpack_require__(251);
+const share_service_1 = __webpack_require__(253);
 let ShareController = class ShareController {
     shareService;
     constructor(shareService) {
@@ -21053,7 +21540,7 @@ exports.ShareController = ShareController = __decorate([
 
 
 /***/ }),
-/* 251 */
+/* 253 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21076,7 +21563,7 @@ const common_1 = __webpack_require__(2);
 const typeorm_1 = __webpack_require__(34);
 const typeorm_2 = __webpack_require__(3);
 const globalConfig_service_1 = __webpack_require__(75);
-const share_entity_1 = __webpack_require__(214);
+const share_entity_1 = __webpack_require__(216);
 let ShareService = class ShareService {
     shareRepository;
     globalConfigService;
@@ -21132,7 +21619,7 @@ exports.ShareService = ShareService = __decorate([
 
 
 /***/ }),
-/* 252 */
+/* 254 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21145,10 +21632,10 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.SigninModule = void 0;
 const common_1 = __webpack_require__(2);
-const signin_controller_1 = __webpack_require__(253);
-const signin_service_1 = __webpack_require__(254);
+const signin_controller_1 = __webpack_require__(255);
+const signin_service_1 = __webpack_require__(256);
 const typeorm_1 = __webpack_require__(34);
-const signIn_entity_1 = __webpack_require__(215);
+const signIn_entity_1 = __webpack_require__(217);
 const user_entity_1 = __webpack_require__(84);
 let SigninModule = class SigninModule {
 };
@@ -21165,7 +21652,7 @@ exports.SigninModule = SigninModule = __decorate([
 
 
 /***/ }),
-/* 253 */
+/* 255 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21185,7 +21672,7 @@ var _a, _b, _c;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.SigninController = void 0;
 const common_1 = __webpack_require__(2);
-const signin_service_1 = __webpack_require__(254);
+const signin_service_1 = __webpack_require__(256);
 const swagger_1 = __webpack_require__(14);
 const jwtAuth_guard_1 = __webpack_require__(88);
 const express_1 = __webpack_require__(105);
@@ -21230,7 +21717,7 @@ exports.SigninController = SigninController = __decorate([
 
 
 /***/ }),
-/* 254 */
+/* 256 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21252,7 +21739,7 @@ exports.SigninService = void 0;
 const globalConfig_service_1 = __webpack_require__(75);
 const userBalance_service_1 = __webpack_require__(35);
 const common_1 = __webpack_require__(2);
-const signIn_entity_1 = __webpack_require__(215);
+const signIn_entity_1 = __webpack_require__(217);
 const typeorm_1 = __webpack_require__(34);
 const typeorm_2 = __webpack_require__(3);
 const date_1 = __webpack_require__(48);
@@ -21365,7 +21852,7 @@ exports.SigninService = SigninService = __decorate([
 
 
 /***/ }),
-/* 255 */
+/* 257 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21378,7 +21865,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.SpaModule = void 0;
 const common_1 = __webpack_require__(2);
-const spa_controller_1 = __webpack_require__(256);
+const spa_controller_1 = __webpack_require__(258);
 let SpaModule = class SpaModule {
 };
 exports.SpaModule = SpaModule;
@@ -21390,7 +21877,7 @@ exports.SpaModule = SpaModule = __decorate([
 
 
 /***/ }),
-/* 256 */
+/* 258 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21461,7 +21948,7 @@ exports.SpaController = SpaController = SpaController_1 = __decorate([
 
 
 /***/ }),
-/* 257 */
+/* 259 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21477,10 +21964,10 @@ const common_1 = __webpack_require__(2);
 const typeorm_1 = __webpack_require__(34);
 const chatLog_entity_1 = __webpack_require__(76);
 const config_entity_1 = __webpack_require__(74);
-const order_entity_1 = __webpack_require__(213);
+const order_entity_1 = __webpack_require__(215);
 const user_entity_1 = __webpack_require__(84);
-const statistic_controller_1 = __webpack_require__(258);
-const statistic_service_1 = __webpack_require__(260);
+const statistic_controller_1 = __webpack_require__(260);
+const statistic_service_1 = __webpack_require__(262);
 let StatisticModule = class StatisticModule {
 };
 exports.StatisticModule = StatisticModule;
@@ -21494,7 +21981,7 @@ exports.StatisticModule = StatisticModule = __decorate([
 
 
 /***/ }),
-/* 258 */
+/* 260 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21516,8 +22003,8 @@ exports.StatisticController = void 0;
 const adminAuth_guard_1 = __webpack_require__(87);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
-const queryStatisticDto_dto_1 = __webpack_require__(259);
-const statistic_service_1 = __webpack_require__(260);
+const queryStatisticDto_dto_1 = __webpack_require__(261);
+const statistic_service_1 = __webpack_require__(262);
 let StatisticController = class StatisticController {
     statisticService;
     constructor(statisticService) {
@@ -21571,7 +22058,7 @@ exports.StatisticController = StatisticController = __decorate([
 
 
 /***/ }),
-/* 259 */
+/* 261 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21598,7 +22085,7 @@ __decorate([
 
 
 /***/ }),
-/* 260 */
+/* 262 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21626,7 +22113,7 @@ const typeorm_2 = __webpack_require__(3);
 const chatLog_entity_1 = __webpack_require__(76);
 const config_entity_1 = __webpack_require__(74);
 const globalConfig_service_1 = __webpack_require__(75);
-const order_entity_1 = __webpack_require__(213);
+const order_entity_1 = __webpack_require__(215);
 const user_entity_1 = __webpack_require__(84);
 let StatisticService = class StatisticService {
     userEntity;
@@ -21882,7 +22369,7 @@ exports.StatisticService = StatisticService = __decorate([
 
 
 /***/ }),
-/* 261 */
+/* 263 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21895,12 +22382,12 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.TaskModule = void 0;
 const common_1 = __webpack_require__(2);
-const schedule_1 = __webpack_require__(262);
+const schedule_1 = __webpack_require__(264);
 const typeorm_1 = __webpack_require__(34);
-const globalConfig_module_1 = __webpack_require__(216);
-const models_module_1 = __webpack_require__(220);
+const globalConfig_module_1 = __webpack_require__(218);
+const models_module_1 = __webpack_require__(222);
 const userBalance_entity_1 = __webpack_require__(82);
-const task_service_1 = __webpack_require__(263);
+const task_service_1 = __webpack_require__(265);
 let TaskModule = class TaskModule {
 };
 exports.TaskModule = TaskModule;
@@ -21918,13 +22405,13 @@ exports.TaskModule = TaskModule = __decorate([
 
 
 /***/ }),
-/* 262 */
+/* 264 */
 /***/ ((module) => {
 
 module.exports = require("@nestjs/schedule");
 
 /***/ }),
-/* 263 */
+/* 265 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21944,7 +22431,7 @@ var _a, _b, _c;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.TaskService = void 0;
 const common_1 = __webpack_require__(2);
-const schedule_1 = __webpack_require__(262);
+const schedule_1 = __webpack_require__(264);
 const typeorm_1 = __webpack_require__(34);
 const fs = __webpack_require__(19);
 const path = __webpack_require__(21);
@@ -22024,7 +22511,7 @@ exports.TaskService = TaskService = __decorate([
 
 
 /***/ }),
-/* 264 */
+/* 266 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22038,7 +22525,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UploadModule = void 0;
 const common_1 = __webpack_require__(2);
 const redisCache_module_1 = __webpack_require__(27);
-const upload_controller_1 = __webpack_require__(265);
+const upload_controller_1 = __webpack_require__(267);
 const upload_service_1 = __webpack_require__(162);
 let UploadModule = class UploadModule {
 };
@@ -22055,7 +22542,7 @@ exports.UploadModule = UploadModule = __decorate([
 
 
 /***/ }),
-/* 265 */
+/* 267 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22076,7 +22563,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UploadController = void 0;
 const jwtAuth_guard_1 = __webpack_require__(88);
 const common_1 = __webpack_require__(2);
-const platform_express_1 = __webpack_require__(266);
+const platform_express_1 = __webpack_require__(268);
 const swagger_1 = __webpack_require__(14);
 const express_1 = __webpack_require__(105);
 const upload_service_1 = __webpack_require__(162);
@@ -22115,13 +22602,13 @@ exports.UploadController = UploadController = __decorate([
 
 
 /***/ }),
-/* 266 */
+/* 268 */
 /***/ ((module) => {
 
 module.exports = require("@nestjs/platform-express");
 
 /***/ }),
-/* 267 */
+/* 269 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22143,7 +22630,7 @@ const chatGroup_entity_1 = __webpack_require__(83);
 const chatLog_entity_1 = __webpack_require__(76);
 const cramiPackage_entity_1 = __webpack_require__(72);
 const config_entity_1 = __webpack_require__(74);
-const globalConfig_module_1 = __webpack_require__(216);
+const globalConfig_module_1 = __webpack_require__(218);
 const redisCache_service_1 = __webpack_require__(29);
 const user_entity_1 = __webpack_require__(84);
 const verification_entity_1 = __webpack_require__(102);
@@ -22151,7 +22638,7 @@ const verification_service_1 = __webpack_require__(101);
 const accountLog_entity_1 = __webpack_require__(80);
 const balance_entity_1 = __webpack_require__(81);
 const fingerprint_entity_1 = __webpack_require__(85);
-const userBalance_controller_1 = __webpack_require__(268);
+const userBalance_controller_1 = __webpack_require__(270);
 const userBalance_entity_1 = __webpack_require__(82);
 const userBalance_service_1 = __webpack_require__(35);
 let UserBalanceModule = class UserBalanceModule {
@@ -22186,7 +22673,7 @@ exports.UserBalanceModule = UserBalanceModule = __decorate([
 
 
 /***/ }),
-/* 268 */
+/* 270 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22293,7 +22780,7 @@ exports.UserBalanceController = UserBalanceController = __decorate([
 
 
 /***/ }),
-/* 269 */
+/* 271 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22322,7 +22809,7 @@ exports.VerificationModule = VerificationModule = __decorate([
 
 
 /***/ }),
-/* 270 */
+/* 272 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22372,7 +22859,7 @@ exports.AllExceptionsFilter = AllExceptionsFilter = __decorate([
 
 
 /***/ }),
-/* 271 */
+/* 273 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -22380,7 +22867,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.initDatabase = initDatabase;
 const common_1 = __webpack_require__(2);
 const dotenv_1 = __webpack_require__(18);
-const mysql = __webpack_require__(272);
+const mysql = __webpack_require__(274);
 const typeorm_1 = __webpack_require__(3);
 const app_entity_1 = __webpack_require__(107);
 const appCats_entity_1 = __webpack_require__(108);
@@ -22390,16 +22877,16 @@ const badWords_entity_1 = __webpack_require__(145);
 const violationLog_entity_1 = __webpack_require__(146);
 const chatGroup_entity_1 = __webpack_require__(83);
 const chatLog_entity_1 = __webpack_require__(76);
-const crami_entity_1 = __webpack_require__(201);
+const crami_entity_1 = __webpack_require__(203);
 const cramiPackage_entity_1 = __webpack_require__(72);
 const drawing_mj_job_entity_1 = __webpack_require__(173);
 const config_entity_1 = __webpack_require__(74);
 const models_entity_1 = __webpack_require__(79);
-const model_token_catalog_entity_1 = __webpack_require__(212);
-const order_entity_1 = __webpack_require__(213);
+const model_token_catalog_entity_1 = __webpack_require__(214);
+const order_entity_1 = __webpack_require__(215);
 const plugin_entity_1 = __webpack_require__(161);
-const share_entity_1 = __webpack_require__(214);
-const signIn_entity_1 = __webpack_require__(215);
+const share_entity_1 = __webpack_require__(216);
+const signIn_entity_1 = __webpack_require__(217);
 const user_entity_1 = __webpack_require__(84);
 const accountLog_entity_1 = __webpack_require__(80);
 const balance_entity_1 = __webpack_require__(81);
@@ -22591,7 +23078,7 @@ async function initDatabase() {
 
 
 /***/ }),
-/* 272 */
+/* 274 */
 /***/ ((module) => {
 
 module.exports = require("mysql2/promise");
@@ -22646,7 +23133,7 @@ const ioredis_1 = __webpack_require__(20);
 const path = __webpack_require__(21);
 __webpack_require__(22);
 const app_module_1 = __webpack_require__(23);
-const allExceptions_filter_1 = __webpack_require__(270);
+const allExceptions_filter_1 = __webpack_require__(272);
 Dotenv.config({ path: '.env' });
 function findFilePath(filename) {
     const possiblePaths = [
@@ -22680,7 +23167,7 @@ async function bootstrap() {
         common_1.Logger.log('Generating and setting new JWT_SECRET');
         await redis.set('JWT_SECRET', jwtSecret);
     }
-    const { initDatabase } = __webpack_require__(271);
+    const { initDatabase } = __webpack_require__(273);
     const app = await core_1.NestFactory.create(app_module_1.AppModule, {
         bufferLogs: true,
         logger: ['log', 'error', 'warn', 'debug', 'verbose'],
