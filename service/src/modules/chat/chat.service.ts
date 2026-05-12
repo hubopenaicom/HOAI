@@ -1,4 +1,8 @@
 import {
+  mjUpstreamPollMaxIterations,
+  MJ_UPSTREAM_POLL_INTERVAL_MS,
+} from '@/common/constants/midjourney.constant';
+import {
   convertUrlToBase64,
   correctApiBaseUrl,
   formatUrl,
@@ -801,7 +805,8 @@ export class ChatService {
 
     writeProgress(`任务已提交（${taskId}），正在生成…\n`);
 
-    for (let i = 0; i < 120; i++) {
+    const pollMax = mjUpstreamPollMaxIterations(mode);
+    for (let i = 0; i < pollMax; i++) {
       if (abortController.signal.aborted) {
         await this.chatLogService.updateChatLog(assistantLogId, {
           content: '已取消',
@@ -809,7 +814,7 @@ export class ChatService {
         });
         return;
       }
-      await new Promise(r => setTimeout(r, 2500));
+      await new Promise(r => setTimeout(r, MJ_UPSTREAM_POLL_INTERVAL_MS));
 
       let fetchOut;
       try {
@@ -917,7 +922,8 @@ export class ChatService {
       }
     }
 
-    const timeoutMsg = '生成超时，请稍后在记录中查看或重试';
+    const waitedMin = Math.round((pollMax * MJ_UPSTREAM_POLL_INTERVAL_MS) / 60000);
+    const timeoutMsg = `生成超时（已等待约 ${waitedMin} 分钟仍未完成），请稍后在记录中查看或重试`;
     await this.chatLogService.updateChatLog(assistantLogId, {
       content: timeoutMsg,
       status: 4,
