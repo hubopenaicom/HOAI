@@ -5,10 +5,15 @@ import {
   fetchMjDrawingJobsList,
   fetchMjImageSeed,
   fetchMjTask,
+  listMjTasksByIds,
   submitMjAction,
+  submitMjBlend,
+  submitMjChange,
   submitMjDescribe,
+  submitMjEdits,
   submitMjImagine,
   submitMjShorten,
+  submitMjSimpleChange,
   type MjDrawingJobDto,
   type MjDrawingJobSnapshot,
   type MjSpeedMode,
@@ -19,10 +24,13 @@ import { fetchDrawingModelsListAPI } from '@/api/models'
 import BadWordsDialog from '@/components/Dialogs/BadWordsDialog.vue'
 import { openImageViewer } from '@/components/common/ImageViewer/useImageViewer'
 import DrawingStudioSidebar from '@/components/drawing/DrawingStudioSidebar.vue'
+import DrawingUploadPreviewGrid from '@/components/drawing/DrawingUploadPreviewGrid.vue'
 import type {
+  MjBlendDimensions,
   MjNijiVersion,
   MjRealisticVersion,
   MjStyle,
+  StudioTab,
 } from '@/components/drawing/DrawingStudioSidebar.vue'
 import Login from '@/components/Login/Login.vue'
 import MobileSettingsDialog from '@/components/MobileSettingsDialog.vue'
@@ -34,11 +42,18 @@ import { copyText } from '@/utils/format'
 import { message } from '@/utils/message'
 import { STORAGE_KEY_DRAWING_BIND_GROUP } from '@/utils/drawingClientStorage'
 import {
+  mjDrawingRefCrefKey,
+  mjDrawingRefOrefKey,
+  mjDrawingRefSrefKey,
+} from '@/utils/mjDrawingInjectKeys'
+import {
   collectMjImageUrls,
   extractMjViewerCaptions,
   extractMjTaskId,
   inferMjRunningPhase,
   isMjSubmitAcceptedCode,
+  MJ_TASK_POLL_INTERVAL_MS,
+  mjTaskPollMaxIterations,
   mjTaskPollOutcome,
   nestResultErrorMessage,
   parseMjImageSeedBody,
@@ -48,7 +63,18 @@ import {
   parseMjTaskBody,
   mjTaskFailureHintKey,
   mjTaskFailureHintKeyFromTask,
+  mjKnownDrawingErrorI18nKey,
+  mjTranslateKnownDrawingError,
+  mjExtRefUrlSanitized,
+  mjClipExtRefUrlForStorage,
 } from '@/utils/mjApiParse'
+import {
+  mjVersionSupportsCref,
+  mjVersionSupportsDraft,
+  mjVersionSupportsOref,
+  mjVersionSupportsSref,
+  mjVersionSupportsSvValue,
+} from '@/utils/mjParamVersionSupport'
 import {
   buildMjFollowUpPromptLabel,
   formatMjUpstreamButtonLabel,
@@ -68,8 +94,9 @@ import { useChat } from '@/views/chat/hooks/useChat'
 import { watchDebounced } from '@vueuse/core'
 import { computed, nextTick, onMounted, onUnmounted, provide, ref, watch } from 'vue'
 
-type StudioTab = 't2i' | 'i2i' | 'spell'
 type SpellMode = 'describe' | 'shorten'
+/** 写实 V8：与侧栏 Midjourney 高级参数中的 SD/HD 一致 */
+type MjV8OutputMode = 'off' | 'sd' | 'hd'
 
 interface DrawingModel {
   modelName: string
@@ -201,6 +228,10 @@ function extractImageUrls(text: string): string[] {
   return [...urls]
 }
 
+/** 与 DrawingStudioSidebar 一致，改善部分浏览器对 file 选择器的支持 */
+const MJ_DRAWING_IMAGE_ACCEPT =
+  'image/jpeg,image/png,image/webp,image/gif,image/bmp,.jpg,.jpeg,.png,.webp,.gif,.bmp,image/*'
+
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const fr = new FileReader()
@@ -208,6 +239,116 @@ function fileToBase64(file: File): Promise<string> {
     fr.onerror = reject
     fr.readAsDataURL(file)
   })
+}
+
+/** 图生图 / 描述等：降采样 + JPEG 压体积，减少 JSON 体被网关 413 截断 */
+const MJ_REF_IMAGE_MAX_EDGE = 2048
+const MJ_REF_JPEG_QUALITY = 0.88
+
+/**
+ * 混图专用：比 i2i 更保守的最长边 + 统一 JPEG，降低像素数与 base64 体积。
+ * 部分聚合在执行期对超大参考图报 invalid_parameter（文案常写成「提示词格式」）。
+ */
+const MJ_BLEND_IMAGE_MAX_EDGE = 1024
+const MJ_BLEND_JPEG_QUALITY = 0.86
+
+async function fileToMjDataUrl(file: File): Promise<string> {
+  try {
+    const bmp = await createImageBitmap(file)
+    try {
+      let { width, height } = bmp
+      const maxE = MJ_REF_IMAGE_MAX_EDGE
+      if (width > maxE || height > maxE) {
+        if (width >= height) {
+          height = Math.max(1, Math.round((height * maxE) / width))
+          width = maxE
+        } else {
+          width = Math.max(1, Math.round((width * maxE) / height))
+          height = maxE
+        }
+      }
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return fileToBase64(file)
+      ctx.drawImage(bmp, 0, 0, width, height)
+      const jpegish =
+        file.type === 'image/jpeg' ||
+        file.type === 'image/jpg' ||
+        file.type === 'image/bmp' ||
+        /\.(jpe?g|bmp)$/i.test(file.name)
+      if (jpegish) return canvas.toDataURL('image/jpeg', MJ_REF_JPEG_QUALITY)
+      return canvas.toDataURL('image/png')
+    } finally {
+      bmp.close()
+    }
+  } catch {
+    return fileToBase64(file)
+  }
+}
+
+async function fileToMjBlendDataUrl(file: File): Promise<string> {
+  try {
+    const bmp = await createImageBitmap(file)
+    try {
+      let { width, height } = bmp
+      const maxE = MJ_BLEND_IMAGE_MAX_EDGE
+      if (width > maxE || height > maxE) {
+        if (width >= height) {
+          height = Math.max(1, Math.round((height * maxE) / width))
+          width = maxE
+        } else {
+          width = Math.max(1, Math.round((width * maxE) / height))
+          height = maxE
+        }
+      }
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return fileToMjDataUrl(file)
+      ctx.drawImage(bmp, 0, 0, width, height)
+      return canvas.toDataURL('image/jpeg', MJ_BLEND_JPEG_QUALITY)
+    } finally {
+      bmp.close()
+    }
+  } catch {
+    return fileToMjDataUrl(file)
+  }
+}
+
+/** 局部重绘蒙版需保留透明度，仅做大图降采样，统一 PNG */
+const MJ_MASK_MAX_EDGE = 4096
+
+async function fileToMjMaskDataUrl(file: File): Promise<string> {
+  try {
+    const bmp = await createImageBitmap(file)
+    try {
+      let { width, height } = bmp
+      const maxE = MJ_MASK_MAX_EDGE
+      if (width > maxE || height > maxE) {
+        if (width >= height) {
+          height = Math.max(1, Math.round((height * maxE) / width))
+          width = maxE
+        } else {
+          width = Math.max(1, Math.round((width * maxE) / height))
+          height = maxE
+        }
+      }
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return fileToBase64(file)
+      ctx.drawImage(bmp, 0, 0, width, height)
+      return canvas.toDataURL('image/png')
+    } finally {
+      bmp.close()
+    }
+  } catch {
+    return fileToBase64(file)
+  }
 }
 
 const ms = message()
@@ -245,18 +386,59 @@ const mjRealisticVersion = ref<MjRealisticVersion>('7')
 const mjNijiVersion = ref<MjNijiVersion>('6')
 /** 可选 --seed（0～4294967295），空则不附加 */
 const mjSeed = ref('')
-/** 开启后 buildMjPrompt 仅返回用户输入，不附加 --ar / --v / --niji / --no（mjMode 仍为接口参数） */
+/** 开启后不在提示词中自动拼 --ar / --v / --niji / --seed / --no；侧栏「高级参数」（cref/sref、--s、垫图 --iw 等）仍会附加 */
 const mjCustomParamsOnly = ref(false)
+/** Midjourney 高级参数：0 表示不附加该项；--iw 仅在与垫图一并提交时写入 */
+const mjParamIw = ref(0)
+const mjParamStylize = ref(0)
+const mjParamChaos = ref(0)
+const mjParamWeird = ref(0)
+const mjParamStop = ref(0)
+/** 0 关；1=.25 / 2=.5 / 3=1 / 4=2 */
+const mjParamQuality = ref(0)
+const mjStyleRaw = ref(false)
+/** 角色 / 风格 / Omni 参考图直链（与官方 --cref / --sref / --oref 一致） */
+const mjRefCrefUrl = ref('')
+const mjParamCw = ref(0)
+const mjRefSrefUrl = ref('')
+const mjParamSw = ref(0)
+const mjParamSv = ref(0)
+const mjRefOrefUrl = ref('')
+const mjParamOw = ref(0)
+const mjParamTile = ref(false)
+const mjParamDraft = ref(false)
+/** 写实 V8：附加 --sd 或 --hd（官方 V8.1 文档；互斥） */
+const mjV8OutputMode = ref<MjV8OutputMode>('off')
+/** 0/1 关；2～40 对应 --repeat（上限随订阅档位变化） */
+const mjParamRepeat = ref(0)
+/** cref/sref/oref 图床上传中（与 MjImagineAdvParams 的 mjRefUploading 同步） */
+const mjRefUploading = ref(false)
+
+provide(mjDrawingRefCrefKey, mjRefCrefUrl)
+provide(mjDrawingRefSrefKey, mjRefSrefUrl)
+provide(mjDrawingRefOrefKey, mjRefOrefUrl)
+
 const MJ_CUSTOM_PARAMS_LS = 'hoai_drawing_mj_custom_params_only'
 const MJ_VER_LS = 'hoai_drawing_mj_realistic_version'
 const MJ_NIJI_LS = 'hoai_drawing_mj_niji_version'
 const MJ_SEED_LS = 'hoai_drawing_mj_seed'
+/** 滑杆高级参数持久化（0 表示不附加） */
+const MJ_ADV_SLIDERS_LS = 'hoai_drawing_mj_adv_sliders_v1'
 const mjSubmitting = ref(false)
 const taskSearchQuery = ref('')
 const mjJobs = ref<MjJobItem[]>([])
 /** 与云端 users.mj_jobs_sync_seq 对齐；每次 DELETE 递增，batch-upsert 须带 baseSyncSeq */
 const mjListSyncSeq = ref(0)
 const implyBase64List = ref<string[]>([])
+const blendBase64List = ref<string[]>([])
+const blendDimensions = ref<MjBlendDimensions>('SQUARE')
+const editsImageUrl = ref('')
+const editsMaskBase64 = ref('')
+const mjChangeTaskId = ref('')
+const mjChangeAction = ref('UPSCALE')
+const mjChangeIndex = ref(1)
+const mjSimpleChangeContent = ref('')
+const mjBatchSyncing = ref(false)
 const describeBase64 = ref('')
 const pollTimers = new Map<string, ReturnType<typeof setInterval>>()
 
@@ -462,9 +644,168 @@ function mjSeedSuffix(seedRaw: string): string | null {
   return `--seed ${Math.floor(n)}`
 }
 
-function buildMjPrompt(userMsg: string): string {
+function mjSupportsCrefInPrompt(): boolean {
+  return mjVersionSupportsCref(mjStyle.value, mjRealisticVersion.value, mjNijiVersion.value)
+}
+
+function mjSupportsSrefInPrompt(): boolean {
+  return mjVersionSupportsSref(mjStyle.value, mjRealisticVersion.value, mjNijiVersion.value)
+}
+
+function mjSupportsOrefInPrompt(): boolean {
+  return mjVersionSupportsOref(mjStyle.value, mjRealisticVersion.value, mjNijiVersion.value)
+}
+
+/** 官方 Omni Reference：存在有效 --oref 链时与 Draft、`--q 4`、Fast Mode 等不兼容（见 Omni Reference 文档） */
+function mjOrefComboLockActive(): boolean {
+  return mjSupportsOrefInPrompt() && !!mjExtRefUrlSanitized(mjRefOrefUrl.value)
+}
+
+const mjOrefComboLock = computed(() => mjOrefComboLockActive())
+
+function mjAppendAdvancedPromptSuffixes(kind: 'imagine' | 'edits'): string[] {
+  const out: string[] = []
+  if (kind === 'imagine' && mjParamIw.value > 0 && implyBase64List.value.length > 0) {
+    const iw = 0.25 + ((mjParamIw.value - 1) / 99) * 1.75
+    out.push(`--iw ${iw.toFixed(2)}`)
+  }
+  if (mjParamStylize.value > 0) {
+    out.push(`--s ${Math.round(Math.min(1000, Math.max(1, mjParamStylize.value)))}`)
+  }
+  if (mjParamChaos.value > 0) {
+    out.push(`--chaos ${Math.round(Math.min(100, Math.max(1, mjParamChaos.value)))}`)
+  }
+  if (mjParamWeird.value > 0) {
+    out.push(`--weird ${Math.round(Math.min(3000, Math.max(1, mjParamWeird.value)))}`)
+  }
+  if (mjParamStop.value >= 10) {
+    out.push(`--stop ${Math.round(Math.min(100, Math.max(10, mjParamStop.value)))}`)
+  }
+  const q = mjParamQuality.value
+  const orefLock = mjOrefComboLockActive()
+  if (q === 1) out.push('--q .25')
+  else if (q === 2) out.push('--q .5')
+  else if (q === 3) out.push('--q 1')
+  else if (q === 4 && !orefLock) out.push('--q 2')
+  if (mjStyleRaw.value) out.push('--raw')
+
+  if (mjSupportsCrefInPrompt()) {
+    const cref = mjExtRefUrlSanitized(mjRefCrefUrl.value)
+    if (cref) {
+      out.push(`--cref ${cref}`)
+      if (mjParamCw.value > 0) {
+        out.push(`--cw ${Math.min(100, Math.max(1, Math.round(mjParamCw.value)))}`)
+      }
+    }
+  }
+  if (mjSupportsSrefInPrompt()) {
+    const sref = mjExtRefUrlSanitized(mjRefSrefUrl.value)
+    if (sref) {
+      out.push(`--sref ${sref}`)
+      if (mjParamSw.value > 0) {
+        out.push(`--sw ${Math.min(1000, Math.max(1, Math.round(mjParamSw.value)))}`)
+      }
+      const sv = Math.round(mjParamSv.value)
+      if (
+        mjVersionSupportsSvValue(mjStyle.value, mjRealisticVersion.value, mjNijiVersion.value, sv)
+      ) {
+        out.push(`--sv ${sv}`)
+      }
+    }
+  }
+
+  if (mjSupportsOrefInPrompt()) {
+    const oref = mjExtRefUrlSanitized(mjRefOrefUrl.value)
+    if (oref) {
+      out.push(`--oref ${oref}`)
+      if (mjParamOw.value > 0) {
+        out.push(`--ow ${Math.min(1000, Math.max(1, Math.round(mjParamOw.value)))}`)
+      }
+    }
+  }
+
+  if (mjParamTile.value) out.push('--tile')
+  if (
+    mjParamDraft.value &&
+    mjVersionSupportsDraft(mjStyle.value, mjRealisticVersion.value, mjNijiVersion.value) &&
+    !mjOrefComboLockActive()
+  ) {
+    out.push('--draft')
+  }
+  if (mjStyle.value === 'realistic' && mjRealisticVersion.value === '8') {
+    if (mjV8OutputMode.value === 'sd') out.push('--sd')
+    else if (mjV8OutputMode.value === 'hd') out.push('--hd')
+  }
+  const rep = Math.round(mjParamRepeat.value)
+  if (rep >= 2 && rep <= 40) out.push(`--repeat ${rep}`)
+
+  return out
+}
+
+/**
+ * 侧栏已有合法 https 参考链但最终 prompt 未出现 --cref/--sref/--oref 时补上一段（与 {@link mjAppendAdvancedPromptSuffixes} 一致）。
+ * 用于防御 v-model/emit 竞态、旧静态资源包等导致的漏拼，避免服务端日志 promptMeta.cref 恒为 false。
+ */
+function mjRepairMissingExternalRefSuffixes(prompt: string): string {
+  let out = prompt
+  const addChunk = (frag: string) => {
+    if (!frag) return
+    if (!out) out = frag
+    else out = out.endsWith(' ') ? `${out}${frag}` : `${out} ${frag}`
+  }
+
+  if (mjSupportsCrefInPrompt()) {
+    const cref = mjExtRefUrlSanitized(mjRefCrefUrl.value)
+    if (cref && !/--cref\b/i.test(out)) {
+      addChunk(`--cref ${cref}`)
+      if (mjParamCw.value > 0 && !/--cw\b/i.test(out)) {
+        addChunk(`--cw ${Math.min(100, Math.max(1, Math.round(mjParamCw.value)))}`)
+      }
+    }
+  }
+  if (mjSupportsSrefInPrompt()) {
+    const sref = mjExtRefUrlSanitized(mjRefSrefUrl.value)
+    if (sref && !/--sref\b/i.test(out)) {
+      addChunk(`--sref ${sref}`)
+      if (mjParamSw.value > 0 && !/--sw\b/i.test(out)) {
+        addChunk(`--sw ${Math.min(1000, Math.max(1, Math.round(mjParamSw.value)))}`)
+      }
+      const sv = Math.round(mjParamSv.value)
+      if (
+        mjVersionSupportsSvValue(
+          mjStyle.value,
+          mjRealisticVersion.value,
+          mjNijiVersion.value,
+          sv
+        ) &&
+        !/--sv\b/i.test(out)
+      ) {
+        addChunk(`--sv ${sv}`)
+      }
+    }
+  }
+
+  if (mjSupportsOrefInPrompt()) {
+    const oref = mjExtRefUrlSanitized(mjRefOrefUrl.value)
+    if (oref && !/--oref\b/i.test(out)) {
+      addChunk(`--oref ${oref}`)
+      if (mjParamOw.value > 0 && !/--ow\b/i.test(out)) {
+        addChunk(`--ow ${Math.min(1000, Math.max(1, Math.round(mjParamOw.value)))}`)
+      }
+    }
+  }
+
+  return out
+}
+
+function buildMjPrompt(userMsg: string, kind: 'imagine' | 'edits' = 'imagine'): string {
   const base = userMsg.trim()
-  if (mjCustomParamsOnly.value) return base
+  /** 仅自定义：不自动拼 --ar/--v/--niji/--seed/--no，但侧栏「高级参数」仍须写入（cref/sref、--s、垫图 --iw 等） */
+  if (mjCustomParamsOnly.value) {
+    const parts: string[] = [base]
+    for (const x of mjAppendAdvancedPromptSuffixes(kind)) parts.push(x)
+    return mjRepairMissingExternalRefSuffixes(parts.filter(Boolean).join(' '))
+  }
   const parts: string[] = [base, mjArSuffix.value]
   if (mjStyle.value === 'anime') parts.push(`--niji ${mjNijiVersion.value}`)
   else parts.push(`--v ${mjRealisticVersion.value}`)
@@ -472,15 +813,46 @@ function buildMjPrompt(userMsg: string): string {
   if (seedPart) parts.push(seedPart)
   const neg = negativePrompt.value.trim()
   if (neg) parts.push(`--no ${neg.replace(/\s+/g, ' ')}`)
-  return parts.filter(Boolean).join(' ')
+  for (const x of mjAppendAdvancedPromptSuffixes(kind)) {
+    parts.push(x)
+  }
+  return mjRepairMissingExternalRefSuffixes(parts.filter(Boolean).join(' '))
 }
 
 function loadMjCustomParamsPref() {
   try {
-    mjCustomParamsOnly.value = localStorage.getItem(MJ_CUSTOM_PARAMS_LS) === '1'
+    const raw = localStorage.getItem(MJ_CUSTOM_PARAMS_LS)
+    if (raw === '1') {
+      mjCustomParamsOnly.value = true
+    } else {
+      mjCustomParamsOnly.value = false
+      if (raw != null && raw !== '0') localStorage.setItem(MJ_CUSTOM_PARAMS_LS, '0')
+    }
   } catch {
     /* ignore */
   }
+}
+
+function setMjCustomParamsOnly(v: boolean) {
+  mjCustomParamsOnly.value = v
+}
+
+/** 显式写入 ref，避免模板内联箭头在部分构建链路上对 ref 赋值不可靠，导致 --cref 未进 prompt */
+function setMjRefCrefUrl(v: string) {
+  const raw = mjClipExtRefUrlForStorage(String(v ?? ''))
+  /** 与侧栏校验一致：优先写入规范化后的 https，解析失败时保留原文便于用户继续编辑 */
+  mjRefCrefUrl.value = mjExtRefUrlSanitized(raw) ?? raw
+}
+function setMjRefSrefUrl(v: string) {
+  const raw = mjClipExtRefUrlForStorage(String(v ?? ''))
+  mjRefSrefUrl.value = mjExtRefUrlSanitized(raw) ?? raw
+}
+function setMjRefOrefUrl(v: string) {
+  const raw = mjClipExtRefUrlForStorage(String(v ?? ''))
+  mjRefOrefUrl.value = mjExtRefUrlSanitized(raw) ?? raw
+}
+function setMjRefUploading(v: boolean) {
+  mjRefUploading.value = !!v
 }
 
 function loadMjVersionSeedPrefs() {
@@ -496,10 +868,136 @@ function loadMjVersionSeedPrefs() {
   }
 }
 
+function clamp(n: number, lo: number, hi: number): number {
+  return Math.min(hi, Math.max(lo, n))
+}
+
+function mjNum(v: unknown, fallback = 0): number {
+  const n = Number(v)
+  return Number.isFinite(n) ? n : fallback
+}
+
+/** 侧栏 v-model 显式写 .value，避免内联 `v => (ref = x)` 在部分构建链路上未按 ref 解包导致状态丢失 */
+function setMjParamIw(v: number) {
+  mjParamIw.value = clamp(Math.floor(mjNum(v)), 0, 100)
+}
+function setMjParamStylize(v: number) {
+  mjParamStylize.value = clamp(Math.floor(mjNum(v)), 0, 1000)
+}
+function setMjParamChaos(v: number) {
+  mjParamChaos.value = clamp(Math.floor(mjNum(v)), 0, 100)
+}
+function setMjParamWeird(v: number) {
+  mjParamWeird.value = clamp(Math.floor(mjNum(v)), 0, 3000)
+}
+function setMjParamStop(v: number) {
+  mjParamStop.value = clamp(Math.floor(mjNum(v)), 0, 100)
+}
+function setMjParamQuality(v: number) {
+  mjParamQuality.value = clamp(Math.floor(mjNum(v)), 0, 4)
+}
+function setMjStyleRaw(v: boolean) {
+  mjStyleRaw.value = !!v
+}
+function setMjParamCw(v: number) {
+  mjParamCw.value = clamp(Math.floor(mjNum(v)), 0, 100)
+}
+function setMjParamSw(v: number) {
+  mjParamSw.value = clamp(Math.floor(mjNum(v)), 0, 1000)
+}
+function setMjParamSv(v: number) {
+  mjParamSv.value = clamp(Math.floor(mjNum(v)), 0, 7)
+}
+function setMjParamOw(v: number) {
+  mjParamOw.value = clamp(Math.floor(mjNum(v)), 0, 1000)
+}
+function setMjParamTile(v: boolean) {
+  mjParamTile.value = !!v
+}
+function setMjParamDraft(v: boolean) {
+  mjParamDraft.value = !!v
+}
+function setMjV8OutputMode(v: MjV8OutputMode | string) {
+  const x = String(v) as MjV8OutputMode
+  if (x === 'sd' || x === 'hd' || x === 'off') mjV8OutputMode.value = x
+}
+function setMjParamRepeat(v: number) {
+  mjParamRepeat.value = clamp(Math.floor(mjNum(v)), 0, 40)
+}
+
+/** 本地持久化里曾出现「有 --cw/--sw 权重但无有效 https 链」的组合时，与 mjAppendAdvancedPromptSuffixes 对齐，避免误提示 / 误显示 */
+function normalizeMjRefSlidersAgainstStoredUrls(): void {
+  if (!mjExtRefUrlSanitized(mjRefCrefUrl.value)) mjParamCw.value = 0
+  if (!mjExtRefUrlSanitized(mjRefSrefUrl.value)) {
+    mjParamSw.value = 0
+    mjParamSv.value = 0
+  }
+  if (!mjExtRefUrlSanitized(mjRefOrefUrl.value)) mjParamOw.value = 0
+}
+
+function loadMjAdvSlidersPrefs() {
+  try {
+    const raw = localStorage.getItem(MJ_ADV_SLIDERS_LS)
+    if (!raw) return
+    const o = JSON.parse(raw) as Record<string, unknown>
+    if (typeof o.iw === 'number') mjParamIw.value = clamp(Math.floor(o.iw), 0, 100)
+    if (typeof o.stylize === 'number') mjParamStylize.value = clamp(Math.floor(o.stylize), 0, 1000)
+    if (typeof o.chaos === 'number') mjParamChaos.value = clamp(Math.floor(o.chaos), 0, 100)
+    if (typeof o.weird === 'number') mjParamWeird.value = clamp(Math.floor(o.weird), 0, 3000)
+    if (typeof o.stop === 'number') mjParamStop.value = clamp(Math.floor(o.stop), 0, 100)
+    if (typeof o.quality === 'number') mjParamQuality.value = clamp(Math.floor(o.quality), 0, 4)
+    if (typeof o.styleRaw === 'boolean') mjStyleRaw.value = o.styleRaw
+    if (typeof o.crefUrl === 'string') mjRefCrefUrl.value = mjClipExtRefUrlForStorage(o.crefUrl)
+    if (typeof o.cw === 'number') mjParamCw.value = clamp(Math.floor(o.cw), 0, 100)
+    if (typeof o.srefUrl === 'string') mjRefSrefUrl.value = mjClipExtRefUrlForStorage(o.srefUrl)
+    if (typeof o.sw === 'number') mjParamSw.value = clamp(Math.floor(o.sw), 0, 1000)
+    if (typeof o.sv === 'number') mjParamSv.value = clamp(Math.floor(o.sv), 0, 7)
+    if (typeof o.orefUrl === 'string') mjRefOrefUrl.value = mjClipExtRefUrlForStorage(o.orefUrl)
+    if (typeof o.ow === 'number') mjParamOw.value = clamp(Math.floor(o.ow), 0, 1000)
+    if (typeof o.tile === 'boolean') mjParamTile.value = o.tile
+    if (typeof o.draft === 'boolean') mjParamDraft.value = o.draft
+    if (o.v8Out === 'sd' || o.v8Out === 'hd' || o.v8Out === 'off') mjV8OutputMode.value = o.v8Out
+    if (typeof o.repeat === 'number') mjParamRepeat.value = clamp(Math.floor(o.repeat), 0, 40)
+    normalizeMjRefSlidersAgainstStoredUrls()
+  } catch {
+    /* ignore */
+  }
+}
+
+function persistMjAdvSlidersPrefs() {
+  try {
+    localStorage.setItem(
+      MJ_ADV_SLIDERS_LS,
+      JSON.stringify({
+        iw: mjParamIw.value,
+        stylize: mjParamStylize.value,
+        chaos: mjParamChaos.value,
+        weird: mjParamWeird.value,
+        stop: mjParamStop.value,
+        quality: mjParamQuality.value,
+        styleRaw: mjStyleRaw.value,
+        crefUrl: mjRefCrefUrl.value,
+        cw: mjParamCw.value,
+        srefUrl: mjRefSrefUrl.value,
+        sw: mjParamSw.value,
+        sv: mjParamSv.value,
+        orefUrl: mjRefOrefUrl.value,
+        ow: mjParamOw.value,
+        tile: mjParamTile.value,
+        draft: mjParamDraft.value,
+        v8Out: mjV8OutputMode.value,
+        repeat: mjParamRepeat.value,
+      })
+    )
+  } catch {
+    /* ignore */
+  }
+}
+
 function applyMjSubmitResponse(r: unknown, job: MjJobItem): boolean {
   const parsed = parseMjSubmitBody(r)
   if (!parsed.ok) {
-    job.error = parsed.message || t('common.wrong')
+    job.error = mjTranslateKnownDrawingError(parsed.message, t) || t('common.wrong')
     return false
   }
   const mj = parsed.mj
@@ -510,11 +1008,15 @@ function applyMjSubmitResponse(r: unknown, job: MjJobItem): boolean {
     return true
   }
   if (!isMjSubmitAcceptedCode(mj?.code)) {
-    job.error =
-      mj?.description || (mj?.code != null ? `submit code=${mj.code}` : '') || t('common.wrong')
+    const descRaw = mj?.description != null ? String(mj.description).trim() : ''
+    const codePart = mj?.code != null ? `submit code=${mj.code}` : ''
+    const desc = descRaw || codePart
+    job.error = mjTranslateKnownDrawingError(desc, t) || desc || t('common.wrong')
     return false
   }
-  job.error = mj?.description || t('drawing.mjNoTaskId')
+  job.error =
+    mjTranslateKnownDrawingError(mj?.description != null ? String(mj.description) : '', t) ||
+    t('drawing.mjNoTaskId')
   return false
 }
 
@@ -645,10 +1147,10 @@ function startPollTask(taskId: string, job: MjJobItem) {
       return
     }
     n++
-    if (n > 120) {
+    if (n > mjTaskPollMaxIterations(mode)) {
       stopPoll(taskId)
       live.loading = false
-      live.error = live.error || 'timeout'
+      live.error = live.error || t('drawing.mjClientPollTimeout')
       return
     }
     try {
@@ -657,7 +1159,7 @@ function startPollTask(taskId: string, job: MjJobItem) {
       if (nestErr) {
         stopPoll(taskId)
         live.loading = false
-        live.error = nestErr
+        live.error = mjTranslateKnownDrawingError(nestErr, t) || nestErr
         return
       }
       const task = parseMjTaskBody(r)
@@ -680,7 +1182,8 @@ function startPollTask(taskId: string, job: MjJobItem) {
       if (outcome.phase === 'done_fail') {
         const raw = outcome.message || 'FAILURE'
         const hintKey = mjTaskFailureHintKeyFromTask(task) ?? mjTaskFailureHintKey(raw)
-        live.error = hintKey ? t(hintKey) : raw
+        const queueKey = mjKnownDrawingErrorI18nKey(raw)
+        live.error = hintKey ? t(hintKey) : queueKey ? t(queueKey) : raw
       }
       await authStore.getUserBalance()
     } catch {
@@ -696,7 +1199,7 @@ function startPollTask(taskId: string, job: MjJobItem) {
     }
   }
   void tick()
-  const id = setInterval(() => void tick(), 2500)
+  const id = setInterval(() => void tick(), MJ_TASK_POLL_INTERVAL_MS)
   pollTimers.set(taskId, id)
 }
 
@@ -734,10 +1237,28 @@ async function handleMjImagine() {
     ms.warning(t('drawing.needPrompt'))
     return
   }
+  if (mjRefUploading.value) {
+    ms.warning(t('drawing.mjRefWaitUploadWhenGenerate'))
+    return
+  }
+  if (mjParamCw.value > 0 && !mjExtRefUrlSanitized(mjRefCrefUrl.value)) {
+    ms.warning(t('drawing.mjRefNeedUrlHint'))
+    return
+  }
+  if ((mjParamSw.value > 0 || mjParamSv.value > 0) && !mjExtRefUrlSanitized(mjRefSrefUrl.value)) {
+    ms.warning(t('drawing.mjRefNeedUrlHint'))
+    return
+  }
+  if (mjParamOw.value > 0 && !mjExtRefUrlSanitized(mjRefOrefUrl.value)) {
+    ms.warning(t('drawing.mjRefNeedUrlHint'))
+    return
+  }
   if (studioTab.value === 'i2i' && implyBase64List.value.length < 1) {
     ms.warning(t('drawing.i2iNeedImage'))
     return
   }
+  await nextTick()
+  await nextTick()
   const fullPrompt = buildMjPrompt(msg)
   const job: MjJobItem = {
     localId: nextMjClientKey(),
@@ -834,6 +1355,310 @@ async function handleMjShorten() {
   }
 }
 
+async function onBlendFiles(e: Event) {
+  const inp = e.target as HTMLInputElement
+  const files = inp.files
+  if (!files?.length) return
+  try {
+    const list: string[] = []
+    for (let i = 0; i < files.length; i++) {
+      list.push(await fileToMjBlendDataUrl(files[i]))
+    }
+    blendBase64List.value = list
+  } catch {
+    ms.error(t('drawing.mjFileReadFail'))
+  } finally {
+    inp.value = ''
+  }
+}
+
+async function handleMjBlend() {
+  const m = selectedModel.value
+  if (!m) return
+  if (blendBase64List.value.length < 2) {
+    ms.warning(t('drawing.mjNeedBlendTwo'))
+    return
+  }
+  const job: MjJobItem = {
+    localId: nextMjClientKey(),
+    taskId: '',
+    promptLabel: `Blend (${blendBase64List.value.length})`,
+    loading: true,
+    mjStyleSnapshot: mjStyle.value,
+  }
+  attachMjJobModelMeta(job, m)
+  mjJobs.value.unshift(job)
+  try {
+    const r = await submitMjBlend({
+      model: m.model,
+      mjMode: mjMode.value,
+      base64Array: blendBase64List.value,
+      dimensions: blendDimensions.value,
+    })
+    if (!applyMjSubmitResponse(r, job)) {
+      job.loading = false
+      return
+    }
+    startPollTask(job.taskId, job)
+  } catch (e: unknown) {
+    job.loading = false
+    job.error = (e as Error)?.message || t('common.wrong')
+  }
+}
+
+function fillEditsUrlFromLatestJob() {
+  for (const job of mjJobs.value) {
+    const urls = mjJobImageUrls(job)
+    if (urls.length) {
+      editsImageUrl.value = urls[0]
+      return
+    }
+  }
+  ms.warning(t('drawing.mjEditsNoImageToFill'))
+}
+
+async function onEditsMaskFile(e: Event) {
+  const inp = e.target as HTMLInputElement
+  const file = inp.files?.[0]
+  if (!file) return
+  try {
+    editsMaskBase64.value = await fileToMjMaskDataUrl(file)
+  } catch {
+    ms.error(t('drawing.mjFileReadFail'))
+  } finally {
+    inp.value = ''
+  }
+}
+
+async function handleMjEdits() {
+  const m = selectedModel.value
+  if (!m) return
+  const msg = promptText.value.trim()
+  if (!msg) {
+    ms.warning(t('drawing.needPrompt'))
+    return
+  }
+  const img = editsImageUrl.value.trim()
+  if (!img) {
+    ms.warning(t('drawing.mjEditsNeedUrl'))
+    return
+  }
+  if (mjRefUploading.value) {
+    ms.warning(t('drawing.mjRefWaitUploadWhenGenerate'))
+    return
+  }
+  if (mjParamCw.value > 0 && !mjExtRefUrlSanitized(mjRefCrefUrl.value)) {
+    ms.warning(t('drawing.mjRefNeedUrlHint'))
+    return
+  }
+  if ((mjParamSw.value > 0 || mjParamSv.value > 0) && !mjExtRefUrlSanitized(mjRefSrefUrl.value)) {
+    ms.warning(t('drawing.mjRefNeedUrlHint'))
+    return
+  }
+  if (mjParamOw.value > 0 && !mjExtRefUrlSanitized(mjRefOrefUrl.value)) {
+    ms.warning(t('drawing.mjRefNeedUrlHint'))
+    return
+  }
+  await nextTick()
+  await nextTick()
+  const fullPrompt = buildMjPrompt(msg, 'edits')
+  const job: MjJobItem = {
+    localId: nextMjClientKey(),
+    taskId: '',
+    promptLabel: msg,
+    loading: true,
+    mjStyleSnapshot: mjStyle.value,
+  }
+  attachMjJobModelMeta(job, m)
+  mjJobs.value.unshift(job)
+  try {
+    const r = await submitMjEdits({
+      model: m.model,
+      mjMode: mjMode.value,
+      prompt: fullPrompt,
+      image: img,
+      maskBase64: editsMaskBase64.value.trim() || undefined,
+    })
+    if (!applyMjSubmitResponse(r, job)) {
+      job.loading = false
+      return
+    }
+    startPollTask(job.taskId, job)
+  } catch (e: unknown) {
+    job.loading = false
+    job.error = (e as Error)?.message || t('common.wrong')
+  }
+}
+
+function extractMjTaskListArray(payload: unknown): Record<string, unknown>[] {
+  if (Array.isArray(payload)) return payload as Record<string, unknown>[]
+  if (payload && typeof payload === 'object') {
+    const p = payload as Record<string, unknown>
+    const cands = [p.list, p.data, p.records, p.tasks, p.rows]
+    for (const c of cands) {
+      if (Array.isArray(c)) return c as Record<string, unknown>[]
+      if (c && typeof c === 'object' && !Array.isArray(c)) {
+        const inner = (c as Record<string, unknown>).list
+        if (Array.isArray(inner)) return inner as Record<string, unknown>[]
+      }
+    }
+  }
+  return []
+}
+
+function pickMjListRowTaskId(row: Record<string, unknown>): string {
+  return String(row.id ?? row.taskId ?? row.task_id ?? '').trim()
+}
+
+function rowToMjTaskRecord(row: Record<string, unknown>): Record<string, unknown> {
+  if (row.status != null || row.imageUrl != null || row.image_url != null || row.progress != null)
+    return row
+  const nested = row.task
+  if (nested && typeof nested === 'object' && !Array.isArray(nested))
+    return nested as Record<string, unknown>
+  return row
+}
+
+async function syncMjTasksBatch() {
+  const m = selectedModel.value
+  if (!m) {
+    ms.warning(t('drawing.needModel'))
+    return
+  }
+  const ids = [
+    ...new Set(mjJobs.value.map(j => String(j.taskId || '').trim()).filter(Boolean)),
+  ] as string[]
+  if (!ids.length) {
+    ms.warning(t('drawing.mjBatchSyncNoIds'))
+    return
+  }
+  if (mjBatchSyncing.value) return
+  mjBatchSyncing.value = true
+  try {
+    const slice = ids.slice(0, 50)
+    const res = await listMjTasksByIds<unknown>({
+      model: m.model,
+      mjMode: mjMode.value,
+      ids: slice,
+    })
+    const payload = (res as { data?: unknown })?.data ?? res
+    const rows = extractMjTaskListArray(payload)
+    let n = 0
+    for (const row of rows) {
+      const tid = pickMjListRowTaskId(row)
+      if (!tid) continue
+      const taskRec = rowToMjTaskRecord(row)
+      const job = mjJobs.value.find(j => j.taskId === tid)
+      if (!job) continue
+      job.task = taskRec
+      n++
+    }
+    if (n) ms.success(t('drawing.mjBatchSyncOk', { n }))
+    else ms.info(t('drawing.mjBatchSyncEmpty'))
+  } catch (e: unknown) {
+    ms.error((e as Error)?.message || t('drawing.mjBatchSyncFail'))
+  } finally {
+    mjBatchSyncing.value = false
+  }
+}
+
+async function handleMjChangeSubmit() {
+  if (!authStore.isLogin) {
+    ms.warning(t('drawing.loginRequired'))
+    authStore.setLoginDialog(true)
+    return
+  }
+  const m = selectedModel.value
+  if (!m) return
+  await ensureDrawingSession(m)
+  const tid = mjChangeTaskId.value.trim()
+  if (!tid) {
+    ms.warning(t('drawing.mjChangeNeedTaskId'))
+    return
+  }
+  const job: MjJobItem = {
+    localId: nextMjClientKey(),
+    taskId: '',
+    promptLabel: `change ${mjChangeAction.value}${mjChangeAction.value === 'REGENERATE' ? '' : ` #${mjChangeIndex.value}`}`,
+    loading: true,
+    mjStyleSnapshot: mjStyle.value,
+  }
+  attachMjJobModelMeta(job, m)
+  mjJobs.value.unshift(job)
+  try {
+    const idx =
+      mjChangeAction.value === 'REGENERATE' || mjChangeAction.value === 'REROLL'
+        ? undefined
+        : Math.min(4, Math.max(1, Math.floor(mjChangeIndex.value) || 1))
+    const r = await submitMjChange({
+      model: m.model,
+      mjMode: mjMode.value,
+      taskId: tid,
+      action: mjChangeAction.value,
+      index: idx,
+    })
+    if (!applyMjSubmitResponse(r, job)) {
+      job.loading = false
+      return
+    }
+    startPollTask(job.taskId, job)
+    await authStore.getUserBalance()
+  } catch (e: unknown) {
+    job.loading = false
+    job.error = (e as Error)?.message || t('common.wrong')
+  }
+}
+
+function fillMjChangeTaskFromLatest() {
+  const j = mjJobs.value.find(x => String(x.taskId || '').trim() && !x.loading)
+  if (j?.taskId) {
+    mjChangeTaskId.value = j.taskId
+    return
+  }
+  ms.warning(t('drawing.mjChangeNoTask'))
+}
+
+async function handleMjSimpleChangeSubmit() {
+  if (!authStore.isLogin) {
+    ms.warning(t('drawing.loginRequired'))
+    authStore.setLoginDialog(true)
+    return
+  }
+  const m = selectedModel.value
+  if (!m) return
+  await ensureDrawingSession(m)
+  const content = mjSimpleChangeContent.value.trim()
+  if (!content) {
+    ms.warning(t('drawing.mjSimpleChangeNeedContent'))
+    return
+  }
+  const job: MjJobItem = {
+    localId: nextMjClientKey(),
+    taskId: '',
+    promptLabel: `simple-change`,
+    loading: true,
+    mjStyleSnapshot: mjStyle.value,
+  }
+  attachMjJobModelMeta(job, m)
+  mjJobs.value.unshift(job)
+  try {
+    const r = await submitMjSimpleChange({
+      model: m.model,
+      mjMode: mjMode.value,
+      content,
+    })
+    if (!applyMjSubmitResponse(r, job)) {
+      job.loading = false
+      return
+    }
+    startPollTask(job.taskId, job)
+    await authStore.getUserBalance()
+  } catch (e: unknown) {
+    job.loading = false
+    job.error = (e as Error)?.message || t('common.wrong')
+  }
+}
+
 async function onMjButtonClick(
   taskId: string,
   customId: string,
@@ -890,20 +1715,54 @@ async function onImagineFiles(e: Event) {
   const inp = e.target as HTMLInputElement
   const files = inp.files
   if (!files?.length) return
-  const list: string[] = []
-  for (let i = 0; i < files.length; i++) {
-    list.push(await fileToBase64(files[i]))
+  try {
+    const list: string[] = []
+    for (let i = 0; i < files.length; i++) {
+      list.push(await fileToMjDataUrl(files[i]))
+    }
+    implyBase64List.value = list
+  } catch {
+    ms.error(t('drawing.mjFileReadFail'))
+  } finally {
+    inp.value = ''
   }
-  implyBase64List.value = list
-  inp.value = ''
 }
 
 async function onDescribeFile(e: Event) {
   const inp = e.target as HTMLInputElement
   const file = inp.files?.[0]
   if (!file) return
-  describeBase64.value = await fileToBase64(file)
-  inp.value = ''
+  try {
+    describeBase64.value = await fileToMjDataUrl(file)
+  } catch {
+    ms.error(t('drawing.mjFileReadFail'))
+  } finally {
+    inp.value = ''
+  }
+}
+
+function removeImagineRef(ix: number) {
+  implyBase64List.value.splice(ix, 1)
+}
+
+function clearImagineRefs() {
+  implyBase64List.value = []
+}
+
+function removeBlendRef(ix: number) {
+  blendBase64List.value.splice(ix, 1)
+}
+
+function clearBlendRefs() {
+  blendBase64List.value = []
+}
+
+function removeDescribeUpload() {
+  describeBase64.value = ''
+}
+
+function removeEditsMaskUpload() {
+  editsMaskBase64.value = ''
 }
 
 async function handleMjToolSubmit() {
@@ -925,7 +1784,8 @@ async function handleMjToolSubmit() {
     else if (studioTab.value === 'spell') {
       if (spellMode.value === 'describe') await handleMjDescribe()
       else await handleMjShorten()
-    }
+    } else if (studioTab.value === 'blend') await handleMjBlend()
+    else if (studioTab.value === 'edits') await handleMjEdits()
   } finally {
     mjSubmitting.value = false
   }
@@ -1123,6 +1983,7 @@ watch(mjRealisticVersion, v => {
   } catch {
     /* ignore */
   }
+  if (v !== '8') mjV8OutputMode.value = 'off'
 })
 
 watch(mjNijiVersion, v => {
@@ -1132,6 +1993,47 @@ watch(mjNijiVersion, v => {
     /* ignore */
   }
 })
+
+/** 切换模型版本时清空当前版本不支持的参考图与权重，避免 prompt 仍带无效 --cref/--oref */
+function clearMjRefParamsForUnsupportedVersion() {
+  if (!mjVersionSupportsCref(mjStyle.value, mjRealisticVersion.value, mjNijiVersion.value)) {
+    mjRefCrefUrl.value = ''
+    mjParamCw.value = 0
+  }
+  if (!mjVersionSupportsSref(mjStyle.value, mjRealisticVersion.value, mjNijiVersion.value)) {
+    mjRefSrefUrl.value = ''
+    mjParamSw.value = 0
+    mjParamSv.value = 0
+  }
+  if (!mjVersionSupportsOref(mjStyle.value, mjRealisticVersion.value, mjNijiVersion.value)) {
+    mjRefOrefUrl.value = ''
+    mjParamOw.value = 0
+  }
+  if (!mjVersionSupportsDraft(mjStyle.value, mjRealisticVersion.value, mjNijiVersion.value)) {
+    mjParamDraft.value = false
+  }
+  const sv = Math.round(mjParamSv.value)
+  if (
+    sv > 0 &&
+    !mjVersionSupportsSvValue(mjStyle.value, mjRealisticVersion.value, mjNijiVersion.value, sv)
+  ) {
+    mjParamSv.value = 0
+  }
+}
+
+watch([mjStyle, mjRealisticVersion, mjNijiVersion], clearMjRefParamsForUnsupportedVersion)
+
+/** 官方：Omni 与 Draft、`--q 4`、Fast/Turbo 不兼容 → 自动纠正侧栏状态，避免无效提交 */
+watch(
+  mjOrefComboLock,
+  active => {
+    if (!active) return
+    if (mjParamDraft.value) mjParamDraft.value = false
+    if (mjParamQuality.value === 4) mjParamQuality.value = 3
+    if (mjMode.value === 'fast' || mjMode.value === 'turbo') mjMode.value = 'relax'
+  },
+  { flush: 'sync' }
+)
 
 watch(mjSeed, v => {
   try {
@@ -1153,6 +2055,8 @@ watch(drawingSessionGroupId, v => {
 onMounted(async () => {
   loadMjCustomParamsPref()
   loadMjVersionSeedPrefs()
+  loadMjAdvSlidersPrefs()
+  clearMjRefParamsForUnsupportedVersion()
   await loadDrawingModels()
   await chatStore.queryMyGroup()
   try {
@@ -1179,6 +2083,30 @@ onMounted(async () => {
 })
 
 watchDebounced(mjJobs, () => void persistMjJobsHybrid(), { deep: true, debounce: 900 })
+
+watch(
+  [
+    mjParamIw,
+    mjParamStylize,
+    mjParamChaos,
+    mjParamWeird,
+    mjParamStop,
+    mjParamQuality,
+    mjStyleRaw,
+    mjRefCrefUrl,
+    mjParamCw,
+    mjRefSrefUrl,
+    mjParamSw,
+    mjParamSv,
+    mjRefOrefUrl,
+    mjParamOw,
+    mjParamTile,
+    mjParamDraft,
+    mjV8OutputMode,
+    mjParamRepeat,
+  ],
+  () => persistMjAdvSlidersPrefs()
+)
 
 watch(
   () => authStore.userInfo?.id,
@@ -1332,9 +2260,9 @@ const varyRegionOpen = ref(false)
 const varyRegionJob = ref<MjJobItem | null>(null)
 /** 与局部重绘共用弹窗壳：custom-zoom 仅提交 prompt/--zoom，无蒙版 */
 const mjModalFollowVariant = ref<'vary-region' | 'custom-zoom'>('vary-region')
-/** midjourney-proxy-plus：先 submit/action 返回 code=21「窗口等待」，result 才是 submit/modal 要传的 taskId（非父图任务 id） */
+/** 先由 submit/action 进入「窗口等待」阶段，返回的 result 作为 submit/modal 的 taskId（非父图任务 id） */
 const varyRegionModalTaskId = ref('')
-/** code=21 后立即 fetch 的 MODAL 任务快照：imageUrl 与蒙版坐标系一致，避免用父任务缩略图导致尺寸不符→无效参数 */
+/** 窗口阶段拉取到的 MODAL 任务快照：imageUrl 与蒙版坐标系一致，避免用父任务缩略图导致尺寸不符 */
 const varyRegionModalTaskSnap = ref<Record<string, unknown> | null>(null)
 const varyRegionActionBusy = ref(false)
 
@@ -1388,8 +2316,7 @@ watch(varyRegionOpen, v => {
 })
 
 /**
- * 局部重绘：必须先调 submit/action 进入 MODAL，再用返回的 taskId + 蒙版调 submit/modal。
- * @see https://github.com/litter-coder/midjourney-proxy-plus/blob/main/docs/api.md
+ * 局部重绘：先调 submit/action 进入 MODAL，再用返回的 taskId + 蒙版调 submit/modal（以当前代理文档为准）。
  */
 async function beginVaryRegionFlow(
   job: MjJobItem,
@@ -1418,7 +2345,7 @@ async function beginVaryRegionFlow(
     })
     const parsed = parseMjSubmitBody(r)
     if (!parsed.ok) {
-      ms.error(parsed.message || t('common.wrong'))
+      ms.error(mjTranslateKnownDrawingError(parsed.message, t) || t('common.wrong'))
       return
     }
     const mj = parsed.mj
@@ -1624,7 +2551,10 @@ async function onMjJobFetchSeed(job: MjJobItem) {
     const r = await fetchMjImageSeed(live.taskId, modelRow.model, mode)
     const parsed = parseMjImageSeedBody(r)
     if (!parsed.ok) {
-      const msg = parsed.message === 'no seed' ? t('drawing.mjSeedFetchNoValue') : parsed.message
+      const msg =
+        parsed.message === 'no seed'
+          ? t('drawing.mjSeedFetchNoValue')
+          : mjTranslateKnownDrawingError(parsed.message, t) || parsed.message || t('common.wrong')
       mjJobSeedErrByLocalId.value = { ...mjJobSeedErrByLocalId.value, [id]: msg }
       ms.error(msg)
       return
@@ -1710,9 +2640,7 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
         <div
           class="relative flex h-full w-full min-w-0 flex-col overflow-hidden bg-[var(--surface-page)]"
         >
-          <HeaderComponent
-            class="relative z-10 flex-shrink-0 bg-white dark:bg-gray-800 backdrop-blur-sm"
-          />
+          <HeaderComponent class="relative z-10 flex-shrink-0 bg-white dark:bg-gray-800" />
 
           <main
             class="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden bg-[#0a0e14] dark:bg-[#0a0e14]"
@@ -1742,7 +2670,28 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                     :mj-seed="mjSeed"
                     :custom-params-only="mjCustomParamsOnly"
                     :prompt-text="promptText"
-                    :ref-image-count="implyBase64List.length"
+                    :ref-image-previews="implyBase64List"
+                    :blend-image-previews="blendBase64List"
+                    :blend-dimensions="blendDimensions"
+                    :mj-param-iw="mjParamIw"
+                    :mj-param-stylize="mjParamStylize"
+                    :mj-param-chaos="mjParamChaos"
+                    :mj-param-weird="mjParamWeird"
+                    :mj-param-stop="mjParamStop"
+                    :mj-param-quality="mjParamQuality"
+                    :mj-style-raw="mjStyleRaw"
+                    :mj-ref-cref-url="mjRefCrefUrl"
+                    :mj-param-cw="mjParamCw"
+                    :mj-ref-sref-url="mjRefSrefUrl"
+                    :mj-param-sw="mjParamSw"
+                    :mj-param-sv="mjParamSv"
+                    :mj-ref-oref-url="mjRefOrefUrl"
+                    :mj-param-ow="mjParamOw"
+                    :mj-param-tile="mjParamTile"
+                    :mj-param-draft="mjParamDraft"
+                    :mj-v8-output-mode="mjV8OutputMode"
+                    :mj-param-repeat="mjParamRepeat"
+                    :mj-oref-combo-lock="mjOrefComboLock"
                     @update:selected-model-key="v => (selectedModelKey = v)"
                     @update:studio-tab="v => (studioTab = v)"
                     @update:spell-mode="v => (spellMode = v)"
@@ -1754,50 +2703,117 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                     @update:mj-realistic-version="v => (mjRealisticVersion = v)"
                     @update:mj-niji-version="v => (mjNijiVersion = v)"
                     @update:mj-seed="v => (mjSeed = v)"
-                    @update:custom-params-only="v => (mjCustomParamsOnly = v)"
+                    @update:custom-params-only="setMjCustomParamsOnly"
                     @update:prompt-text="v => (promptText = v)"
+                    @update:blend-dimensions="v => (blendDimensions = v)"
+                    @update:mj-param-iw="setMjParamIw"
+                    @update:mj-param-stylize="setMjParamStylize"
+                    @update:mj-param-chaos="setMjParamChaos"
+                    @update:mj-param-weird="setMjParamWeird"
+                    @update:mj-param-stop="setMjParamStop"
+                    @update:mj-param-quality="setMjParamQuality"
+                    @update:mj-style-raw="setMjStyleRaw"
+                    @update:mj-ref-cref-url="setMjRefCrefUrl"
+                    @update:mjRefCrefUrl="setMjRefCrefUrl"
+                    @update:mj-param-cw="setMjParamCw"
+                    @update:mj-ref-sref-url="setMjRefSrefUrl"
+                    @update:mjRefSrefUrl="setMjRefSrefUrl"
+                    @update:mj-param-sw="setMjParamSw"
+                    @update:mj-param-sv="setMjParamSv"
+                    @update:mj-ref-oref-url="setMjRefOrefUrl"
+                    @update:mjRefOrefUrl="setMjRefOrefUrl"
+                    @update:mj-param-ow="setMjParamOw"
+                    @update:mj-param-tile="setMjParamTile"
+                    @update:mj-param-draft="setMjParamDraft"
+                    @update:mj-v8-output-mode="setMjV8OutputMode"
+                    @update:mj-param-repeat="setMjParamRepeat"
+                    @mj-ref-uploading="setMjRefUploading"
                     @imagine-files="onImagineFiles"
+                    @blend-files="onBlendFiles"
+                    @remove-ref-image="removeImagineRef"
+                    @clear-ref-images="clearImagineRefs"
+                    @remove-blend-image="removeBlendRef"
+                    @clear-blend-images="clearBlendRefs"
                   />
                 </div>
 
                 <div
-                  class="flex shrink-0 flex-col gap-3 border-t border-slate-700/40 bg-gradient-to-b from-[#070a10] to-[#05070c] p-4 lg:gap-4 lg:pb-6"
+                  class="flex shrink-0 flex-col gap-2 border-t border-slate-700/40 bg-gradient-to-b from-[#070a10] to-[#05070c] p-3 lg:gap-2.5 lg:p-4 lg:pb-5"
                 >
-                  <header
-                    class="rounded-2xl border border-slate-700/30 bg-slate-900/20 px-4 py-3 backdrop-blur-sm"
+                  <div
+                    class="flex items-center justify-between gap-2 rounded-xl border border-slate-700/35 bg-slate-900/30 px-3 py-2"
                   >
-                    <h1 class="text-base font-semibold tracking-tight text-slate-100 md:text-lg">
+                    <h1 class="text-sm font-semibold tracking-tight text-slate-100 md:text-base">
                       {{ t('drawing.title') }}
                     </h1>
-                    <p class="mt-1 text-[11px] leading-relaxed text-slate-500 md:text-xs">
-                      {{ t('drawing.mjSideHint') }}
-                    </p>
-                  </header>
-
-                  <div
-                    class="rounded-2xl border border-slate-700/35 bg-slate-900/25 p-3.5 text-xs leading-relaxed text-slate-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:p-4"
-                  >
-                    <p
-                      class="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500"
-                    >
-                      {{ t('drawing.mjPromptTipsTitle') }}
-                    </p>
-                    <p class="mb-1.5 text-emerald-400/95">✓ {{ t('drawing.mjPromptTipsGood') }}</p>
-                    <p class="text-rose-400/90">✗ {{ t('drawing.mjPromptTipsBad') }}</p>
                   </div>
+
+                  <details
+                    class="group rounded-xl border border-slate-700/40 bg-slate-900/15 open:border-slate-600/50"
+                  >
+                    <summary
+                      class="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-left text-[11px] font-medium text-slate-400 transition hover:bg-slate-800/35 hover:text-slate-300 [&::-webkit-details-marker]:hidden"
+                    >
+                      <span>{{ t('drawing.mjSideHelpFold') }}</span>
+                      <span
+                        class="text-[10px] text-slate-600 transition-transform group-open:rotate-180"
+                        aria-hidden="true"
+                        >▾</span
+                      >
+                    </summary>
+                    <div
+                      class="space-y-3 border-t border-slate-700/35 px-3 pb-3 pt-2 text-[11px] leading-relaxed text-slate-500"
+                    >
+                      <p>{{ t('drawing.mjSideHint') }}</p>
+                      <div
+                        class="rounded-lg border border-slate-700/30 bg-slate-950/30 p-2.5 text-slate-400"
+                      >
+                        <p
+                          class="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500"
+                        >
+                          {{ t('drawing.mjPromptTipsTitle') }}
+                        </p>
+                        <p class="mb-1 text-emerald-400/95">
+                          ✓ {{ t('drawing.mjPromptTipsGood') }}
+                        </p>
+                        <p class="text-rose-400/90">✗ {{ t('drawing.mjPromptTipsBad') }}</p>
+                      </div>
+                    </div>
+                  </details>
 
                   <template v-if="studioTab === 'spell' && spellMode === 'describe'">
                     <div
                       class="rounded-2xl border border-slate-700/35 bg-slate-900/25 p-3.5 md:p-4"
                     >
-                      <label class="mb-2 block text-xs font-medium text-slate-400">{{
+                      <span class="mb-2 block text-xs font-medium text-slate-400">{{
                         t('drawing.mjDescribeImage')
-                      }}</label>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        class="file-input h-10 w-full rounded-xl border border-slate-600/50 bg-slate-950/50 text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-sky-600/90 file:px-3 file:text-xs file:text-white"
-                        @change="onDescribeFile"
+                      }}</span>
+                      <label
+                        class="relative flex min-h-10 w-full cursor-pointer items-center justify-between gap-2 rounded-xl border border-slate-600/50 bg-slate-950/50 px-3 py-2 text-sm text-slate-300 hover:border-sky-500/40"
+                      >
+                        <input
+                          type="file"
+                          :accept="MJ_DRAWING_IMAGE_ACCEPT"
+                          class="absolute inset-0 z-[1] h-full w-full cursor-pointer opacity-0"
+                          @change="onDescribeFile"
+                        />
+                        <span
+                          class="pointer-events-none min-w-0 flex-1 text-[11px] leading-snug text-slate-400"
+                        >
+                          {{ t('drawing.mjTapToPickOneImage') }}
+                        </span>
+                        <span
+                          class="pointer-events-none shrink-0 rounded-lg bg-sky-600/90 px-2.5 py-1 text-[10px] font-semibold text-white"
+                        >
+                          {{ t('drawing.mjBrowseFiles') }}
+                        </span>
+                      </label>
+                      <DrawingUploadPreviewGrid
+                        v-if="describeBase64"
+                        :urls="[describeBase64]"
+                        accent="sky"
+                        :show-clear-all="false"
+                        @remove="removeDescribeUpload"
                       />
                     </div>
                   </template>
@@ -1811,12 +2827,200 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                       }}</label>
                       <textarea
                         v-model="promptText"
-                        class="min-h-[140px] w-full resize-none rounded-xl border border-slate-600/50 bg-slate-950/50 px-3.5 py-3 text-sm text-slate-100 placeholder:text-slate-600 focus:border-sky-500/50 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                        class="min-h-[96px] w-full resize-y rounded-xl border border-slate-600/50 bg-slate-950/50 px-3.5 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:border-sky-500/50 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                         :placeholder="t('drawing.mjShortenPlaceholder')"
-                        rows="5"
+                        rows="4"
                       />
                     </section>
                   </template>
+
+                  <template v-else-if="studioTab === 'blend'">
+                    <details
+                      class="group rounded-xl border border-teal-500/25 bg-teal-950/15 open:border-teal-500/40"
+                    >
+                      <summary
+                        class="cursor-pointer list-none px-3 py-2 text-[11px] font-medium text-teal-100/95 [&::-webkit-details-marker]:hidden"
+                      >
+                        <span class="inline-flex w-full items-center justify-between gap-2">
+                          {{ t('drawing.mjBlendHintFold') }}
+                          <span
+                            class="text-[10px] opacity-70 transition-transform group-open:rotate-180"
+                            >▾</span
+                          >
+                        </span>
+                      </summary>
+                      <p
+                        class="border-t border-teal-500/20 px-3 pb-2.5 pt-2 text-[10px] leading-relaxed text-teal-100/85"
+                      >
+                        {{ t('drawing.mjBlendBottomHint') }}
+                      </p>
+                    </details>
+                  </template>
+
+                  <template v-else-if="studioTab === 'edits'">
+                    <div
+                      class="space-y-2 rounded-2xl border border-violet-500/25 bg-violet-950/15 p-3 md:p-3.5"
+                    >
+                      <details
+                        class="group rounded-lg border border-violet-500/20 bg-violet-950/10 open:border-violet-500/35"
+                      >
+                        <summary
+                          class="cursor-pointer list-none px-2 py-1.5 text-[11px] font-medium text-violet-200/90 [&::-webkit-details-marker]:hidden"
+                        >
+                          <span class="inline-flex w-full items-center justify-between gap-2">
+                            {{ t('drawing.mjEditsHintFold') }}
+                            <span
+                              class="text-[10px] opacity-70 transition-transform group-open:rotate-180"
+                              >▾</span
+                            >
+                          </span>
+                        </summary>
+                        <p
+                          class="border-t border-violet-500/15 px-2 pb-2 pt-2 text-[10px] leading-relaxed text-violet-100/75"
+                        >
+                          {{ t('drawing.mjEditsHint') }}
+                        </p>
+                      </details>
+                      <div>
+                        <label class="mb-1.5 block text-xs font-medium text-slate-400">{{
+                          t('drawing.mjEditsImageUrl')
+                        }}</label>
+                        <input
+                          v-model="editsImageUrl"
+                          type="url"
+                          autocomplete="off"
+                          class="h-10 w-full rounded-xl border border-slate-600/50 bg-slate-950/50 px-3 text-sm text-slate-100 placeholder:text-slate-600 focus:border-violet-500/50 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                          :placeholder="t('drawing.mjEditsUrlPlaceholder')"
+                        />
+                        <button
+                          type="button"
+                          class="mt-2 w-full rounded-lg border border-slate-600/60 bg-slate-900/50 py-2 text-[11px] font-medium text-slate-300 transition hover:border-slate-500 hover:bg-slate-800/60"
+                          @click="fillEditsUrlFromLatestJob"
+                        >
+                          {{ t('drawing.mjEditsFillFirstUrl') }}
+                        </button>
+                      </div>
+                      <div>
+                        <span class="mb-1.5 block text-xs font-medium text-slate-400">{{
+                          t('drawing.mjEditsMaskOptional')
+                        }}</span>
+                        <label
+                          class="relative flex min-h-10 w-full cursor-pointer items-center justify-between gap-2 rounded-xl border border-slate-600/50 bg-slate-950/50 px-3 py-2 text-sm text-slate-300 hover:border-violet-500/40"
+                        >
+                          <input
+                            type="file"
+                            :accept="MJ_DRAWING_IMAGE_ACCEPT"
+                            class="absolute inset-0 z-[1] h-full w-full cursor-pointer opacity-0"
+                            @change="onEditsMaskFile"
+                          />
+                          <span
+                            class="pointer-events-none min-w-0 flex-1 text-[11px] leading-snug text-slate-400"
+                          >
+                            {{ t('drawing.mjTapToPickOneImage') }}
+                          </span>
+                          <span
+                            class="pointer-events-none shrink-0 rounded-lg bg-violet-600/90 px-2.5 py-1 text-[10px] font-semibold text-white"
+                          >
+                            {{ t('drawing.mjBrowseFiles') }}
+                          </span>
+                        </label>
+                        <DrawingUploadPreviewGrid
+                          v-if="editsMaskBase64"
+                          :urls="[editsMaskBase64]"
+                          accent="violet"
+                          :show-clear-all="false"
+                          @remove="removeEditsMaskUpload"
+                        />
+                        <p v-if="editsMaskBase64" class="mt-1 text-[10px] text-slate-500">
+                          {{ t('drawing.mjEditsMaskReady') }}
+                        </p>
+                      </div>
+                    </div>
+                  </template>
+
+                  <details
+                    class="rounded-2xl border border-slate-700/40 bg-slate-900/20 p-3 text-slate-300 open:border-slate-600/50 md:p-3.5"
+                  >
+                    <summary
+                      class="cursor-pointer select-none text-xs font-semibold text-slate-400 hover:text-slate-200"
+                    >
+                      {{ t('drawing.mjAdvancedApis') }}
+                    </summary>
+                    <div class="mt-3 space-y-4 border-t border-slate-700/40 pt-3">
+                      <div>
+                        <p
+                          class="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500"
+                        >
+                          {{ t('drawing.mjChangeTitle') }}
+                        </p>
+                        <div class="flex flex-col gap-2">
+                          <div class="flex flex-wrap gap-2">
+                            <input
+                              v-model="mjChangeTaskId"
+                              type="text"
+                              class="min-w-0 flex-1 rounded-lg border border-slate-600/50 bg-slate-950/50 px-2 py-1.5 text-xs text-slate-100"
+                              :placeholder="t('drawing.mjChangeTaskIdPh')"
+                            />
+                            <button
+                              type="button"
+                              class="shrink-0 rounded-lg border border-slate-600 bg-slate-800/80 px-2 py-1.5 text-[11px] text-slate-200"
+                              @click="fillMjChangeTaskFromLatest"
+                            >
+                              {{ t('drawing.mjChangeFillLatest') }}
+                            </button>
+                          </div>
+                          <div class="flex flex-wrap items-center gap-2">
+                            <select
+                              v-model="mjChangeAction"
+                              class="rounded-lg border border-slate-600/50 bg-slate-950/50 px-2 py-1.5 text-xs text-slate-100"
+                            >
+                              <option value="UPSCALE">UPSCALE</option>
+                              <option value="VARIATION">VARIATION</option>
+                              <option value="REGENERATE">REGENERATE</option>
+                              <option value="REROLL">REROLL</option>
+                            </select>
+                            <label class="flex items-center gap-1 text-[11px] text-slate-500">
+                              <span>{{ t('drawing.mjChangeIndex') }}</span>
+                              <input
+                                v-model.number="mjChangeIndex"
+                                type="number"
+                                min="1"
+                                max="4"
+                                class="w-14 rounded border border-slate-600/50 bg-slate-950/50 px-1 py-1 text-xs text-slate-100"
+                              />
+                            </label>
+                          </div>
+                          <button
+                            type="button"
+                            class="w-full rounded-lg bg-slate-700/90 py-2 text-xs font-medium text-white hover:bg-slate-600"
+                            @click="handleMjChangeSubmit"
+                          >
+                            {{ t('drawing.mjChangeSubmit') }}
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <p
+                          class="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500"
+                        >
+                          {{ t('drawing.mjSimpleChangeTitle') }}
+                        </p>
+                        <textarea
+                          v-model="mjSimpleChangeContent"
+                          class="mb-2 min-h-[72px] w-full resize-none rounded-lg border border-slate-600/50 bg-slate-950/50 px-2 py-2 text-xs text-slate-100"
+                          :placeholder="t('drawing.mjSimpleChangePlaceholder')"
+                          rows="3"
+                        />
+                        <button
+                          type="button"
+                          class="w-full rounded-lg bg-slate-700/90 py-2 text-xs font-medium text-white hover:bg-slate-600"
+                          @click="handleMjSimpleChangeSubmit"
+                        >
+                          {{ t('drawing.mjSimpleChangeSubmit') }}
+                        </button>
+                      </div>
+                    </div>
+                  </details>
 
                   <button
                     type="button"
@@ -1844,6 +3048,14 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                     class="input input-bordered input-sm min-w-[160px] flex-1 border-slate-600 bg-[#151b26] text-sm text-slate-200 placeholder:text-slate-600"
                     :placeholder="t('drawing.studioSearchPlaceholder')"
                   />
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-sm shrink-0 border border-slate-600 text-[11px] font-medium text-slate-300 hover:bg-slate-800"
+                    :disabled="mjBatchSyncing || !authStore.isLogin"
+                    @click="syncMjTasksBatch"
+                  >
+                    {{ mjBatchSyncing ? '…' : t('drawing.mjBatchSyncTasks') }}
+                  </button>
                   <div
                     class="inline-flex shrink-0 overflow-hidden rounded-lg border border-slate-600"
                     role="group"
