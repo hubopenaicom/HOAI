@@ -1,5 +1,6 @@
 import { get, post } from '@/utils/request'
 import service from '@/utils/request/axios'
+import { mjPickRefCdnUrlFromUploadResponse } from '@/utils/mjApiParse'
 
 /** DELETE /drawing/mj/jobs/:id — 删除云端任务记录（需登录） */
 export function deleteMjDrawingJob(serverJobId: number) {
@@ -27,6 +28,75 @@ export function submitMjImagine<T = MjSubmitResult>(data: {
   return post<T>({ url: '/drawing/mj/submit/imagine', data })
 }
 
+/**
+ * 上传单张参考图，返回 https 直链（--cref / --sref / --oref）。
+ * 使用 axios 直连，避免 `@/utils/request` 的 `code` 判定与部分网关/Nest 包装不一致导致误判失败、前端拿不到 `data.url`。
+ */
+export async function uploadMjRefCdnUrl(data: {
+  model: string
+  mjMode?: MjSpeedMode
+  base64: string
+  /** 可选：self | upstream | prefer_self，覆盖服务端参考图存储策略 */
+  refStorage?: 'self' | 'upstream' | 'prefer_self'
+}): Promise<{ url: string; refSource?: 'self' | 'upstream' }> {
+  let body: unknown
+  try {
+    const res = await service.post<unknown>('/drawing/mj/upload/ref-cdn-url', data, {
+      /** 大图 base64 + 上游图床可能较慢 */
+      timeout: Math.max(120_000, Number(service.defaults.timeout) || 120_000),
+    })
+    body = res.data
+  } catch (e: unknown) {
+    const ax = e as { response?: { data?: unknown }; message?: string }
+    const d = ax.response?.data
+    let msg = ''
+    if (typeof d === 'string') {
+      msg = d.slice(0, 500)
+    } else if (d && typeof d === 'object') {
+      const o = d as Record<string, unknown>
+      const m = o.message ?? o.msg ?? o.error
+      if (Array.isArray(m)) msg = m.map(String).join('; ')
+      else if (m != null) msg = String(m)
+    }
+    if (!msg) msg = ax.message || 'upload failed'
+    throw new Error(msg)
+  }
+
+  if (typeof body === 'string') {
+    const t = body.trim()
+    if ((t.startsWith('{') && t.endsWith('}')) || (t.startsWith('[') && t.endsWith(']'))) {
+      try {
+        body = JSON.parse(t) as unknown
+      } catch {
+        /* 保持 string 再走 pick（极少见） */
+      }
+    }
+  }
+
+  const url = mjPickRefCdnUrlFromUploadResponse(body)
+  if (!url) {
+    const hint =
+      body && typeof body === 'object'
+        ? JSON.stringify(body).slice(0, 280)
+        : String(body).slice(0, 280)
+    throw new Error(`NO_URL_IN_RESPONSE:${hint}`)
+  }
+
+  let refSource: 'self' | 'upstream' | undefined
+  if (body && typeof body === 'object') {
+    const o = body as Record<string, unknown>
+    const inner = o.data
+    if (inner && typeof inner === 'object' && !Array.isArray(inner)) {
+      const rs = (inner as Record<string, unknown>).refSource
+      if (rs === 'self' || rs === 'upstream') refSource = rs
+    }
+    const rs2 = o.refSource
+    if (rs2 === 'self' || rs2 === 'upstream') refSource = rs2
+  }
+
+  return { url, refSource }
+}
+
 export function submitMjAction<T = MjSubmitResult>(data: {
   model: string
   mjMode?: MjSpeedMode
@@ -51,6 +121,17 @@ export function submitMjChange<T = MjSubmitResult>(data: {
   state?: string
 }) {
   return post<T>({ url: '/drawing/mj/submit/change', data })
+}
+
+/** POST /drawing/mj/submit/simple-change — 少数代理用 content 表达「任务 + 操作码」（如 taskId + 空格 + U2） */
+export function submitMjSimpleChange<T = MjSubmitResult>(data: {
+  model: string
+  mjMode?: MjSpeedMode
+  content: string
+  notifyHook?: string
+  state?: string
+}) {
+  return post<T>({ url: '/drawing/mj/submit/simple-change', data })
 }
 
 export function fetchMjTask<T = any>(id: string, model: string, mjMode: MjSpeedMode) {
@@ -121,6 +202,22 @@ export function submitMjModal<T = MjSubmitResult>(data: {
   state?: string
 }) {
   return post<T>({ url: '/drawing/mj/submit/modal', data })
+}
+
+/**
+ * POST /drawing/mj/submit/edits — 图 URL + 提示词编辑（上游 /mj/submit/edits，非所有代理均支持）
+ */
+export function submitMjEdits<T = MjSubmitResult>(data: {
+  model: string
+  mjMode?: MjSpeedMode
+  prompt: string
+  image: string
+  maskBase64?: string
+  notifyHook?: string
+  /** 仅当服务端 `MJ_EDITS_FORWARD_EXTRAS=1` 时转发 */
+  state?: string
+}) {
+  return post<T>({ url: '/drawing/mj/submit/edits', data })
 }
 
 /** GET /drawing/mj/jobs 列表项 */
