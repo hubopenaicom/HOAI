@@ -1,3 +1,4 @@
+import { t } from '@/locales'
 import { useAuthStore } from '@/store'
 import { message } from '@/utils/message'
 import type { AxiosProgressEvent, AxiosResponse, GenericAbortSignal } from 'axios'
@@ -46,8 +47,21 @@ function http<T = any>({
     const authStore = useAuthStore()
 
     const code = res.data.code
+    /** Nest Result 为 200；少数网关用 1 表示成功，若仍带 success:true 则放行 */
+    const okBySuccessFlag = res.data.success === true
+    const okByHttpStyleCode =
+      (typeof code === 'number' && code >= 200 && code < 300) ||
+      (typeof code === 'string' && Number(code) >= 200 && Number(code) < 300)
+    const okByLegacyBizCode = typeof code === 'number' && code > 0 && code < 200 && okBySuccessFlag
 
-    if ((code && code >= 200 && code < 300) || !code) return res.data
+    if (
+      okByHttpStyleCode ||
+      okByLegacyBizCode ||
+      code == null ||
+      code === false ||
+      Number(code) === 0
+    )
+      return res.data
 
     if (code === 401) {
       authStore.removeToken()
@@ -76,8 +90,12 @@ function http<T = any>({
         }
       }
       last401ErrorTimestamp = Date.now()
+    } else if (status === 413) {
+      const msg = t('drawing.mjPayloadTooLarge')
+      ms.error(msg)
+      throw new Error(msg)
     } else {
-      if (data && !data?.success) {
+      if (data && typeof data === 'object' && !data?.success) {
         ms.error(data?.message || '请求接口错误！')
       }
     }
