@@ -385,14 +385,22 @@ export class UploadService implements OnModuleInit {
       throw err;
     }
 
-    // 使用环境变量中定义的基础URL来构建完整的文件访问URL
-    let fileUrl = `file/${normalizedDir}/${normalizedFilename}`;
-    const siteUrl = await this.globalConfigService.getConfigs(['siteUrl']);
-    if (siteUrl) {
-      const url = formatUrl(siteUrl);
-      fileUrl = `${url}/${fileUrl}`;
+    /** 与 {@link ServeStaticModule} 的 serveRoot `/file` 一致，公网访问形如 `https://域名/file/...` */
+    const relPath = `file/${normalizedDir}/${normalizedFilename}`;
+    const siteUrlRaw = await this.globalConfigService.getConfigs(['siteUrl']);
+    const fromDb = typeof siteUrlRaw === 'string' ? siteUrlRaw.trim() : '';
+    const fromEnv = String(process.env.PUBLIC_SITE_URL ?? process.env.SITE_URL ?? '').trim();
+    const base = fromDb || fromEnv;
+    let fileUrl = relPath;
+    if (base) {
+      fileUrl = `${formatUrl(base)}/${relPath}`;
     }
-    // 返回文件访问的URL
+    if (!/^https?:\/\//i.test(fileUrl)) {
+      throw new HttpException(
+        '本地存储已写入文件，但未配置可公网访问的站点根地址：请在后台「系统设置」填写 siteUrl（完整 https 域名，无尾斜杠），或设置环境变量 PUBLIC_SITE_URL / SITE_URL。否则无法生成 Midjourney --cref/--sref/--oref 所需的 https 直链。',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
     return fileUrl;
   }
 
