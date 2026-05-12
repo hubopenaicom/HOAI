@@ -12,6 +12,7 @@ import {
   unwrapMjSubmitEnvelope,
   unwrapMjTaskFromFetchData,
 } from './mj-outpaint-cz';
+import { proxyUrlMatchesMjHostMarkers } from './mj-proxy-host-markers';
 
 export type MjSpeedMode = 'fast' | 'turbo' | 'relax';
 
@@ -42,8 +43,40 @@ function mjSafeUrlForLog(fullUrl: string): string {
 function mjSummarizePostBody(data: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(data)) {
+    const lk = k.toLowerCase();
+    if (lk === 'prompt' && typeof v === 'string') {
+      const s = v;
+      out.prompt = s.length <= 260 ? s : `${s.slice(0, 260)}…`;
+      /** 仅用于日志：由最终 prompt 字符串推断是否含各参数，并非独立请求体字段、也不会代替 prompt 发给上游 */
+      out.promptMeta = {
+        len: s.length,
+        cref: /--cref\b/i.test(s),
+        sref: /--sref\b/i.test(s),
+        oref: /--oref\b/i.test(s),
+        iw: /--iw\b/i.test(s),
+        stylize: /\s--s\s+\d/.test(s),
+        raw: /(^|\s)--raw\b/i.test(s) || /(^|\s)--style\s+raw\b/i.test(s),
+        draft: /--draft\b/i.test(s),
+        hd: /(^|\s)--hd\b/i.test(s),
+        sd: /(^|\s)--sd\b/i.test(s),
+        cw: /--cw\b/i.test(s),
+        sw: /--sw\b/i.test(s),
+        ow: /--ow\b/i.test(s),
+      };
+      continue;
+    }
+    if (lk === 'base64array' && Array.isArray(v)) {
+      const arr = v as unknown[];
+      const lens = arr.map(x => (typeof x === 'string' ? x.length : 0));
+      const total = lens.reduce((a, b) => a + b, 0);
+      out.base64Array = {
+        count: arr.length,
+        totalChars: total,
+        firstLens: lens.slice(0, 3),
+      };
+      continue;
+    }
     if (typeof v === 'string') {
-      const lk = k.toLowerCase();
       if (lk.includes('base64') || lk === 'mask' || v.length > 240) {
         out[k] = `<string len=${v.length}>`;
       } else {
@@ -91,6 +124,33 @@ function joinUrl(base: string, path: string): string {
   const b = base.replace(/\/+$/, '');
   const p = path.startsWith('/') ? path : `/${path}`;
   return `${b}${p}`;
+}
+
+/** 按魔数得到 Data URL 前缀（与 drawing-mj.controller 中 Blend 校正逻辑一致） */
+function mjDataUrlPrefixFromImageBuffer(buf: Buffer): string {
+  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
+    return 'data:image/jpeg;base64,';
+  }
+  if (buf.length >= 8 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) {
+    return 'data:image/png;base64,';
+  }
+  if (
+    buf.length >= 12 &&
+    buf[0] === 0x52 &&
+    buf[1] === 0x49 &&
+    buf[2] === 0x46 &&
+    buf[3] === 0x46 &&
+    buf.toString('ascii', 8, 12) === 'WEBP'
+  ) {
+    return 'data:image/webp;base64,';
+  }
+  if (buf.length >= 6 && buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46) {
+    return 'data:image/gif;base64,';
+  }
+  if (buf.length >= 2 && buf[0] === 0x42 && buf[1] === 0x4d) {
+    return 'data:image/bmp;base64,';
+  }
+  return 'data:image/png;base64,';
 }
 
 /**
@@ -248,13 +308,145 @@ export class DrawingMjService {
     }
   }
 
-  /** 预设 Zoom Out 改走 Custom Zoom + submit/modal（默认 ephone.ai）；见 `MJ_OUTPAINT_PRESET_USE_CUSTOM_ZOOM` */
+  /**
+   * 调用上游 `upload-discord-images`，返回可公网访问的 **https** 图链（不做 Blend 用的二次拉取转 Data URL）。
+   * 供 `--cref` / `--sref` / `--oref` 等需在提示词中写 URL 的场景使用。
+   */
+  async uploadDiscordImagesToCdnHttpsUrls(
+    row: ModelsEntity,
+    mode: MjSpeedMode,
+    base64Array: string[],
+  ): Promise<string[]> {
+    if (!Array.isArray(base64Array) || base64Array.length === 0) {
+      throw new BadRequestException('upload-discord-images：base64Array 为空');
+    }
+    const res = await this.requestUpstream(row, mode, '/submit/upload-discord-images', {
+      data: { base64Array },
+    });
+    if (res.status >= 400) {
+      throw new HttpException(
+        `upload-discord-images 上游 HTTP ${res.status}`,
+        HttpStatus.BAD_GATEWAY,
+      );
+    }
+    const env = unwrapMjSubmitEnvelope(res.data);
+    const code = Number(env.code);
+    if (code !== 1 && code !== 22) {
+      throw new BadRequestException(
+        `upload-discord-images 未成功: ${JSON.stringify({
+          code: env.code,
+          description: env.description,
+        })}`,
+      );
+    }
+    const raw = env.result;
+    if (!Array.isArray(raw)) {
+      throw new BadRequestException('upload-discord-images 返回 result 非数组');
+    }
+    const urls = raw.map(x => String(x ?? '').trim()).filter(Boolean);
+    if (urls.length < base64Array.length) {
+      throw new BadRequestException(
+        `upload-discord-images 返回条数不足：需 ${base64Array.length}，实际 ${urls.length}`,
+      );
+    }
+    const slice = urls.slice(0, base64Array.length);
+    for (const u of slice) {
+      if (!/^https:\/\//i.test(u)) {
+        throw new BadRequestException(
+          `upload-discord-images 返回非 https 图链，无法用于 cref/sref/oref：${u.slice(0, 120)}`,
+        );
+      }
+    }
+    return slice;
+  }
+
+  /**
+   * 部分网关：Blend 直连客户端 Data URL 会在执行期报 invalid_parameter；
+   * 先 `upload-discord-images`，再拉取 CDN 图；个别执行层常将带 `data:` 前缀的串误判为提示词 → 默认送**裸 base64**（`MJ_BLEND_AFTER_UPLOAD_DATAURL=1` 则仍送 Data URL）。
+   * 若直接把 HTTPS 填进 base64Array 会报 invalid_image_prompt_link。
+   * `MJ_BLEND_AFTER_UPLOAD_KEEP_URLS=1`：跳过拉取，仅传 URL（仅当上游支持 URL 混图时）。
+   */
+  async uploadDiscordImagesForBlend(
+    row: ModelsEntity,
+    mode: MjSpeedMode,
+    base64Array: string[],
+  ): Promise<string[]> {
+    const slice = await this.uploadDiscordImagesToCdnHttpsUrls(row, mode, base64Array);
+    if (process.env.MJ_BLEND_AFTER_UPLOAD_KEEP_URLS === '1') {
+      return slice;
+    }
+    const timeoutMs = Math.max(15_000, Math.min(300_000, (row.timeout || 300) * 1000));
+    const dataUrls: string[] = [];
+    for (const u of slice) {
+      dataUrls.push(await this.mjFetchBlendImageUrlAsDataUrl(u, timeoutMs));
+    }
+    const hostMatchesMarkers = proxyUrlMatchesMjHostMarkers(row.proxyUrl);
+    if (
+      hostMatchesMarkers &&
+      process.env.MJ_BLEND_AFTER_UPLOAD_DATAURL !== '1' &&
+      process.env.MJ_BLEND_AFTER_UPLOAD_KEEP_URLS !== '1'
+    ) {
+      return dataUrls.map(s => {
+        const m = s.match(/^data:image\/[^;]+;base64,(.+)$/i);
+        return m ? m[1]! : s;
+      });
+    }
+    return dataUrls;
+  }
+
+  private async mjFetchBlendImageUrlAsDataUrl(
+    imageUrl: string,
+    timeoutMs: number,
+  ): Promise<string> {
+    const u = String(imageUrl || '').trim();
+    if (!/^https?:\/\//i.test(u)) {
+      throw new BadRequestException(`上传返回的图片地址无效: ${u.slice(0, 96)}`);
+    }
+    try {
+      const getRes = await axios.get<ArrayBuffer>(u, {
+        responseType: 'arraybuffer',
+        timeout: timeoutMs,
+        maxContentLength: 25 * 1024 * 1024,
+        maxBodyLength: 25 * 1024 * 1024,
+        validateStatus: () => true,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; HOAI-MJ-Blend/1.0)',
+          Accept: 'image/*,*/*;q=0.8',
+        },
+      });
+      if (getRes.status >= 400) {
+        throw new BadRequestException(
+          `拉取上传图失败 HTTP ${getRes.status}: ${mjSafeUrlForLog(u)}`,
+        );
+      }
+      const buf = Buffer.from(getRes.data);
+      if (!buf.length) {
+        throw new BadRequestException(`拉取上传图为空: ${mjSafeUrlForLog(u)}`);
+      }
+      const ct = String(getRes.headers['content-type'] || '')
+        .split(';')[0]
+        .trim()
+        .toLowerCase();
+      const prefix =
+        ct.startsWith('image/') && ct.length < 40
+          ? `data:${ct};base64,`
+          : mjDataUrlPrefixFromImageBuffer(buf);
+      return `${prefix}${buf.toString('base64')}`;
+    } catch (e: unknown) {
+      if (e instanceof BadRequestException) throw e;
+      const msg =
+        e && typeof e === 'object' && 'message' in e ? String((e as Error).message) : String(e);
+      throw new BadRequestException(`拉取上传图失败: ${msg} (${mjSafeUrlForLog(u)})`);
+    }
+  }
+
+  /** 预设 Zoom Out 是否改走 Custom Zoom + submit/modal；见 `MJ_OUTPAINT_PRESET_USE_CUSTOM_ZOOM`、`MJ_PROXY_HOST_MARKERS` 与 `presetOutpaintCustomZoomEnabledForProxy` */
   presetOutpaintCustomZoomEnabled(row: ModelsEntity): boolean {
     return presetOutpaintCustomZoomEnabledForProxy(row.proxyUrl || '');
   }
 
   /**
-   * ephone 等：预设 Outpaint 直连执行期 invalid_parameter → 先点 Custom Zoom（code=21）再 submit/modal。
+   * 部分代理：预设 Outpaint 直连会在执行期 invalid_parameter → 先走 Custom Zoom（窗口等待）再 submit/modal。
    * 上游 Body 与 OpenAPI 一致：action 仅 tid+customId；modal 仅 taskId+prompt。
    */
   async submitPresetOutpaintViaCustomZoom(
