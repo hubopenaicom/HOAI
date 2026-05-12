@@ -351,7 +351,7 @@ export function buildMjFollowUpPromptLabel(
 
 /**
  * Custom Zoom 提交 modal：与后端 `mj-outpaint-cz.stripMjModelVersionFlags` 一致。
- * api.ephone.ai 等在「含 --zoom 的 prompt」里若带 --v/--niji 会执行期 invalid_parameter。
+ * 含 --zoom 的 prompt 若再带 --v/--niji 等，部分上游会在执行期报 invalid_parameter，故先剥离。
  */
 export function stripMjModalPromptModelVersionFlags(line: string): string {
   return line
@@ -360,6 +360,10 @@ export function stripMjModalPromptModelVersionFlags(line: string): string {
     .replace(/(^|\s)--niji\s+\d+\b/gi, '$1')
     .replace(/(^|\s)--niji\d+\b/gi, '$1')
     .replace(/(^|\s)--draft\b/gi, '$1')
+    .replace(/(^|\s)--hd\b/gi, '$1')
+    .replace(/(^|\s)--sd\b/gi, '$1')
+    .replace(/(^|\s)--raw\b/gi, '$1')
+    .replace(/(^|\s)--style\s+raw\b/gi, '$1')
     .replace(/\s{2,}/g, ' ')
     .trim()
 }
