@@ -13,6 +13,7 @@ import {
   isMjSubmitAcceptedCode,
   normalizeMjSubmitCode,
   parseMjSubmitBody,
+  mjTranslateKnownDrawingError,
 } from '@/utils/mjApiParse'
 import { stripMjModalPromptModelVersionFlags } from '@/utils/mjFollowUpUi'
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
@@ -109,6 +110,15 @@ const committed = ref<
 >(null)
 
 const polyDraft = ref<{ x: number; y: number }[]>([])
+/** 多边形：鼠标在画布上的显示坐标（用于橡皮筋预览） */
+const polyHoverDisp = ref<{ x: number; y: number } | null>(null)
+/** 多边形：光标距首点足够近，下一次按下将闭合（至少 3 顶点） */
+const polyNearFirst = ref(false)
+
+/** 吸附首点闭合的半径（显示坐标 px，随 DPR 无关） */
+const POLY_SNAP_CLOSE_PX = 14
+/** 与上一顶点过近则忽略本次加点，减轻连点误触 */
+const POLY_MIN_EDGE_PX = 4
 
 const submitting = ref(false)
 
@@ -124,11 +134,33 @@ function clampDisp(x: number, y: number) {
   }
 }
 
-function offsetInImg(e: MouseEvent): { x: number; y: number } | null {
+function offsetInImg(e: { clientX: number; clientY: number }): { x: number; y: number } | null {
   const img = imgEl.value
   if (!img) return null
   const r = img.getBoundingClientRect()
   return clampDisp(e.clientX - r.left, e.clientY - r.top)
+}
+
+function distDisp(a: { x: number; y: number }, b: { x: number; y: number }) {
+  return Math.hypot(a.x - b.x, a.y - b.y)
+}
+
+function updatePolyHoverFromEvent(e: { clientX: number; clientY: number }) {
+  if (tool.value !== 'polygon' || polyDraft.value.length === 0) {
+    polyHoverDisp.value = null
+    polyNearFirst.value = false
+    return
+  }
+  const o = offsetInImg(e)
+  if (!o) {
+    polyHoverDisp.value = null
+    polyNearFirst.value = false
+    return
+  }
+  polyHoverDisp.value = o
+  const p0 = polyDraft.value[0]
+  polyNearFirst.value =
+    polyDraft.value.length >= 3 && distDisp(o, p0) <= POLY_SNAP_CLOSE_PX
 }
 
 function syncCanvasSize() {
@@ -203,18 +235,62 @@ function redrawOverlay() {
   }
 
   if (tool.value === 'polygon' && polyDraft.value.length > 0) {
-    ctx.strokeStyle = 'rgba(125, 211, 252, 0.95)'
+    const pts = polyDraft.value
+    const last = pts[pts.length - 1]
+    const hover = polyHoverDisp.value
+
+    ctx.strokeStyle = 'rgba(125, 211, 252, 0.92)'
     ctx.lineWidth = 2
+    ctx.setLineDash([])
     ctx.beginPath()
-    ctx.moveTo(polyDraft.value[0].x, polyDraft.value[0].y)
-    for (let i = 1; i < polyDraft.value.length; i++)
-      ctx.lineTo(polyDraft.value[i].x, polyDraft.value[i].y)
+    ctx.moveTo(pts[0].x, pts[0].y)
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y)
     ctx.stroke()
-    for (const p of polyDraft.value) {
+
+    // 橡皮筋：最后一顶 → 光标
+    if (hover) {
+      ctx.save()
+      ctx.setLineDash([6, 5])
+      ctx.strokeStyle = polyNearFirst.value
+        ? 'rgba(52, 211, 153, 0.95)'
+        : 'rgba(148, 163, 184, 0.75)'
+      ctx.lineWidth = polyNearFirst.value ? 2.5 : 1.5
       ctx.beginPath()
-      ctx.arc(p.x, p.y, 4, 0, Math.PI * 2)
-      ctx.fillStyle = 'rgba(125, 211, 252, 0.95)'
-      ctx.fill()
+      ctx.moveTo(last.x, last.y)
+      ctx.lineTo(hover.x, hover.y)
+      if (polyNearFirst.value && pts.length >= 2) {
+        ctx.lineTo(pts[0].x, pts[0].y)
+      }
+      ctx.stroke()
+      ctx.restore()
+    }
+
+    for (let i = 0; i < pts.length; i++) {
+      const p = pts[i]
+      const isFirst = i === 0
+      const r = isFirst && pts.length >= 2 ? (polyNearFirst.value ? 8 : 6) : 4.5
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, r, 0, Math.PI * 2)
+      if (isFirst && pts.length >= 2) {
+        ctx.fillStyle = polyNearFirst.value ? 'rgba(52, 211, 153, 0.95)' : 'rgba(16, 185, 129, 0.88)'
+        ctx.fill()
+        ctx.strokeStyle = 'rgba(255,255,255,0.9)'
+        ctx.lineWidth = polyNearFirst.value ? 2 : 1.5
+        ctx.stroke()
+        if (polyNearFirst.value) {
+          ctx.beginPath()
+          ctx.arc(p.x, p.y, r + 5, 0, Math.PI * 2)
+          ctx.strokeStyle = 'rgba(52, 211, 153, 0.45)'
+          ctx.lineWidth = 1
+          ctx.stroke()
+        }
+      } else {
+        ctx.fillStyle = 'rgba(125, 211, 252, 0.95)'
+        ctx.fill()
+        ctx.strokeStyle = 'rgba(15, 23, 42, 0.65)'
+        ctx.lineWidth = 1
+        ctx.stroke()
+      }
     }
   }
 }
@@ -242,6 +318,22 @@ function onWinResize() {
   redrawOverlay()
 }
 
+function onVaryRegionGlobalKeydown(ev: KeyboardEvent) {
+  if (!props.open || props.variant === 'custom-zoom') return
+  const el = ev.target
+  if (el instanceof HTMLElement) {
+    if (el.closest('textarea, input, select, [contenteditable="true"]')) return
+  }
+  if (tool.value !== 'polygon') return
+  if (ev.key === 'Enter') {
+    ev.preventDefault()
+    closePolygon()
+  } else if (ev.key === 'Backspace') {
+    ev.preventDefault()
+    undoLastPolyVertex()
+  }
+}
+
 watch(
   () => props.open,
   v => {
@@ -254,13 +346,17 @@ watch(
       }
       committed.value = null
       polyDraft.value = []
+      polyHoverDisp.value = null
+      polyNearFirst.value = false
       dragCur.value = null
       dragging = false
       tool.value = 'rect'
       window.addEventListener('resize', onWinResize)
+      window.addEventListener('keydown', onVaryRegionGlobalKeydown)
       void loadImage()
     } else {
       window.removeEventListener('resize', onWinResize)
+      window.removeEventListener('keydown', onVaryRegionGlobalKeydown)
       if (blobUrl.value) {
         URL.revokeObjectURL(blobUrl.value)
         blobUrl.value = ''
@@ -286,19 +382,62 @@ watch(
 )
 
 onUnmounted(() => {
+  window.removeEventListener('keydown', onVaryRegionGlobalKeydown)
   if (blobUrl.value) URL.revokeObjectURL(blobUrl.value)
 })
 
 watch(tool, () => {
   committed.value = null
   polyDraft.value = []
+  polyHoverDisp.value = null
+  polyNearFirst.value = false
   dragCur.value = null
   dragging = false
   redrawOverlay()
 })
 
-function onPointerDown(e: MouseEvent) {
-  if (tool.value === 'polygon') return
+function tryPolygonSnapClose(o: { x: number; y: number }): boolean {
+  if (polyDraft.value.length < 3) return false
+  if (distDisp(o, polyDraft.value[0]) > POLY_SNAP_CLOSE_PX) return false
+  commitClosedPolygon()
+  return true
+}
+
+function commitClosedPolygon() {
+  if (polyDraft.value.length < 3) {
+    ms.warning(t('drawing.mjVaryRegionPolygonNeedThree'))
+    return
+  }
+  committed.value = { kind: 'polygon', pts: [...polyDraft.value] }
+  polyDraft.value = []
+  polyHoverDisp.value = null
+  polyNearFirst.value = false
+  redrawOverlay()
+}
+
+function closePolygon() {
+  commitClosedPolygon()
+}
+
+function undoLastPolyVertex() {
+  if (polyDraft.value.length === 0) return
+  polyDraft.value = polyDraft.value.slice(0, -1)
+  redrawOverlay()
+}
+
+function onPointerDown(e: PointerEvent) {
+  if (tool.value === 'polygon') {
+    if (e.button !== 0) return
+    const o = offsetInImg(e)
+    if (!o) return
+    if (tryPolygonSnapClose(o)) return
+    const pts = polyDraft.value
+    if (pts.length > 0 && distDisp(o, pts[pts.length - 1]) < POLY_MIN_EDGE_PX) return
+    polyDraft.value = [...pts, o]
+    polyHoverDisp.value = { ...o }
+    redrawOverlay()
+    return
+  }
   const o = offsetInImg(e)
   if (!o) return
   dragging = true
@@ -306,7 +445,11 @@ function onPointerDown(e: MouseEvent) {
   dragCur.value = { x: o.x, y: o.y, w: 0, h: 0 }
 }
 
-function onPointerMove(e: MouseEvent) {
+function onPointerMove(e: PointerEvent) {
+  if (tool.value === 'polygon') {
+    updatePolyHoverFromEvent(e)
+    redrawOverlay()
+  }
   if (!dragging || tool.value === 'polygon') return
   const o = offsetInImg(e)
   if (!o) return
@@ -333,27 +476,24 @@ function onPointerUp() {
   redrawOverlay()
 }
 
-function onCanvasClick(e: MouseEvent) {
-  if (tool.value !== 'polygon') return
-  const o = offsetInImg(e)
-  if (!o) return
-  polyDraft.value = [...polyDraft.value, o]
+function onCanvasLeave() {
+  polyHoverDisp.value = null
+  polyNearFirst.value = false
+  onPointerUp()
   redrawOverlay()
 }
 
-function closePolygon() {
-  if (polyDraft.value.length < 3) {
-    ms.warning(t('drawing.mjVaryRegionPolygonNeedThree'))
-    return
-  }
-  committed.value = { kind: 'polygon', pts: [...polyDraft.value] }
-  polyDraft.value = []
-  redrawOverlay()
+function onCanvasContextMenu(e: MouseEvent) {
+  if (tool.value !== 'polygon' || polyDraft.value.length === 0) return
+  e.preventDefault()
+  undoLastPolyVertex()
 }
 
 function clearSelection() {
   committed.value = null
   polyDraft.value = []
+  polyHoverDisp.value = null
+  polyNearFirst.value = false
   dragCur.value = null
   dragging = false
   redrawOverlay()
@@ -498,7 +638,7 @@ async function submitModal() {
     })
     const parsed = parseMjSubmitBody(r)
     if (!parsed.ok) {
-      ms.error(parsed.message || t('common.wrong'))
+      ms.error(mjTranslateKnownDrawingError(parsed.message, t) || t('common.wrong'))
       return
     }
     const mj = parsed.mj
@@ -513,9 +653,10 @@ async function submitModal() {
         mj?.description ||
         (mj as Record<string, unknown>)?.msg ||
         (mj as Record<string, unknown>)?.message
+      const hintStr = hint != null && String(hint).trim() ? String(hint).trim() : ''
       ms.error(
-        hint != null && String(hint).trim()
-          ? String(hint).trim()
+        hintStr
+          ? mjTranslateKnownDrawingError(hintStr, t) || hintStr
           : t('common.wrong') + ` (code=${normalizeMjSubmitCode(mj?.code) ?? '?'})`
       )
       return
@@ -675,12 +816,17 @@ async function submitModal() {
                   {{ t('drawing.mjVaryRegionToolPoly') }}
                 </button>
               </div>
-              <p v-if="!isCustomZoom" class="mb-2 text-center text-[10px] text-slate-500">
-                {{
-                  tool === 'polygon'
-                    ? t('drawing.mjVaryRegionHintPoly')
-                    : t('drawing.mjVaryRegionHintDrag')
-                }}
+              <div
+                v-if="!isCustomZoom && tool === 'polygon'"
+                class="mj-vr-poly-hint mb-2 rounded-xl border border-slate-600/55 bg-slate-950/55 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+              >
+                <div
+                  class="mj-vr-poly-hint__inner text-left text-[11px] leading-relaxed text-slate-300"
+                  v-html="t('drawing.mjVaryRegionHintPolyHtml')"
+                />
+              </div>
+              <p v-else-if="!isCustomZoom" class="mb-2 text-center text-[10px] text-slate-500">
+                {{ t('drawing.mjVaryRegionHintDrag') }}
               </p>
 
               <div class="relative flex justify-center overflow-auto rounded-xl bg-black/30 p-2">
@@ -697,12 +843,18 @@ async function submitModal() {
                     v-if="!isCustomZoom"
                     ref="cvRef"
                     class="absolute left-0 top-0 touch-none"
-                    :class="tool === 'polygon' ? 'cursor-crosshair' : 'cursor-crosshair'"
-                    @mousedown="onPointerDown"
-                    @mousemove="onPointerMove"
-                    @mouseup="onPointerUp"
-                    @mouseleave="onPointerUp"
-                    @click="onCanvasClick"
+                    :class="
+                      tool === 'polygon'
+                        ? polyNearFirst
+                          ? 'cursor-pointer'
+                          : 'cursor-crosshair'
+                        : 'cursor-crosshair'
+                    "
+                    @pointerdown="onPointerDown"
+                    @pointermove="onPointerMove"
+                    @pointerup="onPointerUp"
+                    @pointerleave="onCanvasLeave"
+                    @contextmenu.prevent="onCanvasContextMenu"
                   />
                 </div>
               </div>
@@ -718,13 +870,29 @@ async function submitModal() {
                 "
               />
 
-              <div v-if="!isCustomZoom && tool === 'polygon'" class="mt-2 flex justify-center">
+              <div
+                v-if="!isCustomZoom && tool === 'polygon'"
+                class="mt-3 flex flex-wrap items-center justify-center gap-3"
+                role="group"
+                :aria-label="t('drawing.mjVaryRegionPolyActionsAria')"
+              >
                 <button
                   type="button"
-                  class="btn btn-outline btn-xs border-slate-600 text-slate-300"
+                  class="mj-vr-poly-btn mj-vr-poly-btn--secondary"
+                  :disabled="polyDraft.length === 0"
+                  @click="undoLastPolyVertex"
+                >
+                  <span class="mj-vr-poly-btn__icon" aria-hidden="true">↩</span>
+                  <span class="mj-vr-poly-btn__label">{{ t('drawing.mjVaryRegionPolyUndoLast') }}</span>
+                </button>
+                <button
+                  type="button"
+                  class="mj-vr-poly-btn mj-vr-poly-btn--primary"
+                  :disabled="polyDraft.length < 3"
                   @click="closePolygon"
                 >
-                  {{ t('drawing.mjVaryRegionClosePolygon') }}
+                  <span class="mj-vr-poly-btn__icon" aria-hidden="true">✓</span>
+                  <span class="mj-vr-poly-btn__label">{{ t('drawing.mjVaryRegionClosePolygon') }}</span>
                 </button>
               </div>
             </template>
@@ -803,5 +971,143 @@ async function submitModal() {
   height: 10px;
   border-radius: 9999px;
   background: #334155;
+}
+
+.mj-vr-poly-hint :deep(.mj-vr-hint-txt) {
+  color: rgb(148 163 184);
+}
+
+/* 多边形说明（v-html 内标签无 scoped data 属性，用 :deep 命中） */
+.mj-vr-poly-hint :deep(.mj-vr-hint-chip) {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 0.12em;
+  vertical-align: middle;
+  border-radius: 0.35rem;
+  padding: 0.1em 0.45em 0.12em;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.35;
+  border-width: 1px;
+  border-style: solid;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+.mj-vr-poly-hint :deep(.mj-vr-hint-chip--sky) {
+  color: #e0f2fe;
+  border-color: rgba(56, 189, 248, 0.55);
+  background: linear-gradient(180deg, rgba(14, 116, 144, 0.55), rgba(8, 47, 73, 0.85));
+}
+.mj-vr-poly-hint :deep(.mj-vr-hint-chip--amber) {
+  color: #fffbeb;
+  border-color: rgba(251, 191, 36, 0.55);
+  background: linear-gradient(180deg, rgba(180, 83, 9, 0.55), rgba(69, 26, 3, 0.88));
+}
+.mj-vr-poly-hint :deep(.mj-vr-hint-chip--emerald) {
+  color: #ecfdf5;
+  border-color: rgba(52, 211, 153, 0.6);
+  background: linear-gradient(180deg, rgba(5, 150, 105, 0.55), rgba(6, 78, 59, 0.9));
+}
+.mj-vr-poly-hint :deep(.mj-vr-hint-chip--slate) {
+  color: #f1f5f9;
+  border-color: rgba(148, 163, 184, 0.45);
+  background: linear-gradient(180deg, rgba(51, 65, 85, 0.75), rgba(15, 23, 42, 0.92));
+}
+.mj-vr-poly-hint :deep(.mj-vr-hint-chip--kbd) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #e2e8f0;
+  border-color: rgba(100, 116, 139, 0.55);
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+.mj-vr-poly-hint :deep(.mj-vr-hint-chip--rose) {
+  color: #ffe4e6;
+  border-color: rgba(251, 113, 133, 0.55);
+  background: linear-gradient(180deg, rgba(190, 18, 60, 0.55), rgba(76, 5, 25, 0.9));
+}
+
+/* 多边形操作：明显可点击的实体按钮（不依赖 daisy btn 变体） */
+.mj-vr-poly-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 2.5rem;
+  padding: 0.45rem 1.1rem;
+  border-radius: 0.75rem;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  border-width: 2px;
+  border-style: solid;
+  cursor: pointer;
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.15s ease,
+    filter 0.15s ease,
+    border-color 0.15s ease;
+  box-shadow:
+    0 2px 0 rgba(0, 0, 0, 0.35),
+    0 6px 16px rgba(0, 0, 0, 0.28);
+}
+.mj-vr-poly-btn:active:not(:disabled) {
+  transform: translateY(1px) scale(0.99);
+  box-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.35),
+    0 3px 10px rgba(0, 0, 0, 0.22);
+}
+.mj-vr-poly-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+  filter: grayscale(0.25);
+  box-shadow: none;
+}
+.mj-vr-poly-btn__icon {
+  display: inline-flex;
+  width: 1.25rem;
+  height: 1.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.35rem;
+  font-size: 13px;
+  line-height: 1;
+  opacity: 0.95;
+}
+.mj-vr-poly-btn--secondary {
+  color: #f1f5f9;
+  border-color: rgba(100, 116, 139, 0.75);
+  background: linear-gradient(180deg, #475569 0%, #1e293b 55%, #0f172a 100%);
+}
+.mj-vr-poly-btn--secondary:not(:disabled):hover {
+  border-color: rgba(148, 163, 184, 0.95);
+  filter: brightness(1.08);
+}
+.mj-vr-poly-btn--secondary .mj-vr-poly-btn__icon {
+  background: rgba(15, 23, 42, 0.45);
+  color: #bae6fd;
+}
+.mj-vr-poly-btn--primary {
+  color: #ecfdf5;
+  border-color: rgba(52, 211, 153, 0.75);
+  background: linear-gradient(180deg, #059669 0%, #047857 45%, #064e3b 100%);
+  box-shadow:
+    0 2px 0 rgba(6, 78, 59, 0.65),
+    0 0 0 1px rgba(167, 243, 208, 0.12),
+    0 6px 20px rgba(16, 185, 129, 0.25);
+}
+.mj-vr-poly-btn--primary:not(:disabled):hover {
+  border-color: rgba(110, 231, 183, 0.95);
+  filter: brightness(1.07);
+}
+.mj-vr-poly-btn--primary .mj-vr-poly-btn__icon {
+  background: rgba(6, 78, 59, 0.45);
+  color: #a7f3d0;
+}
+.mj-vr-poly-btn:focus-visible {
+  outline: 2px solid rgba(56, 189, 248, 0.65);
+  outline-offset: 2px;
 }
 </style>
