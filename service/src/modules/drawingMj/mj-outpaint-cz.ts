@@ -1,8 +1,10 @@
 /**
- * 预设 Zoom Out（MJ::Outpaint::50|75）在部分聚合（如 api.ephone.ai）上 submit/action 虽返回成功，
- * 执行期常报 invalid_parameter；改走 Custom Zoom 按钮 + submit/modal 可规避。
+ * 预设 Zoom Out（MJ::Outpaint::50|75）在部分聚合网关上 submit/action 虽返回成功，
+ * 执行期仍常报 invalid_parameter；改走 Custom Zoom 按钮 + submit/modal 可规避。
  * OpenAPI：submit/action 仅 customId+taskId(+notifyHook)；submit/modal 为 taskId+prompt(+maskBase64)。
  */
+
+import { proxyUrlMatchesMjHostMarkers } from './mj-proxy-host-markers';
 
 export function unwrapMjSubmitEnvelope(data: unknown): Record<string, unknown> {
   if (data == null || typeof data !== 'object' || Array.isArray(data)) return {};
@@ -83,7 +85,7 @@ function stripMjZoomParam(line: string): string {
     .trim();
 }
 
-/** Custom Zoom 等 submit/modal：部分聚合（如 api.ephone.ai）在含 `--zoom` 的 prompt 里若带 `--v`/`--niji` 会执行期 invalid_parameter */
+/** Custom Zoom 等 submit/modal：部分聚合在含 `--zoom` 的 prompt 里若同时带 `--v`/`--niji` 会在执行期报 invalid_parameter */
 export function stripMjModelVersionFlags(line: string): string {
   return line
     .replace(/(^|\s)--v\s+\d+\b/gi, '$1')
@@ -184,11 +186,14 @@ export function buildCustomZoomModalPromptFromTask(
   return `${bodyPart}${arPart} --zoom ${zoomNum}`.replace(/\s+/g, ' ').trim();
 }
 
-/** 预设 Outpaint 走 Custom Zoom 链：默认仅 ephone.ai；全局开启设 MJ_OUTPAINT_PRESET_USE_CUSTOM_ZOOM=1；关闭设 =0 */
+/**
+ * 预设 Outpaint 是否改走 Custom Zoom 链。
+ * 未设置 `MJ_OUTPAINT_PRESET_USE_CUSTOM_ZOOM` 时，若 `MJ_PROXY_HOST_MARKERS` 命中 `proxyUrl` 则启用；
+ * 设为 1/true/on 全局开启，0/false/off 关闭。
+ */
 export function presetOutpaintCustomZoomEnabledForProxy(proxyUrl: string): boolean {
   const v = process.env.MJ_OUTPAINT_PRESET_USE_CUSTOM_ZOOM?.trim().toLowerCase();
   if (v === '0' || v === 'false' || v === 'off' || v === 'no') return false;
   if (v === '1' || v === 'true' || v === 'yes' || v === 'on' || v === 'all') return true;
-  const base = String(proxyUrl || '').toLowerCase();
-  return base.includes('ephone.ai');
+  return proxyUrlMatchesMjHostMarkers(proxyUrl);
 }
