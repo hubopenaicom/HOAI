@@ -1,3 +1,158 @@
+/** 绘画页轮询上游 task/fetch 的间隔（毫秒），须与 service midjourney.constant 中 MJ_UPSTREAM_POLL_INTERVAL_MS 一致 */
+export const MJ_TASK_POLL_INTERVAL_MS = 2500
+
+/**
+ * 单次出图最大轮询次数（× {@link MJ_TASK_POLL_INTERVAL_MS}）。
+ * 须与 service/src/common/constants/midjourney.constant.ts 中 mjUpstreamPollMaxIterations 同步。
+ */
+export function mjTaskPollMaxIterations(mjMode: string | undefined): number {
+  const m = String(mjMode ?? 'fast').toLowerCase()
+  if (m === 'relax') return 720
+  return 480
+}
+
+/**
+ * cref/sref/oref 直链最大长度（与绘画页存储截断一致）。
+ * 对象存储签名 URL、Discord 带鉴权参数链常超过 2048，过短会导致「上传成功但校验永远失败、--cref 不进 prompt」。
+ */
+export const MJ_EXT_REF_URL_MAX_LEN = 8192
+
+/** 写入 ref / localStorage 前统一截断，避免与 {@link mjExtRefUrlSanitized} 长度上限不一致 */
+export function mjClipExtRefUrlForStorage(raw: string): string {
+  return String(raw ?? '')
+    .trim()
+    .slice(0, MJ_EXT_REF_URL_MAX_LEN)
+}
+
+/**
+ * cref/sref/oref 直链：与绘画页拼入 prompt 的规则一致。
+ * 去除 BOM/零宽、换行；去掉用户误粘贴的一层引号；仅接受 http(s)。
+ */
+export function mjExtRefUrlSanitized(raw: string): string | null {
+  let t = String(raw ?? '')
+    .trim()
+    .replace(/[\uFEFF\u200B-\u200D\u2060]/g, '')
+    .replace(/[\r\n]+/g, '')
+  if ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'"))) {
+    t = t.slice(1, -1).trim()
+  }
+  /** 部分图床返回 `//host/path`，Midjourney 与校验逻辑均按绝对 URL 处理 */
+  if (/^\/\//.test(t)) {
+    t = `https:${t}`
+  }
+  if (!t || t.length > MJ_EXT_REF_URL_MAX_LEN) return null
+  if (!/^https?:\/\//i.test(t)) return null
+  return t
+}
+
+export function mjExtRefUrlLooksUsable(raw: string): boolean {
+  return mjExtRefUrlSanitized(raw) !== null
+}
+
+/**
+ * 从任意 JSON 结构里找出第一个可通过 {@link mjExtRefUrlSanitized} 的 http(s) 链。
+ * 用于上传接口返回体字段名不统一、多层嵌套时仍能解析出 --cref/--sref/--oref 所需直链。
+ */
+export function mjPickFirstHttpUrlFromUnknownJson(root: unknown, maxDepth = 14): string | null {
+  const seen = new WeakSet<object>()
+  const walk = (o: unknown, depth: number): string | null => {
+    if (depth <= 0 || o == null) return null
+    if (typeof o === 'string') {
+      return mjExtRefUrlSanitized(o)
+    }
+    if (typeof o !== 'object') return null
+    if (seen.has(o as object)) return null
+    seen.add(o as object)
+    if (Array.isArray(o)) {
+      for (const it of o) {
+        const hit = walk(it, depth - 1)
+        if (hit) return hit
+      }
+      return null
+    }
+    for (const v of Object.values(o as Record<string, unknown>)) {
+      const hit = walk(v, depth - 1)
+      if (hit) return hit
+    }
+    return null
+  }
+  return walk(root, maxDepth)
+}
+
+/**
+ * 从「参考图上传」接口响应中取出可写入 --cref/--sref/--oref 的 https 直链。
+ * 兼容：Nest {@link Result}（code/success/data）、网关二次包裹、字段别名、data 为 JSON 字符串、result 为 URL 数组等。
+ */
+export function mjPickRefCdnUrlFromUploadResponse(r: unknown): string {
+  const pick = (s: string): string => mjExtRefUrlSanitized(s) || ''
+
+  const walk = (o: unknown, depth: number): string => {
+    if (depth <= 0 || o == null) return ''
+    if (typeof o === 'string') {
+      const t = o.trim()
+      if (pick(t)) return pick(t)
+      if ((t.startsWith('{') && t.endsWith('}')) || (t.startsWith('[') && t.endsWith(']'))) {
+        try {
+          return walk(JSON.parse(t), depth - 1)
+        } catch {
+          return ''
+        }
+      }
+      return ''
+    }
+    if (typeof o !== 'object') return ''
+    if (Array.isArray(o)) {
+      for (const it of o) {
+        const x = walk(it, depth - 1)
+        if (x) return x
+      }
+      return ''
+    }
+    const rec = o as Record<string, unknown>
+    const strKeys = [
+      'url',
+      'link',
+      'href',
+      'cdnUrl',
+      'cdn_url',
+      'imageUrl',
+      'image_url',
+      'fileUrl',
+      'file_url',
+      'picUrl',
+      'pic_url',
+      'ossUrl',
+    ] as const
+    for (const k of strKeys) {
+      const v = rec[k]
+      if (typeof v === 'string') {
+        const u = pick(v)
+        if (u) return u
+      }
+    }
+    const res0 = rec.result
+    if (typeof res0 === 'string') {
+      const u = pick(res0)
+      if (u) return u
+    }
+    if (Array.isArray(res0)) {
+      for (const it of res0) {
+        const x = walk(it, depth - 1)
+        if (x) return x
+      }
+    }
+    if (rec.data !== undefined) {
+      const x = walk(rec.data, depth - 1)
+      if (x) return x
+    }
+    return ''
+  }
+
+  const hit = walk(r, 16)
+  if (hit) return hit
+  return mjPickFirstHttpUrlFromUnknownJson(r) || ''
+}
+
 /** 解析 Nest Result + MJ 上游嵌套结构 */
 export function parseMjSubmitBody(r: any): {
   ok: boolean
@@ -72,7 +227,7 @@ function mjPickTaskIdPrimitive(v: unknown): string {
 
 /**
  * 从 submit/action、submit/imagine 等上游返回体提取用于轮询的任务 ID。
- * 兼容 midjourney-proxy-plus / 聚合网关多种字段名与一层嵌套。
+ * 兼容常见 Midjourney 代理的多种字段名与一层嵌套。
  */
 export function extractMjTaskId(
   mj: { result?: string | number; properties?: any } | undefined
@@ -272,9 +427,30 @@ export function mjTaskFailureHintKey(raw: string | undefined): MjTaskFailureHint
   return null
 }
 
+/** 常见上游英文/中文错误 → i18n key（`drawing.*`） */
+export function mjKnownDrawingErrorI18nKey(raw: string | undefined | null): string | null {
+  const s = String(raw ?? '').trim()
+  if (!s) return null
+  if (/queue\s+is\s+full|queue\s+full|the\s+queue\s+is\s+full|^queue[\s,:_-]*full/i.test(s))
+    return 'drawing.mjErrQueueFull'
+  if (/队列已满|排队已满|任务队列已满/.test(s)) return 'drawing.mjErrQueueFull'
+  return null
+}
+
+/** 命中已知绘制错误时返回翻译，否则原样返回 */
+export function mjTranslateKnownDrawingError(
+  raw: string | undefined | null,
+  translate: (key: string) => string,
+): string {
+  const s = String(raw ?? '').trim()
+  if (!s) return ''
+  const key = mjKnownDrawingErrorI18nKey(s)
+  return key ? translate(key) : s
+}
+
 /**
- * api.ephone.ai 等：任务结束同时带 description=Waiting for window confirm 与 failReason=无效参数，
- * 若只读 failReason 会误判为「蒙版/参数格式错」，实为 Discord 弹窗未关单。
+ * 部分聚合任务在 description 与 failReason 上不一致（例如「等窗口确认」却标成无效参数），
+ * 合并判断以免用户只看到笼统的 failReason。
  */
 export function mjTaskFailureHintKeyFromTask(task: Record<string, unknown>): MjTaskFailureHintKey {
   const fr = String(task.failReason ?? task.failMsg ?? '').trim()
