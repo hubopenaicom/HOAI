@@ -27,6 +27,8 @@ export interface UserBalance {
   useModel3Token: number
   useModel4Token: number
   useDrawMjToken: number
+  /** 绘画/MJ 类已消耗积分累计 */
+  useDrawMjCount?: number
   sumModel3Count: number
   sumModel4Count: number
   sumDrawMjCount: number
@@ -117,6 +119,8 @@ export interface GlobalConfig {
   streamCacheEnabled: string
   homeWelcomeContent: string
   sideDrawingEditModel: string
+  /** JSON：`mj-imagine-charge-mult.ts` 与后台「网站显示配置」一致 */
+  mjImagineChargeMultipliers?: string
 }
 
 export interface AuthState {
