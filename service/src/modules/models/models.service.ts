@@ -195,6 +195,18 @@ export class ModelsService {
         // 如果timeout是NaN，则可以选择设置为null或者一个默认值
         params.timeout = null; // 或者任何合适的默认值，如0
       }
+      /** 绘画类型仅在「创意模型 keyType=2」表单中维护；基础对话/特殊模型保存时必须清零，避免 DB 残留 Midjourney(3) 误走绘图路由 */
+      const kt = Number((params as any).keyType);
+      if (![2].includes(kt)) {
+        (params as any).drawingType = 0;
+      }
+      /** Token 金额估算仅对「基础对话 keyType=1」有意义 */
+      if (![1].includes(kt)) {
+        (params as any).estimateTokenCostEnabled = false;
+        (params as any).estimateTokenInputPerMillion = 0;
+        (params as any).estimateTokenOutputPerMillion = 0;
+        (params as any).estimateTokenCurrency = 'CNY';
+      }
       const { id } = params;
       if (id) {
         const res = await this.modelsEntity.update({ id }, params);
