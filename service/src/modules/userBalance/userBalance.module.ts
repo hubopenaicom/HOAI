@@ -6,6 +6,7 @@ import { AppCatsEntity } from '../app/appCats.entity';
 import { UserAppsEntity } from '../app/userApps.entity';
 import { ChatGroupEntity } from '../chatGroup/chatGroup.entity';
 import { ChatLogEntity } from '../chatLog/chatLog.entity';
+import { ModelsEntity } from '../models/models.entity';
 import { CramiPackageEntity } from '../crami/cramiPackage.entity';
 import { ConfigEntity } from '../globalConfig/config.entity';
 import { GlobalConfigModule } from '../globalConfig/globalConfig.module';
@@ -34,6 +35,7 @@ import { UserBalanceService } from './userBalance.service';
       ConfigEntity,
       ChatGroupEntity,
       ChatLogEntity,
+      ModelsEntity,
       UserEntity,
       VerificationEntity,
       FingerprintLogEntity,
