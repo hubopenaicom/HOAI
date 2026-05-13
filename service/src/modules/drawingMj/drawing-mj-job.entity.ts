@@ -34,4 +34,17 @@ export class DrawingMjJobEntity extends BaseEntity {
 
   @Column({ type: 'longtext', nullable: true, comment: '上游 task/fetch 解析后的 JSON' })
   taskJson: string;
+
+  @Column({ type: 'int', nullable: true, comment: '本次提交扣费积分（与 withBalance 估算一致）' })
+  deductCharged: number | null;
+
+  @Column({
+    type: 'smallint',
+    nullable: true,
+    comment: '扣费倍率（Imagine/Shorten 由提示词推断等）',
+  })
+  chargeMult: number | null;
+
+  @Column({ type: 'tinyint', nullable: true, comment: '扣费类型快照：1 普通 2 高级 3 绘画' })
+  deductTypeSnapshot: number | null;
 }
