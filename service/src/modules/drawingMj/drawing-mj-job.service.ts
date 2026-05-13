@@ -18,6 +18,9 @@ export interface CreateDrawingMjJobDto {
   loading?: boolean;
   error?: string;
   task?: Record<string, unknown>;
+  deductCharged?: number | null;
+  chargeMult?: number | null;
+  deductTypeSnapshot?: number | null;
 }
 
 export interface UpdateDrawingMjJobDto {
@@ -86,6 +89,9 @@ export class DrawingMjJobService {
       loading: dto.loading !== false,
       error: dto.error ?? null,
       taskJson: dto.task ? JSON.stringify(dto.task) : null,
+      deductCharged: dto.deductCharged != null ? Number(dto.deductCharged) : null,
+      chargeMult: dto.chargeMult != null ? Number(dto.chargeMult) : null,
+      deductTypeSnapshot: dto.deductTypeSnapshot != null ? Number(dto.deductTypeSnapshot) : null,
     });
     return this.repo.save(row);
   }
@@ -126,6 +132,24 @@ export class DrawingMjJobService {
           existing.mjStyleSnapshot = dto.mjStyleSnapshot ?? null;
         if (dto.task !== undefined) {
           existing.taskJson = dto.task ? JSON.stringify(dto.task) : null;
+        }
+        if (dto.deductCharged !== undefined) {
+          existing.deductCharged =
+            dto.deductCharged != null && Number.isFinite(Number(dto.deductCharged))
+              ? Number(dto.deductCharged)
+              : null;
+        }
+        if (dto.chargeMult !== undefined) {
+          existing.chargeMult =
+            dto.chargeMult != null && Number.isFinite(Number(dto.chargeMult))
+              ? Number(dto.chargeMult)
+              : null;
+        }
+        if (dto.deductTypeSnapshot !== undefined) {
+          existing.deductTypeSnapshot =
+            dto.deductTypeSnapshot != null && Number.isFinite(Number(dto.deductTypeSnapshot))
+              ? Number(dto.deductTypeSnapshot)
+              : null;
         }
         saved = await this.repo.save(existing);
       } else {
@@ -239,6 +263,10 @@ export class DrawingMjJobService {
         error: item.error ?? undefined,
         task,
         imageUrls: collectMjImageUrls(task),
+        deductCharged: item.deductCharged != null ? Number(item.deductCharged) : undefined,
+        chargeMult: item.chargeMult != null ? Number(item.chargeMult) : undefined,
+        deductTypeSnapshot:
+          item.deductTypeSnapshot != null ? Number(item.deductTypeSnapshot) : undefined,
         createdAt: item.createdAt,
         updatedAt: item.updatedAt,
       };
