@@ -2,7 +2,13 @@ import { BadRequestException, HttpException, HttpStatus, Injectable, Logger } fr
 import { InjectRepository } from '@nestjs/typeorm';
 import axios, { AxiosRequestConfig } from 'axios';
 import { Repository } from 'typeorm';
+import { GlobalConfigService } from '../globalConfig/globalConfig.service';
 import { ModelsEntity } from '../models/models.entity';
+import {
+  guessMjImagineMultFromPrompt,
+  parseMjImagineChargeMultipliersJson,
+  type MjImagineChargeMultipliersParsed,
+} from './mj-imagine-charge-mult';
 import {
   buildCustomZoomModalPromptFromTask,
   isPresetOutpaintCustomId,
@@ -181,10 +187,23 @@ function normalizeMjProxyBaseUrl(raw: string): string {
 
 @Injectable()
 export class DrawingMjService {
+  private mjImagineMultCacheRaw: string | undefined;
+  private mjImagineMultCacheParsed: MjImagineChargeMultipliersParsed =
+    parseMjImagineChargeMultipliersJson(undefined);
+
   constructor(
     @InjectRepository(ModelsEntity)
     private readonly modelsEntity: Repository<ModelsEntity>,
+    private readonly globalConfigService: GlobalConfigService,
   ) {}
+
+  private getMjImagineChargeMultipliersParsed(): MjImagineChargeMultipliersParsed {
+    const raw = this.globalConfigService.peekCachedConfig('mjImagineChargeMultipliers');
+    if (raw === this.mjImagineMultCacheRaw) return this.mjImagineMultCacheParsed;
+    this.mjImagineMultCacheParsed = parseMjImagineChargeMultipliersJson(raw);
+    this.mjImagineMultCacheRaw = raw;
+    return this.mjImagineMultCacheParsed;
+  }
 
   /** 校验：启用且 drawingType=3（Midjourney） */
   async resolveMjModel(modelKey: string): Promise<ModelsEntity> {
@@ -525,12 +544,7 @@ export class DrawingMjService {
   }
 
   guessChargeMultiplier(prompt: string): number {
-    if (!prompt || !String(prompt).trim()) return 1;
-    if (prompt.includes('--v 8')) return 8;
-    if (prompt.includes('--v 7')) return 8;
-    if (prompt.includes('--niji 7')) return 8;
-    if (prompt.includes('--draft')) return 2;
-    return 4;
+    return guessMjImagineMultFromPrompt(prompt, this.getMjImagineChargeMultipliersParsed());
   }
 
   /**
