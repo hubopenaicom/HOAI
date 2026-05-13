@@ -75,6 +75,10 @@
     systemPrompt: '',
     systemPromptType: 0,
     drawingType: 0,
+    estimateTokenCostEnabled: false,
+    estimateTokenCurrency: 'CNY',
+    estimateTokenInputPerMillion: 0,
+    estimateTokenOutputPerMillion: 0,
     deductMjRelax: null as number | null,
     deductMjFast: null as number | null,
     deductMjTurbo: null as number | null,
@@ -308,6 +312,10 @@
       deductMjRelax,
       deductMjFast,
       deductMjTurbo,
+      estimateTokenCostEnabled,
+      estimateTokenCurrency,
+      estimateTokenInputPerMillion,
+      estimateTokenOutputPerMillion,
     } = row;
     nextTick(() => {
       Object.assign(formPackage, {
@@ -341,6 +349,17 @@
         deductMjRelax: deductMjRelax != null ? Number(deductMjRelax) : null,
         deductMjFast: deductMjFast != null ? Number(deductMjFast) : null,
         deductMjTurbo: deductMjTurbo != null ? Number(deductMjTurbo) : null,
+        estimateTokenCostEnabled: Boolean(
+          estimateTokenCostEnabled ?? row.estimate_token_cost_enabled,
+        ),
+        estimateTokenCurrency: String(estimateTokenCurrency || row.estimate_token_currency || 'CNY')
+          .toUpperCase()
+          .includes('USD')
+          ? 'USD'
+          : 'CNY',
+        estimateTokenInputPerMillion: Number(estimateTokenInputPerMillion ?? row.estimate_token_input_per_million) || 0,
+        estimateTokenOutputPerMillion:
+          Number(estimateTokenOutputPerMillion ?? row.estimate_token_output_per_million) || 0,
       });
     });
     visible.value = true;
@@ -470,6 +489,16 @@
           params.deductMjFast = null;
           params.deductMjTurbo = null;
         }
+        /** 绘画类型表单项仅 keyType=2 可见；1/3 必须把 drawingType 置 0，否则会带着库里旧的 3(MJ) 提交 */
+        if (![2].includes(Number(params.keyType))) {
+          params.drawingType = 0;
+        }
+        if (![1].includes(Number(params.keyType))) {
+          params.estimateTokenCostEnabled = false;
+          params.estimateTokenInputPerMillion = 0;
+          params.estimateTokenOutputPerMillion = 0;
+          params.estimateTokenCurrency = 'CNY';
+        }
         await ApiModels.setModels(params);
         ElMessage({ type: 'success', message: '操作成功！' });
         activeModelKeyId.value = 0;
@@ -545,6 +574,22 @@
       if (activeModelKeyId.value !== 0) return;
       if (catalogFillTimer) clearTimeout(catalogFillTimer);
       catalogFillTimer = setTimeout(() => fillTokensFromCatalog(String(val)), 500);
+    },
+  );
+
+  watch(
+    () => formPackage.keyType,
+    () => {
+      if (!visible.value) return;
+      if (![2].includes(Number(formPackage.keyType))) {
+        formPackage.drawingType = 0;
+      }
+      if (![1].includes(Number(formPackage.keyType))) {
+        formPackage.estimateTokenCostEnabled = false;
+        formPackage.estimateTokenInputPerMillion = 0;
+        formPackage.estimateTokenOutputPerMillion = 0;
+        formPackage.estimateTokenCurrency = 'CNY';
+      }
     },
   );
 
@@ -934,6 +979,42 @@
           </div>
         </el-form-item>
 
+        <template v-if="[1].includes(Number(formPackage.keyType))">
+          <el-divider content-position="left">Token 用量金额估算（可选）</el-divider>
+          <p class="text-xs text-gray-500 -mt-2 mb-2 max-w-[560px] leading-relaxed">
+            按每百万 Token 输入/输出单价估算参考成本，仅用于会员中心等展示，不参与积分扣费。开启后请填写大于 0 的单价（美元或人民币）。
+          </p>
+          <el-form-item label="启用估算">
+            <el-switch v-model="formPackage.estimateTokenCostEnabled" />
+          </el-form-item>
+          <el-form-item v-if="formPackage.estimateTokenCostEnabled" label="估算币别">
+            <el-select v-model="formPackage.estimateTokenCurrency" style="width: 200px">
+              <el-option label="人民币 (CNY)" value="CNY" />
+              <el-option label="美元 (USD)" value="USD" />
+            </el-select>
+          </el-form-item>
+          <el-form-item v-if="formPackage.estimateTokenCostEnabled" label="输入 $/1M">
+            <el-input-number
+              v-model="formPackage.estimateTokenInputPerMillion"
+              :min="0"
+              :precision="6"
+              :step="0.01"
+              class="input-number"
+            />
+            <span class="unit-text ml-2">{{ formPackage.estimateTokenCurrency }} / 百万输入 Token</span>
+          </el-form-item>
+          <el-form-item v-if="formPackage.estimateTokenCostEnabled" label="输出 $/1M">
+            <el-input-number
+              v-model="formPackage.estimateTokenOutputPerMillion"
+              :min="0"
+              :precision="6"
+              :step="0.01"
+              class="input-number"
+            />
+            <span class="unit-text ml-2">{{ formPackage.estimateTokenCurrency }} / 百万输出 Token</span>
+          </el-form-item>
+        </template>
+
         <el-form-item label="指定代理地址" prop="proxyUrl">
           <el-input
             v-model="formPackage.proxyUrl"
@@ -1003,7 +1084,8 @@
           />
           <p v-if="isMjDrawingKey" class="mt-1 max-w-[520px] text-xs text-gray-500 leading-relaxed">
             Midjourney：此项为<strong>默认基准</strong>；下方「分速度」留空时，该速度按此处扣费。Imagine
-            等仍会按提示词乘以系统倍数（如 --v 7 / --draft 等），与独立绘画页一致。
+            等仍会按提示词乘以倍数（如 --v 7 / --draft），与独立绘画页一致；倍数数值可在后台「网站显示配置」中的「MJ
+            提示词计费倍数」集中修改。
           </p>
         </el-form-item>
 
