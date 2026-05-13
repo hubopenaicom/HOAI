@@ -33,6 +33,9 @@ export class UserBalanceEntity extends BaseEntity {
   @Column({ comment: '已经使用的对话4的模型次数', nullable: true })
   useModel4Count: number;
 
+  @Column({ comment: '已经消耗的 MJ/绘画类积分累计', default: 0, nullable: true })
+  useDrawMjCount: number;
+
   @Column({ comment: '已经使用的对话3的模型Token', nullable: true })
   useModel3Token: number;
 
