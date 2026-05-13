@@ -118,10 +118,11 @@ const mobileSafeArea = computed(() => {
   return {}
 })
 
+/** 仅在进入移动端时强制收起侧栏；桌面端不要用 false 覆盖本地已持久化的折叠偏好（刷新后应保留） */
 watch(
   isMobile,
   val => {
-    appStore.setSiderCollapsed(val)
+    if (val) appStore.setSiderCollapsed(true)
   },
   {
     immediate: true,
