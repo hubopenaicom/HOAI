@@ -18,7 +18,7 @@ export const ChatType = {
 /**
  * @description: 账户充值类型
  * @param {type}
- * 1: 注册赠送  2: 受邀请赠送  3: 邀请人赠送  4: 购买套餐赠送  5: 管理员赠送 6：扫码支付 7: 绘画失败退款 8: 签到奖励
+ * 1: 注册赠送  2: 受邀请赠送  3: 邀请人赠送  4: 购买套餐赠送  5: 管理员赠送 6：扫码支付 7: 绘画失败退款 8: 签到奖励 9: 积分消耗流水
  */
 export const RechargeType = {
   REG_GIFT: 1,
@@ -29,4 +29,6 @@ export const RechargeType = {
   SCAN_PAY: 6,
   DRAW_FAIL_REFUND: 7,
   SIGN_IN: 8,
+  /** 用户主动消费积分（对话/MJ/TTS 等），写入 account_log */
+  POINTS_CONSUMPTION: 9,
 };
