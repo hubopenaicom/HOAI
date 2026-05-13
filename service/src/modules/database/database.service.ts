@@ -185,6 +185,18 @@ export class DatabaseService implements OnModuleInit {
           public: 1,
           encrypt: 0,
         },
+        {
+          configKey: 'tokenBillingPointsPerCny',
+          configVal: '1',
+          public: 1,
+          encrypt: 0,
+        },
+        {
+          configKey: 'tokenBillingPointsPerUsd',
+          configVal: '7.2',
+          public: 1,
+          encrypt: 0,
+        },
       ];
 
       const res = await this.connection.query(
