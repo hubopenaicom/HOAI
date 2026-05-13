@@ -830,12 +830,21 @@ const onConversation = async ({
                 if (jsonObj.stepName) stepName = jsonObj.stepName
                 if (jsonObj.progress !== undefined) workflowProgress = jsonObj.progress
 
-                // 处理内容
-                if (jsonObj.content) {
-                  fullContent += jsonObj.content
-                  const newText = jsonObj.content[0].text
-                    .replace(/\\n/g, '\n')
-                    .replace(/\\t/g, '\t')
+                // 处理内容（兼容 OpenAI 增量 [{ type, text }] 与后端纯字符串提示）
+                const rawContent = jsonObj.content as unknown
+                let newText = ''
+                if (typeof rawContent === 'string') {
+                  newText = rawContent.replace(/\\n/g, '\n').replace(/\\t/g, '\t')
+                } else if (
+                  Array.isArray(rawContent) &&
+                  rawContent[0] &&
+                  rawContent[0].text != null
+                ) {
+                  newText = String(rawContent[0].text).replace(/\\n/g, '\n').replace(/\\t/g, '\t')
+                }
+
+                if (newText) {
+                  fullContent += newText
 
                   if (isCacheEnabled) {
                     // 将新文本添加到缓冲区和完整文本
@@ -878,21 +887,37 @@ const onConversation = async ({
                   }
                 }
 
+                // 次数上限等业务提示：气泡内已有文案，再弹出一次避免用户忽略
+                if (Number(jsonObj.status) === 3 && newText) {
+                  ms.warning(newText)
+                }
+
                 // 处理其他属性
                 if (jsonObj.fileVectorResult) fileVectorResult = jsonObj.fileVectorResult
 
-                if (jsonObj.reasoning_content) {
-                  fullContent += jsonObj.reasoning_content
-                  const newText = jsonObj.reasoning_content[0].text
+                const rawReasoning = jsonObj.reasoning_content as unknown
+                let reasoningDelta = ''
+                if (typeof rawReasoning === 'string') {
+                  reasoningDelta = rawReasoning.replace(/\\n/g, '\n').replace(/\\t/g, '\t')
+                } else if (
+                  Array.isArray(rawReasoning) &&
+                  rawReasoning[0] &&
+                  rawReasoning[0].text != null
+                ) {
+                  reasoningDelta = String(rawReasoning[0].text)
                     .replace(/\\n/g, '\n')
                     .replace(/\\t/g, '\t')
+                }
+
+                if (reasoningDelta) {
+                  fullContent += reasoningDelta
 
                   if (isCacheEnabled) {
-                    reasoningBuffer += newText
-                    fullReasoningText += newText
+                    reasoningBuffer += reasoningDelta
+                    fullReasoningText += reasoningDelta
                   } else {
-                    fullReasoningText += newText
-                    displayedReasoningText += newText
+                    fullReasoningText += reasoningDelta
+                    displayedReasoningText += reasoningDelta
 
                     // 实时更新UI
                     updateGroupChat(dataSources.value.length - 1, {
@@ -915,10 +940,10 @@ const onConversation = async ({
                     })
 
                     // 非缓存模式下也更新工作流内容
-                    if (newText) {
+                    if (reasoningDelta) {
                       // 判断是否是第一个字符
-                      const isFirstContent = displayedText.length === newText.length
-                      updateWorkflowContent(newText, isFirstContent)
+                      const isFirstContent = displayedReasoningText.length === reasoningDelta.length
+                      updateWorkflowContent(reasoningDelta, isFirstContent)
                     }
 
                     // 滚动到底部
