@@ -246,6 +246,9 @@ export class UserService {
           sumModel3Count: 0,
           sumModel4Count: 0,
           sumDrawMjCount: 0,
+          useModel3Count: 0,
+          useModel4Count: 0,
+          useDrawMjCount: 0,
         };
       }
 
