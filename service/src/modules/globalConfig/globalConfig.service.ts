@@ -60,6 +60,13 @@ export class GlobalConfigService implements OnModuleInit {
     }
   }
 
+  /** 同步读取内存缓存（保存配置后 initGetAllConfig 已刷新）。未配置时返回 undefined。 */
+  peekCachedConfig(configKey: string): string | undefined {
+    const v = this.globalConfigs[configKey];
+    if (v === undefined || v === null) return undefined;
+    return typeof v === 'string' ? v : String(v);
+  }
+
   /* 初始化查询所有config 不对外调用 */
   async initGetAllConfig() {
     const data = await this.configEntity.find();
@@ -294,6 +301,7 @@ export class GlobalConfigService implements OnModuleInit {
       'homeWelcomeContent',
       'enableHtmlRender',
       'sideDrawingEditModel',
+      'mjImagineChargeMultipliers',
     ];
     const data = await this.configEntity.find({
       where: { configKey: In(allowKeys) },
@@ -352,7 +360,13 @@ export class GlobalConfigService implements OnModuleInit {
           if (longKeys.includes(item.configKey)) {
             return (item.configVal = hideString(item.configVal, '隐私内容、非超级管理员无权查看'));
           }
-          const whiteListKey = ['payEpayStatus', 'payHupiStatus', 'mjProxy', 'payLtzfStatus'];
+          const whiteListKey = [
+            'payEpayStatus',
+            'payHupiStatus',
+            'mjProxy',
+            'payLtzfStatus',
+            'mjImagineChargeMultipliers',
+          ];
           if (!whiteListKey.includes(item.configKey) && !item.configKey.includes('Status')) {
             item.configVal = hideString(item.configVal);
           }
