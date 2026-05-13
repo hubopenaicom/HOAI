@@ -8,6 +8,20 @@ export function fetchGetRechargeLogAPI<T>(data: { page?: number; size?: number }
   })
 }
 
+export function fetchGetConsumptionLogAPI<T>(data: { page?: number; size?: number }): Promise<T> {
+  return get<T>({
+    url: '/balance/consumptionLog',
+    data,
+  })
+}
+
+/** 当前用户各模型 Token 消耗汇总（需登录） */
+export function fetchGetModelTokenUsageAPI<T>(): Promise<T> {
+  return get<T>({
+    url: '/balance/modelTokenUsage',
+  })
+}
+
 /* query balance */
 export function fetchGetBalanceQueryAPI<T>(): Promise<T> {
   return get<T>({
