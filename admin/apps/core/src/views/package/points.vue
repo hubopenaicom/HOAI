@@ -5,6 +5,9 @@
   import { ElMessage } from 'element-plus';
   import { onMounted, reactive, ref } from 'vue';
 
+  const MJ_IMAGINE_CHARGE_DEFAULT_JSON =
+    '{"v8":8,"v7":8,"niji7":8,"draft":2,"default":4}';
+
   const formInline = reactive({
     isHideModel3Point: '',
     isHideModel4Point: '',
@@ -13,6 +16,8 @@
     model3Name: '',
     model4Name: '',
     drawMjName: '',
+    /** Imagine/Shorten 等按提示词推断倍数，与独立绘画页、对话 MJ 扣费一致 */
+    mjImagineChargeMultipliers: MJ_IMAGINE_CHARGE_DEFAULT_JSON,
     showWatermark: '',
     isHideTts: '1',
     pluginFirst: '1',
@@ -49,14 +54,36 @@
         'streamCacheEnabled',
         'homeWelcomeContent',
         'enableHtmlRender',
+        'mjImagineChargeMultipliers',
       ],
     });
     Object.assign(formInline, res.data);
+    if (
+      res.data.mjImagineChargeMultipliers == null ||
+      String(res.data.mjImagineChargeMultipliers).trim() === ''
+    ) {
+      formInline.mjImagineChargeMultipliers = MJ_IMAGINE_CHARGE_DEFAULT_JSON;
+    }
+  }
+
+  function mjImagineChargeMultJsonOk(raw: string) {
+    const t = String(raw ?? '').trim();
+    if (!t) return true;
+    try {
+      JSON.parse(t);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   function handlerUpdateConfig() {
     formRef.value?.validate(async (valid) => {
       if (valid) {
+        if (!mjImagineChargeMultJsonOk(formInline.mjImagineChargeMultipliers)) {
+          ElMessage.error('MJ 提示词计费倍数须为合法 JSON（可为空则使用系统默认）');
+          return;
+        }
         try {
           await apiConfig.setConfig({ settings: formatSetting(formInline) });
           ElMessage.success('变更配置信息成功');
@@ -295,6 +322,23 @@
           <el-col :xs="24" :md="20" :lg="15" :xl="12">
             <el-form-item label="绘画积分名称" prop="drawMjName">
               <el-input v-model="formInline.drawMjName" placeholder="绘画积分名称" clearable />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row>
+          <el-col :xs="24" :md="22" :lg="18" :xl="16">
+            <el-form-item label="MJ 提示词计费倍数" prop="mjImagineChargeMultipliers">
+              <el-input
+                v-model="formInline.mjImagineChargeMultipliers"
+                type="textarea"
+                :rows="4"
+                placeholder='{"v8":8,"v7":8,"niji7":8,"draft":2,"default":4}'
+              />
+              <div class="mt-1 text-xs text-muted-foreground leading-relaxed">
+                控制 Imagine / Shorten 等按提示词推断的扣费倍数（与独立绘画页、对话内
+                Midjourney 一致）。键名：v8（含 --v 8）、v7（--v 7）、niji7（--niji
+                7）、draft（--draft）、default（其它）。每项为 1～1000 的整数；留空或删库键则回退上列默认值。
+              </div>
             </el-form-item>
           </el-col>
         </el-row>
