@@ -408,6 +408,9 @@ export class DrawingMjController {
       loading: !!e.loading,
       error: e.error ?? undefined,
       task,
+      deductCharged: e.deductCharged != null ? Number(e.deductCharged) : undefined,
+      chargeMult: e.chargeMult != null ? Number(e.chargeMult) : undefined,
+      deductTypeSnapshot: e.deductTypeSnapshot != null ? Number(e.deductTypeSnapshot) : undefined,
       createdAt: e.createdAt,
       updatedAt: e.updatedAt,
     };
@@ -484,7 +487,13 @@ export class DrawingMjController {
         ? Number(raw.trim())
         : NaN;
     if (!Number.isNaN(code) && (code === 0 || code === 1 || code === 21 || code === 22)) {
-      await this.userBalanceService.deductFromBalance(req.user.id, row.deductType, amount);
+      await this.userBalanceService.deductFromBalance(
+        req.user.id,
+        row.deductType,
+        amount,
+        0,
+        JSON.stringify({ scene: 'drawing_mj' }),
+      );
     }
     return payload;
   }
