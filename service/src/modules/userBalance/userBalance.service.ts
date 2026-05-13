@@ -1,5 +1,6 @@
 import { RechargeType } from '@/common/constants/balance.constant';
 import { createRandomUid, hideString } from '@/common/utils';
+import { computeTokenEstimateCost } from '@/common/utils/tokenEstimate';
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Request } from 'express';
@@ -15,6 +16,7 @@ import dayjs, { formatCreateOrUpdateDate, formatDate } from '@/common/utils/date
 
 import { ChatGroupEntity } from '../chatGroup/chatGroup.entity';
 import { ChatLogEntity } from '../chatLog/chatLog.entity';
+import { ModelsEntity } from '../models/models.entity';
 import { UserEntity } from '../user/user.entity';
 import { FingerprintLogEntity } from './fingerprint.entity';
 
@@ -26,6 +28,13 @@ interface LogInfo {
   drawMjCount?: number;
   days?: number;
   pkgName?: string;
+  extent?: string;
+}
+
+interface ConsumptionLogOpts {
+  userId: number;
+  deductType: number;
+  amount: number;
   extent?: string;
 }
 
@@ -56,6 +65,8 @@ export class UserBalanceService {
     private readonly chatGroupEntity: Repository<ChatGroupEntity>,
     @InjectRepository(ChatLogEntity)
     private readonly chatLogEntity: Repository<ChatLogEntity>,
+    @InjectRepository(ModelsEntity)
+    private readonly modelsEntity: Repository<ModelsEntity>,
     private readonly globalConfigService: GlobalConfigService,
   ) {}
 
@@ -255,7 +266,13 @@ export class UserBalanceService {
     return date >= todayStart;
   }
 
-  async deductFromBalance(userId, deductionType, amount, UseAmount = 0) {
+  async deductFromBalance(
+    userId: number,
+    deductionType: number,
+    amount: number,
+    useAmount = 0,
+    extent?: string,
+  ) {
     // 从数据库中查找特定用户的账户余额记录
     const b = await this.userBalanceEntity.findOne({ where: { userId } });
 
@@ -295,16 +312,21 @@ export class UserBalanceService {
     }
 
     // 更新余额对象
-    const updateBalance = {
+    const updateBalance: Record<string, number> = {
       [member]: newMemberBalance,
       [nonMember]: newNonMemberBalance,
-      [token]: (b[token] || 0) + UseAmount,
+      [token]: (b[token] || 0) + useAmount,
     };
 
     // 特定类型的额外处理（如记录使用次数）
     if (token === 'useModel3Token' || token === 'useModel4Token') {
-      updateBalance[token.replace('Token', 'Count')] =
-        (b[token.replace('Token', 'Count')] || 0) + amount;
+      const countKey = token.replace('Token', 'Count');
+      updateBalance[countKey] = (b[countKey] || 0) + amount;
+    }
+
+    if (deductionType === 3) {
+      const prevMj = Number((b as any).useDrawMjCount) || 0;
+      updateBalance['useDrawMjCount'] = prevMj + amount;
     }
 
     // 更新数据库中的用户账户余额
@@ -313,6 +335,22 @@ export class UserBalanceService {
     // 如果没有记录被更新，则抛出异常
     if (result.affected === 0) {
       throw new HttpException('消费余额失败！', HttpStatus.BAD_REQUEST);
+    }
+
+    if (amount > 0 && (deductionType === 1 || deductionType === 2 || deductionType === 3)) {
+      try {
+        await this.saveConsumptionLog({
+          userId,
+          deductType: deductionType,
+          amount,
+          extent,
+        });
+      } catch (e) {
+        console.warn(
+          `[UserBalance] 消费流水写入失败 userId=${userId} type=${deductionType}:`,
+          (e as Error)?.message,
+        );
+      }
     }
   }
 
@@ -331,6 +369,7 @@ export class UserBalanceService {
           'memberDrawMjCount',
           'useModel3Count',
           'useModel4Count',
+          'useDrawMjCount',
           'useModel3Token',
           'useModel4Token',
           'useDrawMjToken',
@@ -387,6 +426,25 @@ export class UserBalanceService {
       extent,
       uid,
       pkgName,
+    });
+  }
+
+  /** 用户主动消费积分流水（account_log，rechargeType=POINTS_CONSUMPTION） */
+  async saveConsumptionLog(opts: ConsumptionLogOpts) {
+    const { userId, deductType, amount, extent } = opts;
+    const uid = createRandomUid();
+    const extRaw = extent != null ? String(extent) : '';
+    const ext = extRaw.length > 800 ? extRaw.slice(0, 800) : extRaw;
+    return await this.accountLogEntity.save({
+      userId,
+      rechargeType: RechargeType.POINTS_CONSUMPTION,
+      model3Count: deductType === 1 ? amount : 0,
+      model4Count: deductType === 2 ? amount : 0,
+      drawMjCount: deductType === 3 ? amount : 0,
+      days: -1,
+      extent: ext || undefined,
+      uid,
+      pkgName: '',
     });
   }
 
@@ -587,6 +645,135 @@ export class UserBalanceService {
     return { rows: formatCreateOrUpdateDate(rows), count };
   }
 
+  /** 当前登录用户：积分消耗流水（仅 rechargeType=POINTS_CONSUMPTION） */
+  async getConsumptionLog(req: Request, params: any) {
+    const page = Math.max(1, parseInt(String(params?.page ?? '1'), 10) || 1);
+    const size = Math.min(50, Math.max(1, parseInt(String(params?.size ?? '20'), 10) || 20));
+    const { id } = req.user;
+    const [rows, count] = await this.accountLogEntity.findAndCount({
+      where: { userId: id, rechargeType: RechargeType.POINTS_CONSUMPTION },
+      order: { id: 'DESC' },
+      skip: (page - 1) * size,
+      take: size,
+    });
+    const dated = formatCreateOrUpdateDate(rows) as any[];
+    dated.forEach((item: any) => {
+      const m3 = Number(item.model3Count) || 0;
+      const m4 = Number(item.model4Count) || 0;
+      const mj = Number(item.drawMjCount) || 0;
+      item.consumedDeductType = m3 > 0 ? 1 : m4 > 0 ? 2 : 3;
+      item.consumedAmount = m3 || m4 || mj;
+      let consumedTokens: number | null = null;
+      if (item.extent && String(item.extent).trim()) {
+        try {
+          const o = JSON.parse(String(item.extent)) as {
+            totalTokens?: unknown;
+            promptTokens?: unknown;
+            completionTokens?: unknown;
+          };
+          if (typeof o.totalTokens === 'number' && !Number.isNaN(o.totalTokens)) {
+            consumedTokens = o.totalTokens;
+          } else if (o.promptTokens != null || o.completionTokens != null) {
+            consumedTokens = (Number(o.promptTokens) || 0) + (Number(o.completionTokens) || 0);
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+      item.consumedTokens = consumedTokens;
+    });
+    return { rows: dated, count };
+  }
+
+  /** 当前用户：按模型汇总 assistant 回复消耗的 Tokens（来自 chatlog），并按模型配置附加「仅展示」金额估算 */
+  async getModelTokenUsageByUser(userId: number) {
+    const qb = this.chatLogEntity
+      .createQueryBuilder('c')
+      .select(`COALESCE(NULLIF(TRIM(c.model), ''), 'unknown')`, 'model')
+      .addSelect('MAX(c.modelName)', 'modelName')
+      .addSelect(
+        'SUM(COALESCE(c.totalTokens, IFNULL(c.promptTokens,0) + IFNULL(c.completionTokens,0), 0))',
+        'totalTokens',
+      )
+      .addSelect('SUM(IFNULL(c.promptTokens,0))', 'promptTokens')
+      .addSelect('SUM(IFNULL(c.completionTokens,0))', 'completionTokens')
+      .addSelect('COUNT(*)', 'replyCount')
+      .where('c.userId = :userId', { userId })
+      .andWhere('c.role = :role', { role: 'assistant' })
+      .andWhere('c.isDelete = :isd', { isd: false })
+      .groupBy(`COALESCE(NULLIF(TRIM(c.model), ''), 'unknown')`)
+      .having(
+        'SUM(COALESCE(c.totalTokens, IFNULL(c.promptTokens,0) + IFNULL(c.completionTokens,0), 0)) > 0',
+      )
+      .orderBy('totalTokens', 'DESC')
+      .take(80);
+    const raw = await qb.getRawMany();
+    const pick = (r: Record<string, unknown>, camel: string, lower: string) => {
+      const v = r[camel] ?? r[lower];
+      return v;
+    };
+    const rows = raw.map((r: Record<string, unknown>) => ({
+      model: String(pick(r, 'model', 'model') ?? '—'),
+      modelName:
+        String(pick(r, 'modelName', 'modelname') ?? '') || String(pick(r, 'model', 'model') ?? '—'),
+      totalTokens: Number(pick(r, 'totalTokens', 'totaltokens')) || 0,
+      promptTokens: Number(pick(r, 'promptTokens', 'prompttokens')) || 0,
+      completionTokens: Number(pick(r, 'completionTokens', 'completiontokens')) || 0,
+      replyCount: Number(pick(r, 'replyCount', 'replycount')) || 0,
+    }));
+
+    const modelIds = [
+      ...new Set(rows.map(r => r.model).filter(m => m && m !== 'unknown' && m !== '—')),
+    ];
+    const modelCfgById = new Map<string, ModelsEntity>();
+    if (modelIds.length) {
+      const cfgs = await this.modelsEntity.find({
+        where: { model: In(modelIds), status: true },
+        order: { id: 'DESC' },
+      });
+      for (const c of cfgs) {
+        if (!modelCfgById.has(c.model)) {
+          modelCfgById.set(c.model, c);
+        }
+      }
+    }
+
+    const estimateTotalsByCurrency: Record<string, number> = {};
+    const enriched = rows.map(row => {
+      const cfg = modelCfgById.get(row.model);
+      let estimateAmount: number | null = null;
+      let estimateCurrency: string | null = null;
+      if (cfg && Number(cfg.keyType) === 1) {
+        const est = computeTokenEstimateCost({
+          promptTokens: row.promptTokens,
+          completionTokens: row.completionTokens,
+          enabled: Boolean(cfg.estimateTokenCostEnabled),
+          currency: cfg.estimateTokenCurrency,
+          inputPerMillion: cfg.estimateTokenInputPerMillion,
+          outputPerMillion: cfg.estimateTokenOutputPerMillion,
+        });
+        if (est) {
+          estimateAmount = est.amount;
+          estimateCurrency = est.currency;
+          estimateTotalsByCurrency[est.currency] =
+            (estimateTotalsByCurrency[est.currency] || 0) + est.amount;
+        }
+      }
+      return { ...row, estimateAmount, estimateCurrency };
+    });
+
+    for (const k of Object.keys(estimateTotalsByCurrency)) {
+      estimateTotalsByCurrency[k] = Math.round(estimateTotalsByCurrency[k] * 1e6) / 1e6;
+    }
+
+    return {
+      rows: enriched,
+      estimateTotalsByCurrency,
+      estimateDisclaimer:
+        '金额为按模型后台配置的「(输入Token/100万)×输入单价 + (输出Token/100万)×输出单价」估算，仅作参考，不参与积分扣费；单价变更后汇总会随之变化。',
+    };
+  }
+
   /* 管理端查询用户账户变更记录 */
   async getAccountLog(req, params) {
     try {
@@ -634,7 +821,7 @@ export class UserBalanceService {
 
   /* MJ绘画失败退款 */
   async refundMjBalance(userId, amount) {
-    return await this.deductFromBalance(userId, 'mjDraw', -amount);
+    return await this.deductFromBalance(userId, 3, -amount);
   }
 
   async inheritVisitorData(req: Request) {
