@@ -4,7 +4,7 @@ import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import excel from 'exceljs';
 import { Request, Response } from 'express';
-import { In, Like, MoreThan, MoreThanOrEqual, Repository } from 'typeorm';
+import { In, Like, MoreThanOrEqual, Repository } from 'typeorm';
 import { ChatGroupEntity } from '../chatGroup/chatGroup.entity';
 import { UserEntity } from '../user/user.entity';
 import { ChatLogEntity } from './chatLog.entity';
@@ -20,6 +20,11 @@ import { recDrawImgDto } from './dto/recDrawImg.dto';
 import { JwtPayload } from 'src/types/express';
 import { ModelsService } from '../models/models.service';
 import { QuerySingleChatDto } from './dto/querySingleChat.dto';
+
+/** 单模型「每自然小时」对话轮次（assistant 占位条数）上限检查结果 */
+export type ChatModelHourlyLimitResult =
+  | { allowed: true }
+  | { allowed: false; message: string; limit: number; usage: number };
 
 @Injectable()
 export class ChatLogService {
@@ -407,28 +412,27 @@ export class ChatLogService {
     return { rows, count };
   }
 
-  async checkModelLimits(userId: JwtPayload, model: string) {
-    const ONE_HOUR_IN_MS = 3600 * 1000;
-    const oneHourAgo = new Date(Date.now() - ONE_HOUR_IN_MS);
-
+  async checkModelLimits(userId: JwtPayload, model: string): Promise<ChatModelHourlyLimitResult> {
     try {
-      // 计算一小时内模型的使用次数
-      const usageCount = await this.chatLogEntity.count({
-        where: {
-          userId: userId.id,
-          model,
-          createdAt: MoreThan(oneHourAgo),
-        },
-      });
-
-      const adjustedUsageCount = Math.ceil(usageCount / 2);
+      /**
+       * 使用 DATE_SUB(NOW(), INTERVAL 1 HOUR) 在 MySQL 端计算时间窗，避免把 JS Date 绑定到 DATETIME
+       * 与连接项 timezone: '+08:00' 组合时出现参数转换错误（条件恒为假，usageCount 一直为 0）。
+       * 每条用户提问会插入一条 assistant 占位行，故按 role=assistant 计数即「轮次」。
+       */
+      const usageCount = await this.chatLogEntity
+        .createQueryBuilder('log')
+        .where('log.userId = :userId', { userId: userId.id })
+        .andWhere('log.model = :model', { model })
+        .andWhere('log.role = :role', { role: 'assistant' })
+        .andWhere('log.isDelete = :isDel', { isDel: false })
+        .andWhere('log.deletedAt IS NULL')
+        .andWhere('log.createdAt > DATE_SUB(NOW(), INTERVAL 1 HOUR)')
+        .getCount();
 
       Logger.log(
-        `用户ID: ${userId.id} 一小时内调用 ${model} 模型 ${adjustedUsageCount + 1} 次`,
+        `用户ID: ${userId.id} 一小时内 ${model} 对话轮次(assistant): ${usageCount}`,
         'ChatLogService',
       );
-
-      // 获取模型的使用限制
 
       let modelInfo;
       if (model.startsWith('gpt-4-gizmo')) {
@@ -436,21 +440,39 @@ export class ChatLogService {
       } else {
         modelInfo = await this.modelsService.getCurrentModelKeyInfo(model);
       }
+      if (!modelInfo) {
+        Logger.warn(`模型 ${model} 未找到配置，跳过次数限制`, 'ChatLogService');
+        return { allowed: true };
+      }
       const modelLimits = Number(modelInfo.modelLimits);
+      if (!Number.isFinite(modelLimits) || modelLimits <= 0) {
+        Logger.warn(
+          `模型 ${model} 次数限制无效: ${modelInfo.modelLimits}，跳过限制`,
+          'ChatLogService',
+        );
+        return { allowed: true };
+      }
 
       Logger.log(`模型 ${model} 的使用次数限制为 ${modelLimits}`, 'ChatLogService');
 
-      // 检查是否超过使用限制
-      if (adjustedUsageCount > modelLimits) {
-        return true;
+      if (usageCount >= modelLimits) {
+        const displayName =
+          modelInfo.modelName && String(modelInfo.modelName).trim()
+            ? String(modelInfo.modelName).trim()
+            : model;
+        const message =
+          `当前模型「${displayName}」在本站限制为每 1 小时最多 ${modelLimits} 次对话；` +
+          `过去 1 小时内您已使用 ${usageCount} 次（已达该上限）。请切换其它模型或稍后再试。`;
+        return { allowed: false, message, limit: modelLimits, usage: usageCount };
       }
-      return false;
+      return { allowed: true };
     } catch (error) {
       Logger.error(
         `查询数据库出错 - 用户ID: ${userId.id}, 模型: ${model}, 错误信息: ${error.message}`,
         error.stack,
         'ChatLogService',
       );
+      return { allowed: true };
     }
   }
 
