@@ -431,7 +431,18 @@ export function mjTaskFailureHintKey(raw: string | undefined): MjTaskFailureHint
 export function mjKnownDrawingErrorI18nKey(raw: string | undefined | null): string | null {
   const s = String(raw ?? '').trim()
   if (!s) return null
-  if (/queue\s+is\s+full|queue\s+full|the\s+queue\s+is\s+full|^queue[\s,:_-]*full/i.test(s))
+  const low = s.toLowerCase()
+  if (
+    /unlock\s+your\s+global\s+personalization|global\s+personalization[^\n]{0,80}\bv8\b|\bv8\b[^\n]{0,80}global\s+personalization/i.test(
+      s
+    )
+  ) {
+    return 'drawing.mjErrV8GlobalPersonalization'
+  }
+  if (/not_enough_ratings/i.test(s) || /\bnot\s+enough\s+ratings\b/i.test(s)) {
+    return 'drawing.mjErrNotEnoughRatings'
+  }
+  if (/queue\s+is\s+full|queue\s+full|the\s+queue\s+is\s+full|^queue[\s,:_-]*full/i.test(low))
     return 'drawing.mjErrQueueFull'
   if (/队列已满|排队已满|任务队列已满/.test(s)) return 'drawing.mjErrQueueFull'
   return null
@@ -440,7 +451,7 @@ export function mjKnownDrawingErrorI18nKey(raw: string | undefined | null): stri
 /** 命中已知绘制错误时返回翻译，否则原样返回 */
 export function mjTranslateKnownDrawingError(
   raw: string | undefined | null,
-  translate: (key: string) => string,
+  translate: (key: string) => string
 ): string {
   const s = String(raw ?? '').trim()
   if (!s) return ''
