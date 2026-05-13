@@ -75,6 +75,46 @@ export class ModelsEntity extends BaseEntity {
   @Column({ comment: 'token计费比例', default: 0 })
   tokenFeeRatio: number;
 
+  /** 0: 按 tokenFeeRatio + 单次扣除(deduct) 旧算法；1: 按百万 token 外币单价折算积分 */
+  @Column({ comment: 'Token计费策略 0比例 1百万token外币价', default: 0 })
+  tokenBillingStrategy: number;
+
+  /** 策略1下：每百万 token 价格的币种（USD 或 CNY） */
+  @Column({ length: 8, comment: '百万token计价币别 USD|CNY', default: 'CNY' })
+  tokenPriceCurrency: string;
+
+  /** 策略1下：输入 token 每 1,000,000 tokens 的单价（单位：所选币种） */
+  @Column({ type: 'double', comment: '输入每百万token单价(所选币别)', default: 0, nullable: true })
+  tokenInputPricePerMillion: number | null;
+
+  /** 策略1下：输出 token 每 1,000,000 tokens 的单价（单位：所选币种） */
+  @Column({ type: 'double', comment: '输出每百万token单价(所选币别)', default: 0, nullable: true })
+  tokenOutputPricePerMillion: number | null;
+
+  /** 是否开启「仅展示」的 Token 用量金额估算（不参与扣费） */
+  @Column({ type: 'boolean', comment: '是否开启token用量金额估算(仅展示)', default: false })
+  estimateTokenCostEnabled: boolean;
+
+  /** 估算用币别：USD 或 CNY */
+  @Column({ length: 8, comment: '估算计价币别 USD|CNY', default: 'CNY' })
+  estimateTokenCurrency: string;
+
+  @Column({
+    type: 'double',
+    comment: '估算：输入每百万token单价(所选币别)',
+    default: 0,
+    nullable: true,
+  })
+  estimateTokenInputPerMillion: number | null;
+
+  @Column({
+    type: 'double',
+    comment: '估算：输出每百万token单价(所选币别)',
+    default: 0,
+    nullable: true,
+  })
+  estimateTokenOutputPerMillion: number | null;
+
   @Column({ comment: '模型附加信息', nullable: true })
   remark: string;
 
