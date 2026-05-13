@@ -24,6 +24,9 @@
     isShowAppCatIcon: '',
     clientFaviconPath: '',
     clientLogoPath: '',
+    /** 模型「百万 token 外币价」折算为积分的全站倍率，与对话模型里 CNY/USD 单价配合使用 */
+    tokenBillingPointsPerCny: '',
+    tokenBillingPointsPerUsd: '',
   });
   const rules = ref<FormRules>({
     siteName: [{ required: true, trigger: 'blur', message: '请填写网站名称' }],
@@ -42,6 +45,8 @@
         'clientLogoPath',
         'clientFaviconPath',
         'siteUrl',
+        'tokenBillingPointsPerCny',
+        'tokenBillingPointsPerUsd',
       ],
     });
     Object.assign(formInline, res.data);
@@ -510,6 +515,37 @@
                   </el-icon>
                 </template>
               </el-input>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-divider content-position="left">对话 Token 计价折算</el-divider>
+        <el-row>
+          <el-col :xs="24" :md="20" :lg="15" :xl="12">
+            <el-form-item label="人民币价→积分倍率" prop="tokenBillingPointsPerCny">
+              <el-input
+                v-model="formInline.tokenBillingPointsPerCny"
+                placeholder="默认 1，表示 1 元/百万 token 对应扣 1 积分（可按毛利调整）"
+                clearable
+              />
+              <el-text size="small" type="info" style="display: block; margin-top: 6px">
+                当模型配置里「百万 token 计价币种」选人民币时：积分 ≈（输入百万价×输入 tokens + 输出百万价×输出
+                tokens）× 本倍率，再叠加深度思考等系数。
+              </el-text>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row>
+          <el-col :xs="24" :md="20" :lg="15" :xl="12">
+            <el-form-item label="美元价→积分倍率" prop="tokenBillingPointsPerUsd">
+              <el-input
+                v-model="formInline.tokenBillingPointsPerUsd"
+                placeholder="默认 7.2，可与站内汇率或积分定价对齐"
+                clearable
+              />
+              <el-text size="small" type="info" style="display: block; margin-top: 6px">
+                当模型配置里「百万 token 计价币种」选美元时：积分 ≈（美元成本）× 本倍率。未在模型里开启「按百万
+                token 外币价」计费时，此项不影响扣费。
+              </el-text>
             </el-form-item>
           </el-col>
         </el-row>
