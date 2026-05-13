@@ -159,8 +159,7 @@ function updatePolyHoverFromEvent(e: { clientX: number; clientY: number }) {
   }
   polyHoverDisp.value = o
   const p0 = polyDraft.value[0]
-  polyNearFirst.value =
-    polyDraft.value.length >= 3 && distDisp(o, p0) <= POLY_SNAP_CLOSE_PX
+  polyNearFirst.value = polyDraft.value.length >= 3 && distDisp(o, p0) <= POLY_SNAP_CLOSE_PX
 }
 
 function syncCanvasSize() {
@@ -272,7 +271,9 @@ function redrawOverlay() {
       ctx.beginPath()
       ctx.arc(p.x, p.y, r, 0, Math.PI * 2)
       if (isFirst && pts.length >= 2) {
-        ctx.fillStyle = polyNearFirst.value ? 'rgba(52, 211, 153, 0.95)' : 'rgba(16, 185, 129, 0.88)'
+        ctx.fillStyle = polyNearFirst.value
+          ? 'rgba(52, 211, 153, 0.95)'
+          : 'rgba(16, 185, 129, 0.88)'
         ctx.fill()
         ctx.strokeStyle = 'rgba(255,255,255,0.9)'
         ctx.lineWidth = polyNearFirst.value ? 2 : 1.5
@@ -883,7 +884,9 @@ async function submitModal() {
                   @click="undoLastPolyVertex"
                 >
                   <span class="mj-vr-poly-btn__icon" aria-hidden="true">↩</span>
-                  <span class="mj-vr-poly-btn__label">{{ t('drawing.mjVaryRegionPolyUndoLast') }}</span>
+                  <span class="mj-vr-poly-btn__label">{{
+                    t('drawing.mjVaryRegionPolyUndoLast')
+                  }}</span>
                 </button>
                 <button
                   type="button"
@@ -892,7 +895,9 @@ async function submitModal() {
                   @click="closePolygon"
                 >
                   <span class="mj-vr-poly-btn__icon" aria-hidden="true">✓</span>
-                  <span class="mj-vr-poly-btn__label">{{ t('drawing.mjVaryRegionClosePolygon') }}</span>
+                  <span class="mj-vr-poly-btn__label">{{
+                    t('drawing.mjVaryRegionClosePolygon')
+                  }}</span>
                 </button>
               </div>
             </template>
@@ -1021,7 +1026,9 @@ async function submitModal() {
   color: #e2e8f0;
   border-color: rgba(100, 116, 139, 0.55);
   background: linear-gradient(180deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 2px rgba(0, 0, 0, 0.4);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.4);
 }
 .mj-vr-poly-hint :deep(.mj-vr-hint-chip--rose) {
   color: #ffe4e6;
