@@ -1,6 +1,6 @@
 import {
-  mjUpstreamPollMaxIterations,
   MJ_UPSTREAM_POLL_INTERVAL_MS,
+  mjUpstreamPollMaxIterations,
 } from '@/common/constants/midjourney.constant';
 import {
   convertUrlToBase64,
@@ -362,7 +362,21 @@ export class ChatService {
       drawingType,
     } = currentRequestModelKey;
 
-    if (Number(drawingType) === 3) {
+    if (
+      Number(drawingType) === 3 &&
+      this.isObviousTextChatModelSlug(
+        String(useModel || '')
+          .trim()
+          .toLowerCase(),
+      )
+    ) {
+      Logger.warn(
+        `对话路由：模型「${useModel}」在数据库中 drawingType=3（Midjourney），与当前对话用途不一致，已按文本对话处理。后台「基础对话」表单不展示绘画类型字段，若该条曾为创意/MJ 可能残留此值；请在模型管理中打开本条并点「确认更新」保存一次（保存时会把非创意模型的绘画类型自动写为 0）。`,
+        'ChatService',
+      );
+    }
+
+    if (this.isMidjourneyUpstreamChatModel(drawingType, useModel)) {
       if (!proxyUrl || !String(proxyUrl).trim()) {
         throw new HttpException(
           'Midjourney 模型未配置上游代理地址 proxyUrl，请在模型管理中填写（与独立绘画页一致）',
@@ -372,8 +386,7 @@ export class ChatService {
     }
 
     let charge = deduct * (usingDeepThinking ? deductDeepThink : 1);
-    const isMjChatModel =
-      Number(drawingType) === 3 || String(useModel).toLowerCase() === 'midjourney';
+    const isMjChatModel = this.isMidjourneyUpstreamChatModel(drawingType, useModel);
     if (action !== 'UPSCALE' && isMjChatModel) {
       const em = extraParam?.mjMode;
       const mjMode: MjSpeedMode = em === 'turbo' || em === 'relax' || em === 'fast' ? em : 'fast';
@@ -382,12 +395,15 @@ export class ChatService {
       charge = base * mult;
     }
 
-    if (await this.chatLogService.checkModelLimits(req.user, useModel)) {
+    const hourlyModelLimit = await this.chatLogService.checkModelLimits(req.user, useModel);
+    if (hourlyModelLimit.allowed === false) {
+      const limitMsg = hourlyModelLimit.message;
       res.write(
         `\n${JSON.stringify({
           status: 3,
-          content: '1 小时内对话次数过多，请切换模型或稍后再试！',
+          errMsg: limitMsg,
           modelType: modelType,
+          content: [{ type: 'text', text: limitMsg }],
         })}`,
       );
       res.end();
@@ -513,7 +529,7 @@ export class ChatService {
           const useMjUpstream =
             proxyUrl &&
             String(proxyUrl).trim() &&
-            (Number(drawingType) === 3 || String(useModel).toLowerCase() === 'midjourney');
+            this.isMidjourneyUpstreamChatModel(drawingType, useModel);
           if (useMjUpstream) {
             await this.runMidjourneyUpstreamChat({
               req,
@@ -664,6 +680,12 @@ export class ChatService {
             deductType,
             charge,
             promptTokens + completionTokens,
+            JSON.stringify({
+              scene: 'chat',
+              model,
+              modelName: useModeName,
+              tokenBased: isTokenBased === true,
+            }),
           );
           /* 记录key的使用次数 和使用token */
           await this.modelsService.saveUseLog(keyId, promptTokens + completionTokens);
@@ -699,6 +721,70 @@ export class ChatService {
     } finally {
       res && res.end();
     }
+  }
+
+  /**
+   * 对话页是否走 Midjourney /submit/imagine：drawingType=3 或历史模型名 midjourney，
+   * 且模型标识不得为常见对话/API 前缀（避免后台误将「绘画类型」选成 Midjourney）。
+   */
+  private isMidjourneyUpstreamChatModel(drawingType: unknown, useModel: string): boolean {
+    const dt = Number(drawingType);
+    const id = String(useModel || '')
+      .trim()
+      .toLowerCase();
+    if (!id) return false;
+    if (id === 'midjourney') return true;
+    if (dt !== 3) return false;
+    if (this.isObviousTextChatModelSlug(id)) return false;
+    return true;
+  }
+
+  /** 常见文本对话 / 文生图 API 模型前缀（误配 drawingType=3 时不走 MJ imagine） */
+  private isObviousTextChatModelSlug(modelId: string): boolean {
+    const id = modelId.toLowerCase();
+    const prefixes = [
+      'claude-',
+      'claude/',
+      'anthropic.',
+      'gpt-4-gizmo',
+      'gpt-',
+      'gpt/',
+      'chatgpt-',
+      'deepseek',
+      'gemini',
+      'grok-',
+      'grok/',
+      'qwen',
+      'qwen/',
+      'yi-',
+      'llama',
+      'mistral',
+      'moonshot',
+      'doubao',
+      'ernie',
+      'hunyuan',
+      'spark',
+      'baichuan',
+      'minimax',
+      'abab',
+      'meta-llama',
+      'openai/',
+      'azure/',
+      'dall-e',
+      'dalle',
+      'gpt-image',
+      'stable-diffusion',
+      'sdxl',
+      'flux',
+    ];
+    for (const p of prefixes) {
+      if (id.startsWith(p)) return true;
+    }
+    for (const p of prefixes) {
+      if (id.includes(`/${p}`)) return true;
+    }
+    if (/^o[134](-|$|\/|\.)/.test(id)) return true;
+    return false;
   }
 
   /** 对话里使用后台 Midjourney（proxyUrl），与绘画独立页同一上游 */
@@ -792,7 +878,13 @@ export class ChatService {
       return;
     }
 
-    await this.userBalanceService.deductFromBalance(req.user.id, deductType, charge, 0);
+    await this.userBalanceService.deductFromBalance(
+      req.user.id,
+      deductType,
+      charge,
+      0,
+      JSON.stringify({ scene: 'mj_chat', model, modelName: useModeName }),
+    );
     await this.modelsService.saveUseLog(keyId, 0);
 
     const writeProgress = (text: string) => {
@@ -1328,7 +1420,13 @@ export class ChatService {
       // 更新聊天记录并扣除余额
       await Promise.all([
         this.chatLogService.updateChatLog(chatId, { ttsUrl }),
-        this.userBalanceService.deductFromBalance(req.user.id, deductType, deduct),
+        this.userBalanceService.deductFromBalance(
+          req.user.id,
+          deductType,
+          deduct,
+          0,
+          JSON.stringify({ scene: 'tts' }),
+        ),
       ]);
 
       res.status(200).send({ ttsUrl });
