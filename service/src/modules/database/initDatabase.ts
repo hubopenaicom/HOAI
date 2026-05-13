@@ -1,6 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { config as loadEnv } from 'dotenv';
 import * as mysql from 'mysql2/promise';
+import type { RowDataPacket } from 'mysql2';
 import { DataSource, DataSourceOptions } from 'typeorm';
 import { AppEntity } from '../app/app.entity';
 import { AppCatsEntity } from '../app/appCats.entity';
@@ -174,6 +175,93 @@ async function migrateColumnType(
   }
 }
 
+/** models 表：对话模型「仅展示」Token 金额估算列 */
+async function ensureModelsEstimateTokenColumns(conn: mysql.Connection) {
+  const db = process.env.DB_DATABASE;
+  const specs: { name: string; ddl: string }[] = [
+    {
+      name: 'estimateTokenCostEnabled',
+      ddl: "`estimateTokenCostEnabled` tinyint(1) NOT NULL DEFAULT 0 COMMENT '是否开启token用量金额估算(仅展示)'",
+    },
+    {
+      name: 'estimateTokenCurrency',
+      ddl: "`estimateTokenCurrency` varchar(8) NOT NULL DEFAULT 'CNY' COMMENT '估算计价币别 USD|CNY'",
+    },
+    {
+      name: 'estimateTokenInputPerMillion',
+      ddl: "`estimateTokenInputPerMillion` double DEFAULT NULL COMMENT '估算：输入每百万token单价'",
+    },
+    {
+      name: 'estimateTokenOutputPerMillion',
+      ddl: "`estimateTokenOutputPerMillion` double DEFAULT NULL COMMENT '估算：输出每百万token单价'",
+    },
+  ];
+  for (const { name, ddl } of specs) {
+    const [colRows] = (await conn.execute(
+      `SELECT COUNT(*) as c FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'models' AND COLUMN_NAME = ?`,
+      [db, name],
+    )) as [RowDataPacket[], unknown];
+    if (Number(colRows[0]?.c) === 0) {
+      await conn.execute(`ALTER TABLE models ADD COLUMN ${ddl}`);
+      Logger.log(`models 表已添加列 ${name}`, 'Database');
+    }
+  }
+}
+
+/** models 表：百万 token 外币计价相关列（生产 synchronize=false 时由迁移添加） */
+async function ensureModelsTokenPricingColumns(conn: mysql.Connection) {
+  const db = process.env.DB_DATABASE;
+  const specs: { name: string; ddl: string }[] = [
+    {
+      name: 'tokenBillingStrategy',
+      ddl: "`tokenBillingStrategy` tinyint NOT NULL DEFAULT 0 COMMENT 'Token计费:0比例+单次扣除 1百万token外币价'",
+    },
+    {
+      name: 'tokenPriceCurrency',
+      ddl: "`tokenPriceCurrency` varchar(8) NOT NULL DEFAULT 'CNY' COMMENT '百万token计价币别 USD|CNY'",
+    },
+    {
+      name: 'tokenInputPricePerMillion',
+      ddl: "`tokenInputPricePerMillion` double NOT NULL DEFAULT 0 COMMENT '输入每百万token单价'",
+    },
+    {
+      name: 'tokenOutputPricePerMillion',
+      ddl: "`tokenOutputPricePerMillion` double NOT NULL DEFAULT 0 COMMENT '输出每百万token单价'",
+    },
+  ];
+  for (const { name, ddl } of specs) {
+    const [colRows] = (await conn.execute(
+      `SELECT COUNT(*) as c FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'models' AND COLUMN_NAME = ?`,
+      [db, name],
+    )) as [RowDataPacket[], unknown];
+    if (Number(colRows[0]?.c) === 0) {
+      await conn.execute(`ALTER TABLE models ADD COLUMN ${ddl}`);
+      Logger.log(`models 表已添加列 ${name}`, 'Database');
+    }
+  }
+}
+
+/** 全站：外币 token 成本折算为积分的倍率（可在后台基础配置修改） */
+async function ensureTokenBillingConfigRows(conn: mysql.Connection) {
+  const rows: [string, string][] = [
+    ['tokenBillingPointsPerCny', '1'],
+    ['tokenBillingPointsPerUsd', '7.2'],
+  ];
+  for (const [k, v] of rows) {
+    const [existRows] = (await conn.execute(
+      'SELECT COUNT(*) as c FROM config WHERE configKey = ?',
+      [k],
+    )) as [RowDataPacket[], unknown];
+    if (Number(existRows[0]?.c) === 0) {
+      await conn.execute(
+        'INSERT INTO config (configKey, configVal, public, encrypt) VALUES (?, ?, ?, ?)',
+        [k, v, 1, 0],
+      );
+      Logger.log(`config 已插入默认项 ${k}`, 'Database');
+    }
+  }
+}
+
 /**
  * 执行所有数据库迁移
  */
@@ -227,6 +315,22 @@ async function runAllMigrations() {
       } catch (error) {
         Logger.log(`迁移chatlog表${column}列时跳过: ${error.message}`, 'Database');
       }
+    }
+
+    try {
+      await ensureModelsEstimateTokenColumns(conn);
+    } catch (error) {
+      Logger.log(`models Token 估算列迁移跳过: ${error.message}`, 'Database');
+    }
+    try {
+      await ensureModelsTokenPricingColumns(conn);
+    } catch (error) {
+      Logger.log(`models Token 计价列迁移跳过: ${error.message}`, 'Database');
+    }
+    try {
+      await ensureTokenBillingConfigRows(conn);
+    } catch (error) {
+      Logger.log(`config Token 折算默认值跳过: ${error.message}`, 'Database');
     }
   } finally {
     await conn.end();
