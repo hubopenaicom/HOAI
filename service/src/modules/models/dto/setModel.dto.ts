@@ -102,4 +102,32 @@ export class SetModelDto {
 
   @ApiProperty({ example: true, description: 'token计费比例', required: false })
   tokenFeeRatio: number;
+
+  @ApiProperty({ example: 0, description: 'Token计费策略 0比例 1百万token外币价', required: false })
+  tokenBillingStrategy?: number;
+
+  @ApiProperty({ example: 'CNY', description: '百万token计价币别 USD|CNY', required: false })
+  tokenPriceCurrency?: string;
+
+  @ApiProperty({ example: 0, description: '输入每百万token单价(所选币别)', required: false })
+  tokenInputPricePerMillion?: number;
+
+  @ApiProperty({ example: 0, description: '输出每百万token单价(所选币别)', required: false })
+  tokenOutputPricePerMillion?: number;
+
+  @ApiProperty({
+    example: false,
+    description: '是否开启token用量金额估算(仅展示)',
+    required: false,
+  })
+  estimateTokenCostEnabled?: boolean;
+
+  @ApiProperty({ example: 'CNY', description: '估算计价币别 USD|CNY', required: false })
+  estimateTokenCurrency?: string;
+
+  @ApiProperty({ example: 0, description: '估算：输入每百万token单价', required: false })
+  estimateTokenInputPerMillion?: number;
+
+  @ApiProperty({ example: 0, description: '估算：输出每百万token单价', required: false })
+  estimateTokenOutputPerMillion?: number;
 }
