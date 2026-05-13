@@ -232,6 +232,10 @@ export interface MjDrawingJobDto {
   loading: boolean
   error?: string
   task?: Record<string, unknown>
+  /** 本次提交扣费积分（与服务端 withBalance 一致估算） */
+  deductCharged?: number
+  chargeMult?: number
+  deductTypeSnapshot?: number
 }
 
 /** 与后端 CreateDrawingMjJobDto 一致，按 clientKey + 用户幂等 */
@@ -245,6 +249,9 @@ export interface MjDrawingJobSnapshot {
   loading: boolean
   error?: string
   task?: Record<string, unknown>
+  deductCharged?: number | null
+  chargeMult?: number | null
+  deductTypeSnapshot?: number | null
 }
 
 /** GET /drawing/mj/jobs 返回体内字段 */
