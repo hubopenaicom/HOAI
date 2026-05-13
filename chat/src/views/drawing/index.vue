@@ -76,6 +76,11 @@ import {
   mjVersionSupportsSvValue,
 } from '@/utils/mjParamVersionSupport'
 import {
+  guessMjImagineChargeMultiplier,
+  mjEstimatedDeductTotal,
+  parseMjImagineChargeMultipliersJson,
+} from '@/utils/mjChargeEstimate'
+import {
   buildMjFollowUpPromptLabel,
   formatMjUpstreamButtonLabel,
   groupMjMiscButtons,
@@ -104,6 +109,9 @@ interface DrawingModel {
   model: string
   deduct: number
   deductType: number
+  deductMjFast?: number | null
+  deductMjTurbo?: number | null
+  deductMjRelax?: number | null
   maxRounds?: number
   modelAvatar?: string
   modelDescription?: string
@@ -137,6 +145,10 @@ interface MjJobItem {
   error?: string
   task?: Record<string, unknown>
   mjStyleSnapshot?: MjStyle
+  /** 本次提交扣费积分（与后端 withBalance 估算一致） */
+  deductCharged?: number
+  chargeMult?: number
+  deductTypeSnapshot?: number
 }
 
 const MJ_TYPE = 3
@@ -446,6 +458,10 @@ const selectedModel = computed(() =>
   drawingModels.value.find(x => x.model === selectedModelKey.value)
 )
 
+const mjImagineMultsParsed = computed(() =>
+  parseMjImagineChargeMultipliersJson(authStore.globalConfig?.mjImagineChargeMultipliers)
+)
+
 function mjJobsStorageKey(): string {
   const uid = authStore.userInfo?.id
   return `hoai_drawing_mj_jobs_v${MJ_JOBS_STORAGE_VER}_${uid ?? 'guest'}`
@@ -464,6 +480,47 @@ function attachMjJobModelMeta(job: MjJobItem, m: DrawingModel, opts?: { mjMode?:
  */
 function mjModeForFollowUp(parent: MjJobItem | undefined | null): MjSpeedMode {
   return parent?.mjModeSnapshot ?? mjMode.value
+}
+
+function assignMjJobChargeSnapshot(
+  job: MjJobItem,
+  m: DrawingModel,
+  spec: { kind: 'mult'; mult: number } | { kind: 'prompt'; fullPrompt: string }
+) {
+  const mode = job.mjModeSnapshot || 'fast'
+  const mult =
+    spec.kind === 'prompt'
+      ? guessMjImagineChargeMultiplier(spec.fullPrompt, mjImagineMultsParsed.value)
+      : spec.mult
+  job.deductCharged = mjEstimatedDeductTotal(m, mode, mult)
+  job.chargeMult = mult
+  job.deductTypeSnapshot = m.deductType
+}
+
+function mjJobDeductTypeLabel(dt: number | undefined): string {
+  if (dt === 1) return t('chat.ordinaryPoints')
+  if (dt === 2) return t('chat.advancedPoints')
+  if (dt === 3) return t('chat.drawingPoints')
+  return t('chat.points')
+}
+
+/** 任务卡片副标题：速度与扣费说明（与后端 withBalance 规则一致） */
+function mjJobChargeMetaLine(job: MjJobItem): string {
+  const parts: string[] = []
+  const mode = job.mjModeSnapshot
+  if (mode === 'turbo') parts.push(t('drawing.mjSpeedTurbo'))
+  else if (mode === 'relax') parts.push(t('drawing.mjSpeedRelax'))
+  else if (mode === 'fast') parts.push(t('drawing.mjSpeedFast'))
+  if (job.deductCharged != null && Number.isFinite(Number(job.deductCharged))) {
+    const typeName = mjJobDeductTypeLabel(job.deductTypeSnapshot)
+    let s = t('drawing.mjChargedPoints', { n: job.deductCharged, typeName })
+    const cm = job.chargeMult
+    if (cm != null && Number(cm) !== 1 && Number.isFinite(Number(cm))) {
+      s += t('drawing.mjChargeMultSuffix', { mult: cm })
+    }
+    parts.push(s)
+  }
+  return parts.join(' · ')
 }
 
 function persistMjJobsToStorage() {
@@ -512,6 +569,9 @@ function mjDrawingJobDtoToLocal(row: MjDrawingJobDto): MjJobItem {
     loading: !!row.loading,
     error: row.error,
     task: row.task,
+    deductCharged: row.deductCharged,
+    chargeMult: row.chargeMult,
+    deductTypeSnapshot: row.deductTypeSnapshot,
   }
 }
 
@@ -526,6 +586,9 @@ function mjJobToSnapshot(job: MjJobItem): MjDrawingJobSnapshot {
     loading: job.loading,
     error: job.error,
     task: job.task,
+    deductCharged: job.deductCharged,
+    chargeMult: job.chargeMult,
+    deductTypeSnapshot: job.deductTypeSnapshot,
   }
 }
 
@@ -1116,6 +1179,9 @@ function mergeMjJobWithRemote(local: MjJobItem, remote: MjJobItem): MjJobItem {
   const ru = collectMjImageUrls(remote.task).length
   const task = lu > ru ? local.task : ru > lu ? remote.task : (local.task ?? remote.task)
   const loading = local.loading && remote.loading
+  const deductCharged = remote.deductCharged ?? local.deductCharged
+  const chargeMult = remote.chargeMult ?? local.chargeMult
+  const deductTypeSnapshot = remote.deductTypeSnapshot ?? local.deductTypeSnapshot
   return {
     ...remote,
     ...local,
@@ -1123,6 +1189,9 @@ function mergeMjJobWithRemote(local: MjJobItem, remote: MjJobItem): MjJobItem {
     task,
     loading,
     error: local.error ?? remote.error,
+    deductCharged,
+    chargeMult,
+    deductTypeSnapshot,
   }
 }
 
@@ -1280,6 +1349,7 @@ async function handleMjImagine() {
       job.loading = false
       return
     }
+    assignMjJobChargeSnapshot(job, m, { kind: 'prompt', fullPrompt })
     startPollTask(job.taskId, job)
   } catch (e: unknown) {
     job.loading = false
@@ -1313,6 +1383,7 @@ async function handleMjDescribe() {
       job.loading = false
       return
     }
+    assignMjJobChargeSnapshot(job, m, { kind: 'mult', mult: 1 })
     startPollTask(job.taskId, job)
   } catch (e: unknown) {
     job.loading = false
@@ -1348,6 +1419,7 @@ async function handleMjShorten() {
       job.loading = false
       return
     }
+    assignMjJobChargeSnapshot(job, m, { kind: 'prompt', fullPrompt: msg })
     startPollTask(job.taskId, job)
   } catch (e: unknown) {
     job.loading = false
@@ -1399,6 +1471,7 @@ async function handleMjBlend() {
       job.loading = false
       return
     }
+    assignMjJobChargeSnapshot(job, m, { kind: 'mult', mult: 4 })
     startPollTask(job.taskId, job)
   } catch (e: unknown) {
     job.loading = false
@@ -1483,6 +1556,7 @@ async function handleMjEdits() {
       job.loading = false
       return
     }
+    assignMjJobChargeSnapshot(job, m, { kind: 'mult', mult: 1 })
     startPollTask(job.taskId, job)
   } catch (e: unknown) {
     job.loading = false
@@ -1601,6 +1675,7 @@ async function handleMjChangeSubmit() {
       job.loading = false
       return
     }
+    assignMjJobChargeSnapshot(job, m, { kind: 'mult', mult: 1 })
     startPollTask(job.taskId, job)
     await authStore.getUserBalance()
   } catch (e: unknown) {
@@ -1651,6 +1726,7 @@ async function handleMjSimpleChangeSubmit() {
       job.loading = false
       return
     }
+    assignMjJobChargeSnapshot(job, m, { kind: 'mult', mult: 1 })
     startPollTask(job.taskId, job)
     await authStore.getUserBalance()
   } catch (e: unknown) {
@@ -1703,6 +1779,7 @@ async function onMjButtonClick(
       job.loading = false
       return
     }
+    assignMjJobChargeSnapshot(job, m, { kind: 'mult', mult: 1 })
     startPollTask(job.taskId, job)
     await authStore.getUserBalance()
   } catch (e: unknown) {
@@ -2482,6 +2559,7 @@ async function onMjVaryRegionSubmitted(res: unknown) {
       if (job.error) ms.error(job.error)
       return
     }
+    assignMjJobChargeSnapshot(job, m, { kind: 'mult', mult: 1 })
     startPollTask(job.taskId, job)
     await authStore.getUserBalance()
   } catch {
@@ -3377,6 +3455,12 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                         </details>
                       </div>
                       <div class="px-3 pb-2">
+                        <p
+                          v-if="mjJobChargeMetaLine(job)"
+                          class="mb-1 text-[10px] leading-snug text-slate-500"
+                        >
+                          {{ mjJobChargeMetaLine(job) }}
+                        </p>
                         <p
                           class="line-clamp-2 text-xs text-slate-500"
                           :class="mjButtons(job.task).length ? 'mb-2' : 'mb-0'"
