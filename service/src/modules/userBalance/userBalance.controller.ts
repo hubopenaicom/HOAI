@@ -18,6 +18,22 @@ export class UserBalanceController {
     return this.userBalanceService.getRechargeLog(req, params);
   }
 
+  @Get('consumptionLog')
+  @ApiOperation({ summary: '获取当前用户积分消耗流水' })
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  async getConsumptionLog(@Req() req: Request, @Query() params: any) {
+    return this.userBalanceService.getConsumptionLog(req, params);
+  }
+
+  @Get('modelTokenUsage')
+  @ApiOperation({ summary: '当前用户各模型 Token 消耗汇总（chatlog）' })
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  async getModelTokenUsage(@Req() req: Request) {
+    return this.userBalanceService.getModelTokenUsageByUser(req.user.id);
+  }
+
   @Get('accountLog')
   @ApiOperation({ summary: '获取所有人账户记录' })
   @UseGuards(AdminAuthGuard)
