@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { fetchGetPackageAPI, fetchUseCramiAPI } from '@/api/crami'
+import { fetchGetConsumptionLogAPI, fetchGetModelTokenUsageAPI } from '@/api/balance'
 import { fetchOrderBuyAPI } from '@/api/order'
 import { fetchSignInAPI, fetchSignLogAPI } from '@/api/signin'
 import { fetchGetJsapiTicketAPI } from '@/api/user'
 import { useBasicLayout } from '@/hooks/useBasicLayout'
 import { t } from '@/locales'
 import { message } from '@/utils/message'
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, Teleport, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import type { ResData } from '@/api/types'
@@ -267,6 +268,7 @@ async function openDrawerAfter() {
     packageList.value = res.data.rows
     // 获取签到记录
     await getSigninLog()
+    await fetchModelTokenUsage()
     loading.value = false
   } catch (error) {
     loading.value = false
@@ -395,6 +397,193 @@ function getFirstDayOfMonth(year: number, month: number) {
 // 获取用户信息和余额
 const userBalance = computed(() => authStore.userBalance)
 const isMember = computed(() => userBalance.value.isMember || false)
+
+const totalConsumedPoints = computed(() => {
+  const ub = authStore.userBalance as Record<string, unknown>
+  return (
+    (Number(ub?.useModel3Count) || 0) +
+    (Number(ub?.useModel4Count) || 0) +
+    (Number(ub?.useDrawMjCount) || 0)
+  )
+})
+
+const consumedBreakdownText = computed(() => {
+  const ub = authStore.userBalance as Record<string, unknown>
+  return t('usercenter.consumedPointsBreakdown', {
+    m3: Number(ub?.useModel3Count) || 0,
+    m4: Number(ub?.useModel4Count) || 0,
+    mj: Number(ub?.useDrawMjCount) || 0,
+  })
+})
+
+/** 账户维度累计 Tokens（与扣费时写入 user_balances 的用量一致） */
+const totalAccountTokens = computed(() => {
+  const ub = authStore.userBalance as Record<string, unknown>
+  return (
+    (Number(ub?.useModel3Token) || 0) +
+    (Number(ub?.useModel4Token) || 0) +
+    (Number(ub?.useDrawMjToken) || 0)
+  )
+})
+
+const accountTokensBreakdownText = computed(() => {
+  const ub = authStore.userBalance as Record<string, unknown>
+  return t('usercenter.balanceTokenBreakdown', {
+    m3: Number(ub?.useModel3Token) || 0,
+    m4: Number(ub?.useModel4Token) || 0,
+    mj: Number(ub?.useDrawMjToken) || 0,
+  })
+})
+
+interface ModelTokenRow {
+  model: string
+  modelName: string
+  totalTokens: number
+  promptTokens: number
+  completionTokens: number
+  replyCount: number
+  estimateAmount?: number | null
+  estimateCurrency?: string | null
+}
+
+const modelTokenRows = ref<ModelTokenRow[]>([])
+const modelTokenLoading = ref(false)
+const estimateTotalsByCurrency = ref<Record<string, number>>({})
+const estimateDisclaimer = ref('')
+
+function formatEstimateMoney(
+  currency: string | null | undefined,
+  amount: number | null | undefined
+) {
+  if (amount == null || !Number.isFinite(amount)) return '—'
+  const sym = currency === 'USD' ? '$' : '¥'
+  const n = amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })
+  return `${sym}${n}`
+}
+
+const estimateTotalsDisplay = computed(() => {
+  const o = estimateTotalsByCurrency.value
+  const keys = Object.keys(o).filter(k => (o[k] || 0) > 0)
+  if (!keys.length) return ''
+  return keys.map(k => formatEstimateMoney(k, o[k])).join(' + ')
+})
+
+async function fetchModelTokenUsage() {
+  modelTokenLoading.value = true
+  try {
+    const res = (await fetchGetModelTokenUsageAPI()) as ResData<{
+      rows?: ModelTokenRow[]
+      estimateTotalsByCurrency?: Record<string, number>
+      estimateDisclaimer?: string
+    }>
+    if (!res?.success || !res.data) {
+      modelTokenRows.value = []
+      estimateTotalsByCurrency.value = {}
+      estimateDisclaimer.value = ''
+      return
+    }
+    modelTokenRows.value = res.data.rows ?? []
+    estimateTotalsByCurrency.value = res.data.estimateTotalsByCurrency ?? {}
+    estimateDisclaimer.value = res.data.estimateDisclaimer ?? ''
+  } catch {
+    modelTokenRows.value = []
+    estimateTotalsByCurrency.value = {}
+    estimateDisclaimer.value = ''
+    ms.error(t('usercenter.modelTokenLoadFail'))
+  } finally {
+    modelTokenLoading.value = false
+  }
+}
+
+interface ConsumptionRow {
+  id: number
+  createdAt?: string
+  consumedAmount?: number
+  consumedDeductType?: number
+  extent?: string
+  consumedTokens?: number | null
+}
+
+const showConsumptionModal = ref(false)
+const consumptionRows = ref<ConsumptionRow[]>([])
+const consumptionCount = ref(0)
+const consumptionPage = ref(1)
+const consumptionLoading = ref(false)
+
+const consumptionHasMore = computed(() => consumptionRows.value.length < consumptionCount.value)
+
+async function fetchConsumptionPage(page: number, append: boolean) {
+  consumptionLoading.value = true
+  try {
+    const res = (await fetchGetConsumptionLogAPI({
+      page,
+      size: 30,
+    })) as ResData<{ rows?: ConsumptionRow[]; count?: number }>
+    if (!res?.success || !res.data) {
+      ms.error(t('usercenter.consumptionLoadFail'))
+      return
+    }
+    const rows = res.data.rows ?? []
+    consumptionCount.value = Number(res.data.count) || 0
+    if (append) consumptionRows.value = [...consumptionRows.value, ...rows]
+    else consumptionRows.value = rows
+    consumptionPage.value = page
+  } catch {
+    ms.error(t('usercenter.consumptionLoadFail'))
+  } finally {
+    consumptionLoading.value = false
+  }
+}
+
+async function openConsumptionModal() {
+  showConsumptionModal.value = true
+  consumptionPage.value = 1
+  await fetchConsumptionPage(1, false)
+}
+
+async function loadMoreConsumption() {
+  if (!consumptionHasMore.value || consumptionLoading.value) return
+  await fetchConsumptionPage(consumptionPage.value + 1, true)
+}
+
+function consumptionPointsTypeLabel(deductType: number | undefined): string {
+  if (deductType === 1) return model3Name.value
+  if (deductType === 2) return model4Name.value
+  if (deductType === 3) return drawMjName.value
+  return t('usercenter.points')
+}
+
+function consumptionSceneLabel(extentRaw: string | undefined): string {
+  if (!extentRaw?.trim()) return t('usercenter.sceneUnknown')
+  try {
+    const o = JSON.parse(extentRaw) as { scene?: string }
+    if (o.scene === 'chat') return t('usercenter.sceneChat')
+    if (o.scene === 'tts') return t('usercenter.sceneTts')
+    if (o.scene === 'mj_chat') return t('usercenter.sceneMjChat')
+    if (o.scene === 'drawing_mj') return t('usercenter.sceneDrawingMj')
+  } catch {
+    /* ignore */
+  }
+  return t('usercenter.sceneUnknown')
+}
+
+function consumptionDetailLine(extentRaw: string | undefined): string {
+  if (!extentRaw?.trim()) return '—'
+  try {
+    const o = JSON.parse(extentRaw) as {
+      modelName?: string
+      model?: string
+      tokenBased?: boolean
+    }
+    const parts: string[] = []
+    if (o.modelName) parts.push(String(o.modelName))
+    else if (o.model) parts.push(String(o.model))
+    if (o.tokenBased === true) parts.push(t('usercenter.consumptionTokenBasedHint'))
+    return parts.length ? parts.join(' · ') : '—'
+  } catch {
+    return extentRaw.length > 160 ? `${extentRaw.slice(0, 160)}…` : extentRaw
+  }
+}
 
 // 登录状态检测
 const isLogin = computed(() => authStore.isLogin)
@@ -701,6 +890,55 @@ watch(
               </div>
             </div>
 
+            <!-- 累计已消耗积分 -->
+            <div
+              class="flex flex-col gap-2 p-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50/80 dark:bg-gray-800/40"
+            >
+              <div class="flex items-center justify-between gap-2">
+                <div class="text-gray-500 dark:text-gray-400 shrink-0">
+                  {{ t('usercenter.totalConsumedPoints') }}
+                </div>
+                <div class="text-lg font-bold text-amber-700 dark:text-amber-400 text-right">
+                  {{ totalConsumedPoints }}
+                  <span class="text-sm font-normal text-gray-500 dark:text-gray-400 ml-1">{{
+                    t('usercenter.points')
+                  }}</span>
+                </div>
+              </div>
+              <p class="text-xs text-gray-500 dark:text-gray-400 leading-snug">
+                {{ consumedBreakdownText }}
+              </p>
+              <p class="text-[11px] text-gray-400 dark:text-gray-500 leading-snug">
+                {{ t('usercenter.creditsNotCashHint') }}
+              </p>
+              <button
+                type="button"
+                class="btn btn-outline btn-sm border-primary/40 text-primary-600 dark:text-primary-400"
+                @click="openConsumptionModal"
+              >
+                {{ t('usercenter.consumptionDetailTitle') }}
+              </button>
+            </div>
+
+            <!-- 账户累计 Tokens（与扣费写入 user_balances 一致） -->
+            <div
+              class="flex flex-col gap-2 p-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50/80 dark:bg-gray-800/40"
+            >
+              <div class="flex items-center justify-between gap-2">
+                <div class="text-gray-500 dark:text-gray-400 shrink-0">
+                  {{ t('usercenter.balanceTokenTotalLabel') }}
+                </div>
+                <div
+                  class="text-lg font-bold text-sky-700 dark:text-sky-400 text-right tabular-nums"
+                >
+                  {{ totalAccountTokens.toLocaleString() }}
+                </div>
+              </div>
+              <p class="text-xs text-gray-500 dark:text-gray-400 leading-snug">
+                {{ accountTokensBreakdownText }}
+              </p>
+            </div>
+
             <!-- 会员到期时间 -->
             <div
               class="flex items-center p-2 border border-gray-200 dark:border-gray-700 rounded-lg"
@@ -739,6 +977,89 @@ watch(
           </div>
         </div>
       </div>
+
+      <!-- 各模型 Token：全宽表格 -->
+      <div
+        class="p-4 bg-white dark:bg-gray-700 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 mb-4"
+      >
+        <div
+          class="text-base font-semibold text-gray-900 dark:text-gray-100 mb-2 pb-2 border-b border-gray-200 dark:border-gray-700"
+        >
+          {{ t('usercenter.modelTokenUsageTitle') }}
+        </div>
+        <p class="text-xs text-gray-500 dark:text-gray-400 leading-snug">
+          {{ t('usercenter.modelTokenUsageHint') }}
+        </p>
+        <p
+          v-if="estimateDisclaimer"
+          class="text-xs text-amber-700 dark:text-amber-300/90 leading-snug mt-1"
+        >
+          {{ estimateDisclaimer }}
+        </p>
+        <p
+          v-if="estimateTotalsDisplay"
+          class="text-sm font-medium text-gray-800 dark:text-gray-100 mt-2"
+        >
+          {{ t('usercenter.modelTokenEstimateTotal') }}：{{ estimateTotalsDisplay }}
+        </p>
+        <div v-if="modelTokenLoading" class="flex justify-center py-10">
+          <span class="loading loading-spinner loading-md text-primary" />
+        </div>
+        <div
+          v-else-if="!modelTokenRows.length"
+          class="py-8 text-center text-sm text-gray-500 dark:text-gray-400"
+        >
+          {{ t('usercenter.modelTokenEmpty') }}
+        </div>
+        <div
+          v-else
+          class="mt-3 max-h-64 overflow-auto rounded-md border border-gray-200 dark:border-gray-600"
+        >
+          <table
+            class="table table-zebra table-sm w-full min-w-[640px] text-left text-xs sm:text-sm"
+          >
+            <thead class="sticky top-0 z-[1] bg-base-200/90 dark:bg-gray-800/95">
+              <tr class="text-gray-600 dark:text-gray-300">
+                <th>{{ t('usercenter.modelTokenColName') }}</th>
+                <th>{{ t('usercenter.modelTokenColId') }}</th>
+                <th class="text-right">{{ t('usercenter.modelTokenColTotal') }}</th>
+                <th class="text-right">{{ t('usercenter.modelTokenColIn') }}</th>
+                <th class="text-right">{{ t('usercenter.modelTokenColOut') }}</th>
+                <th class="text-right">{{ t('usercenter.modelTokenColReplies') }}</th>
+                <th class="text-right">{{ t('usercenter.modelTokenColEstimate') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(row, idx) in modelTokenRows" :key="`${row.model}-${idx}`">
+                <td class="max-w-[10rem] truncate" :title="row.modelName">{{ row.modelName }}</td>
+                <td
+                  class="font-mono text-[11px] text-gray-600 dark:text-gray-400 max-w-[8rem] truncate"
+                  :title="row.model"
+                >
+                  {{ row.model }}
+                </td>
+                <td class="text-right tabular-nums font-medium">
+                  {{ row.totalTokens.toLocaleString() }}
+                </td>
+                <td class="text-right tabular-nums text-gray-600 dark:text-gray-400">
+                  {{ row.promptTokens.toLocaleString() }}
+                </td>
+                <td class="text-right tabular-nums text-gray-600 dark:text-gray-400">
+                  {{ row.completionTokens.toLocaleString() }}
+                </td>
+                <td class="text-right tabular-nums">{{ row.replyCount.toLocaleString() }}</td>
+                <td class="text-right tabular-nums text-xs">
+                  {{
+                    row.estimateAmount != null && row.estimateCurrency
+                      ? formatEstimateMoney(row.estimateCurrency, row.estimateAmount)
+                      : '—'
+                  }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
     <!-- 支付视图 -->
@@ -748,6 +1069,109 @@ watch(
       @back-to-main="backToMainView"
       @payment-success="handlePaymentSuccess"
     />
+
+    <Teleport to="body">
+      <div
+        v-if="showConsumptionModal"
+        class="fixed inset-0 z-[12000] flex items-center justify-center bg-black/50 p-3 sm:p-6"
+        role="dialog"
+        aria-modal="true"
+        @click.self="showConsumptionModal = false"
+      >
+        <div
+          class="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-600 dark:bg-gray-800"
+          @click.stop
+        >
+          <div
+            class="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-600"
+          >
+            <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100">
+              {{ t('usercenter.consumptionDetailTitle') }}
+            </h3>
+            <button
+              type="button"
+              class="btn btn-ghost btn-sm btn-circle"
+              :aria-label="t('usercenter.consumptionClose')"
+              @click="showConsumptionModal = false"
+            >
+              ✕
+            </button>
+          </div>
+          <div class="min-h-0 flex-1 overflow-y-auto px-2 py-2 sm:px-4">
+            <div
+              v-if="consumptionLoading && consumptionRows.length === 0"
+              class="flex justify-center py-16"
+            >
+              <span class="loading loading-spinner loading-md text-primary" />
+            </div>
+            <div
+              v-else-if="!consumptionLoading && consumptionRows.length === 0"
+              class="py-10 text-center text-sm text-gray-500 dark:text-gray-400"
+            >
+              {{ t('usercenter.consumptionEmpty') }}
+            </div>
+            <table v-else class="table table-zebra table-sm w-full text-left text-xs sm:text-sm">
+              <thead>
+                <tr class="text-gray-600 dark:text-gray-300">
+                  <th>{{ t('usercenter.consumptionTime') }}</th>
+                  <th>{{ t('usercenter.consumptionPointsType') }}</th>
+                  <th>{{ t('usercenter.consumptionAmount') }}</th>
+                  <th>{{ t('usercenter.consumptionTokens') }}</th>
+                  <th>{{ t('usercenter.consumptionReason') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in consumptionRows" :key="row.id">
+                  <td class="whitespace-nowrap">{{ row.createdAt || '—' }}</td>
+                  <td>{{ consumptionPointsTypeLabel(row.consumedDeductType) }}</td>
+                  <td class="font-semibold text-amber-700 dark:text-amber-400">
+                    {{ row.consumedAmount ?? '—' }}
+                  </td>
+                  <td class="tabular-nums text-gray-700 dark:text-gray-200">
+                    <template v-if="row.consumedTokens != null && row.consumedTokens > 0">
+                      {{ Number(row.consumedTokens).toLocaleString() }}
+                    </template>
+                    <template v-else>—</template>
+                  </td>
+                  <td>
+                    <div class="font-medium text-gray-800 dark:text-gray-200">
+                      {{ consumptionSceneLabel(row.extent) }}
+                    </div>
+                    <div class="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
+                      {{ consumptionDetailLine(row.extent) }}
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div
+            class="flex flex-wrap items-center justify-end gap-2 border-t border-gray-200 px-4 py-3 dark:border-gray-600"
+          >
+            <button
+              type="button"
+              class="btn btn-outline btn-sm"
+              @click="showConsumptionModal = false"
+            >
+              {{ t('usercenter.consumptionClose') }}
+            </button>
+            <button
+              v-if="consumptionHasMore"
+              type="button"
+              class="btn btn-primary btn-sm"
+              :disabled="consumptionLoading"
+              @click="loadMoreConsumption"
+            >
+              <span
+                v-if="consumptionLoading"
+                class="loading loading-spinner loading-xs mr-1 align-middle"
+              />
+              {{ t('usercenter.consumptionLoadMore') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
