@@ -9,7 +9,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(private readonly redisService: RedisCacheService) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      secretOrKey: redisService.getJwtSecret(),
+      /* getJwtSecret() 返回 Promise，不能直接作为 secretOrKey，否则校验会使用无效密钥 */
+      secretOrKeyProvider: (_request, _rawJwtToken, done) => {
+        redisService
+          .getJwtSecret()
+          .then(secret => done(null, secret))
+          .catch(err => done(err, undefined));
+      },
     });
   }
 
