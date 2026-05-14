@@ -87,6 +87,8 @@ import {
   mjButtonIsVaryRegion,
   mjButtonIsCustomZoom,
   mjMiscButtonHintKey,
+  mjMiscButtonPolicyBlockReason,
+  mjMiscPolicyBlockFromProbeText,
   mjMiscGroupIntroKey,
   mjMiscGroupTitleKey,
   type MjFollowBtn,
@@ -1748,6 +1750,12 @@ async function onMjButtonClick(
     (sourceJob?.task
       ? (mjButtons(sourceJob.task).find(b => b.customId === customId) ?? null)
       : null)
+  const block =
+    mjMiscButtonPolicyBlockReason(btn) ?? mjMiscPolicyBlockFromProbeText(String(customId || ''))
+  if (block) {
+    openMjMiscPolicyModal(block)
+    return
+  }
   const q = btn ? mjUvQuadrantLabel(btn.label) : ''
   const promptLabel = buildMjFollowUpPromptLabel(
     sourceJob,
@@ -2217,8 +2225,25 @@ const settingsDialog = computed(() => useGlobalStore.settingsDialog)
 const mobileSettingsDialog = computed(() => useGlobalStore.mobileSettingsDialog)
 
 const mjButtons = (task: Record<string, unknown> | undefined) => {
-  const btns = task?.buttons as MjFollowBtn[] | undefined
-  return Array.isArray(btns) ? btns : []
+  if (!task) return []
+  const pr = task.properties as Record<string, unknown> | undefined
+  const a = task.buttons as MjFollowBtn[] | undefined
+  const b = pr?.buttons as MjFollowBtn[] | undefined
+  const out: MjFollowBtn[] = []
+  const seen = new Set<string>()
+  for (const list of [a, b]) {
+    if (!Array.isArray(list)) continue
+    for (const x of list) {
+      if (!x || typeof x !== 'object') continue
+      const btn = x as MjFollowBtn
+      const cid = String(btn.customId || '').trim()
+      const key = cid || `${String(btn.label || '')}\t${String(btn.emoji || '')}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      out.push(btn)
+    }
+  }
+  return out
 }
 
 /** U1–U4 / V1–V4 与四宫格对应（Midjourney 约定） */
@@ -2342,6 +2367,38 @@ const varyRegionModalTaskId = ref('')
 /** 窗口阶段拉取到的 MODAL 任务快照：imageUrl 与蒙版坐标系一致，避免用父任务缩略图导致尺寸不符 */
 const varyRegionModalTaskSnap = ref<Record<string, unknown> | null>(null)
 const varyRegionActionBusy = ref(false)
+
+const mjMiscPolicyModalOpen = ref(false)
+const mjMiscPolicyModalKind = ref<'animate' | 'utility' | null>(null)
+
+function openMjMiscPolicyModal(kind: 'animate' | 'utility') {
+  mjMiscPolicyModalKind.value = kind
+  mjMiscPolicyModalOpen.value = true
+}
+
+function closeMjMiscPolicyModal() {
+  mjMiscPolicyModalOpen.value = false
+  mjMiscPolicyModalKind.value = null
+}
+
+const mjMiscPolicyModalBody = computed(() => {
+  const k = mjMiscPolicyModalKind.value
+  if (k === 'utility') return t('drawing.mjMiscPolicyUtilityBody')
+  if (k === 'animate') return t('drawing.mjMiscPolicyAnimateBody')
+  return ''
+})
+
+watch(
+  mjMiscPolicyModalOpen,
+  (open, _prev, onCleanup) => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeMjMiscPolicyModal()
+    }
+    document.addEventListener('keydown', onKey)
+    onCleanup(() => document.removeEventListener('keydown', onKey))
+  }
+)
 
 const varyRegionImageUrl = computed(() => {
   const snap = varyRegionModalTaskSnap.value
@@ -2502,6 +2559,11 @@ async function beginVaryRegionFlow(
 }
 
 function handleMjMiscButtonClick(job: MjJobItem, btn: MjFollowBtn) {
+  const block = mjMiscButtonPolicyBlockReason(btn)
+  if (block) {
+    openMjMiscPolicyModal(block)
+    return
+  }
   if (mjButtonIsVaryRegion(btn)) {
     void beginVaryRegionFlow(job, btn.customId, 'vary-region')
     return
@@ -2519,6 +2581,13 @@ function onMjMiscDropdownChange(ev: Event, job: MjJobItem) {
   if (!customId) return
   el.value = ''
   const btn = mjButtons(job.task).find(b => b.customId === customId)
+  const block =
+    (btn ? mjMiscButtonPolicyBlockReason(btn) : null) ??
+    mjMiscPolicyBlockFromProbeText(String(customId || ''))
+  if (block) {
+    openMjMiscPolicyModal(block)
+    return
+  }
   if (btn && mjButtonIsVaryRegion(btn)) {
     void beginVaryRegionFlow(job, customId, 'vary-region')
     return
@@ -3461,12 +3530,37 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                         >
                           {{ mjJobChargeMetaLine(job) }}
                         </p>
-                        <p
-                          class="line-clamp-2 text-xs text-slate-500"
-                          :class="mjButtons(job.task).length ? 'mb-2' : 'mb-0'"
+                        <template
+                          v-for="cap in [extractMjViewerCaptions(job)]"
+                          :key="`mj-cap-${job.localId}`"
                         >
-                          {{ job.promptLabel }}
-                        </p>
+                          <div
+                            class="space-y-1.5"
+                            :class="mjButtons(job.task).length ? 'mb-2' : 'mb-0'"
+                          >
+                            <p class="line-clamp-2 text-xs text-slate-500">
+                              {{ cap.original || '—' }}
+                            </p>
+                            <div
+                              class="rounded-md border border-slate-700/45 bg-slate-900/35 px-2 py-1.5"
+                            >
+                              <p
+                                class="mb-0.5 text-[9px] font-semibold uppercase tracking-[0.06em] text-slate-500"
+                              >
+                                {{ t('drawing.viewerCaptionTranslated') }}
+                              </p>
+                              <p
+                                class="line-clamp-4 text-[11px] leading-snug"
+                                :class="
+                                  cap.translated ? 'text-slate-300/95' : 'text-slate-500/90 italic'
+                                "
+                                :title="cap.translated || t('drawing.viewerCaptionTranslatedNone')"
+                              >
+                                {{ cap.translated || t('drawing.viewerCaptionTranslatedNone') }}
+                              </p>
+                            </div>
+                          </div>
+                        </template>
                         <div v-if="mjButtons(job.task).length" class="pb-1">
                           <p
                             v-if="mjHasUvNumberedButtons(job.task)"
@@ -3726,6 +3820,38 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                 :variant="mjModalFollowVariant"
                 @submitted="onMjVaryRegionSubmitted"
               />
+              <Teleport to="body">
+                <div
+                  v-if="mjMiscPolicyModalOpen"
+                  class="fixed inset-0 z-[10060] flex items-center justify-center bg-black/60 px-3"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="mj-misc-policy-title"
+                  @click.self="closeMjMiscPolicyModal"
+                >
+                  <div
+                    class="w-full max-w-md rounded-xl border border-slate-600 bg-[#121822] p-5 shadow-2xl"
+                    @click.stop
+                  >
+                    <h3
+                      id="mj-misc-policy-title"
+                      class="text-base font-semibold text-slate-100"
+                    >
+                      {{ t('drawing.mjMiscPolicyModalTitle') }}
+                    </h3>
+                    <p class="mt-3 text-sm leading-relaxed text-slate-300">
+                      {{ mjMiscPolicyModalBody }}
+                    </p>
+                    <button
+                      type="button"
+                      class="btn btn-primary mt-5 w-full border-0 bg-sky-600 text-white hover:bg-sky-500"
+                      @click="closeMjMiscPolicyModal"
+                    >
+                      {{ t('drawing.mjMiscPolicyGotIt') }}
+                    </button>
+                  </div>
+                </div>
+              </Teleport>
             </div>
 
             <!-- 非 MJ：通用流式 -->
