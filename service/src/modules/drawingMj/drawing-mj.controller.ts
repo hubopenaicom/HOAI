@@ -402,9 +402,7 @@ export class DrawingMjController {
       clientKey: Number.isFinite(ck as number) ? ck : undefined,
       taskId: e.taskId ?? '',
       parentTaskId: e.parentTaskId ?? undefined,
-      parentClientKey: e.parentClientKey
-        ? Number(e.parentClientKey)
-        : undefined,
+      parentClientKey: e.parentClientKey ? Number(e.parentClientKey) : undefined,
       modelKey: e.modelKey,
       mjMode: e.mjMode as MjSpeedMode,
       mjStyleSnapshot: e.mjStyleSnapshot ?? undefined,
