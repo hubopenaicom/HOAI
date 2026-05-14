@@ -7877,7 +7877,7 @@ exports.AuthModule = AuthModule = __decorate([
             userBalance_service_1.UserBalanceService,
             redisCache_service_1.RedisCacheService,
         ],
-        exports: [auth_service_1.AuthService],
+        exports: [auth_service_1.AuthService, jwt_1.JwtModule],
     })
 ], AuthModule);
 
@@ -12001,6 +12001,12 @@ let DrawingMjJobService = class DrawingMjJobService {
             userId,
             clientKey: dto.clientKey != null ? String(dto.clientKey) : null,
             taskId: dto.taskId ?? null,
+            parentTaskId: dto.parentTaskId != null && String(dto.parentTaskId).trim()
+                ? String(dto.parentTaskId).trim()
+                : null,
+            parentClientKey: dto.parentClientKey != null && String(dto.parentClientKey).trim()
+                ? String(dto.parentClientKey).trim()
+                : null,
             modelKey: dto.modelKey,
             mjMode: dto.mjMode,
             mjStyleSnapshot: dto.mjStyleSnapshot ?? null,
@@ -12040,6 +12046,18 @@ let DrawingMjJobService = class DrawingMjJobService {
             if (existing) {
                 if (dto.taskId !== undefined)
                     existing.taskId = dto.taskId ?? null;
+                if (dto.parentTaskId !== undefined) {
+                    existing.parentTaskId =
+                        dto.parentTaskId != null && String(dto.parentTaskId).trim()
+                            ? String(dto.parentTaskId).trim()
+                            : null;
+                }
+                if (dto.parentClientKey !== undefined) {
+                    existing.parentClientKey =
+                        dto.parentClientKey != null && String(dto.parentClientKey).trim()
+                            ? String(dto.parentClientKey).trim()
+                            : null;
+                }
                 if (dto.loading !== undefined)
                     existing.loading = dto.loading;
                 if (dto.error !== undefined)
@@ -12230,6 +12248,8 @@ let DrawingMjJobEntity = class DrawingMjJobEntity extends baseEntity_1.BaseEntit
     userId;
     clientKey;
     taskId;
+    parentTaskId;
+    parentClientKey;
     modelKey;
     mjMode;
     mjStyleSnapshot;
@@ -12254,6 +12274,14 @@ __decorate([
     (0, typeorm_1.Column)({ length: 191, nullable: true, comment: 'MJ 上游任务 ID' }),
     __metadata("design:type", String)
 ], DrawingMjJobEntity.prototype, "taskId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ length: 191, nullable: true, comment: '父任务 MJ taskId' }),
+    __metadata("design:type", String)
+], DrawingMjJobEntity.prototype, "parentTaskId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ length: 32, nullable: true, comment: '父任务 clientKey' }),
+    __metadata("design:type", String)
+], DrawingMjJobEntity.prototype, "parentClientKey", void 0);
 __decorate([
     (0, typeorm_1.Column)({ length: 191, comment: '模型 model 字段' }),
     __metadata("design:type", String)
@@ -12669,6 +12697,8 @@ let DrawingMjController = DrawingMjController_1 = class DrawingMjController {
             id: e.id,
             clientKey: Number.isFinite(ck) ? ck : undefined,
             taskId: e.taskId ?? '',
+            parentTaskId: e.parentTaskId ?? undefined,
+            parentClientKey: e.parentClientKey ? Number(e.parentClientKey) : undefined,
             modelKey: e.modelKey,
             mjMode: e.mjMode,
             mjStyleSnapshot: e.mjStyleSnapshot ?? undefined,
@@ -23590,6 +23620,27 @@ async function ensureModelsTokenPricingColumns(conn) {
         }
     }
 }
+async function ensureDrawingMjJobParentColumns(conn) {
+    const db = process.env.DB_DATABASE;
+    const table = 'drawing_mj_job';
+    const specs = [
+        {
+            name: 'parentTaskId',
+            ddl: "`parentTaskId` varchar(191) DEFAULT NULL COMMENT '父任务 MJ taskId'",
+        },
+        {
+            name: 'parentClientKey',
+            ddl: "`parentClientKey` varchar(32) DEFAULT NULL COMMENT '父任务 clientKey(与前端 localId 对齐)'",
+        },
+    ];
+    for (const { name, ddl } of specs) {
+        const [colRows] = (await conn.execute(`SELECT COUNT(*) as c FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?`, [db, table, name]));
+        if (Number(colRows[0]?.c) === 0) {
+            await conn.execute(`ALTER TABLE \`${table}\` ADD COLUMN ${ddl}`);
+            common_1.Logger.log(`drawing_mj_job 表已添加列 ${name}`, 'Database');
+        }
+    }
+}
 async function ensureTokenBillingConfigRows(conn) {
     const rows = [
         ['tokenBillingPointsPerCny', '1'],
@@ -23667,6 +23718,12 @@ async function runAllMigrations() {
         }
         catch (error) {
             common_1.Logger.log(`config Token 折算默认值跳过: ${error.message}`, 'Database');
+        }
+        try {
+            await ensureDrawingMjJobParentColumns(conn);
+        }
+        catch (error) {
+            common_1.Logger.log(`drawing_mj_job 父任务列迁移跳过: ${error.message}`, 'Database');
         }
     }
     finally {
