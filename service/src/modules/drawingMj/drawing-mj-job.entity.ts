@@ -14,6 +14,14 @@ export class DrawingMjJobEntity extends BaseEntity {
   @Column({ length: 191, nullable: true, comment: 'MJ 上游任务 ID' })
   taskId: string;
 
+  /** 后续操作提交时所基于的父任务 MJ taskId（用于列表「跳转到上一步」） */
+  @Column({ length: 191, nullable: true, comment: '父任务 MJ taskId' })
+  parentTaskId: string | null;
+
+  /** 父任务 clientKey，与前端 localId 对齐，便于列表内唯一定位 */
+  @Column({ length: 32, nullable: true, comment: '父任务 clientKey' })
+  parentClientKey: string | null;
+
   @Column({ length: 191, comment: '模型 model 字段' })
   modelKey: string;
 
