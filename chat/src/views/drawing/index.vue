@@ -25,6 +25,7 @@ import BadWordsDialog from '@/components/Dialogs/BadWordsDialog.vue'
 import { openImageViewer } from '@/components/common/ImageViewer/useImageViewer'
 import DrawingStudioSidebar from '@/components/drawing/DrawingStudioSidebar.vue'
 import DrawingUploadPreviewGrid from '@/components/drawing/DrawingUploadPreviewGrid.vue'
+import MjTaskImage from '@/components/drawing/MjTaskImage.vue'
 import type {
   MjBlendDimensions,
   MjNijiVersion,
@@ -155,6 +156,8 @@ interface MjJobItem {
   deductCharged?: number
   chargeMult?: number
   deductTypeSnapshot?: number
+  /** 客户端排队/绘制耗时起点（毫秒时间戳） */
+  queuedAtMs?: number
 }
 
 const MJ_TYPE = 3
@@ -223,6 +226,8 @@ function buildModelConfig(m: DrawingModel) {
       model: m.model,
       deductType: m.deductType,
       deduct: m.deduct,
+      /** 与 router「绘画会话组」识别一致；缺省时守卫无法从 MJ 组切回普通对话 */
+      drawingType: m.drawingType ?? 0,
       isFileUpload: m.isFileUpload ?? 0,
       isImageUpload: m.isImageUpload ?? 0,
       modelAvatar: m.modelAvatar ?? '',
@@ -445,6 +450,24 @@ const MJ_ADV_SLIDERS_LS = 'hoai_drawing_mj_adv_sliders_v1'
 const mjSubmitting = ref(false)
 const taskSearchQuery = ref('')
 const mjJobs = ref<MjJobItem[]>([])
+/** 任意任务在绘制中时每秒递增，驱动「已耗时」文案刷新 */
+const mjElapsedTick = ref(0)
+let mjDrawElapsedTimer: ReturnType<typeof setInterval> | null = null
+watch(
+  () => mjJobs.value.some(j => j.loading),
+  active => {
+    if (active) {
+      if (!mjDrawElapsedTimer)
+        mjDrawElapsedTimer = setInterval(() => {
+          mjElapsedTick.value++
+        }, 1000)
+    } else if (mjDrawElapsedTimer) {
+      clearInterval(mjDrawElapsedTimer)
+      mjDrawElapsedTimer = null
+    }
+  },
+  { immediate: true }
+)
 /** 列表内「跳转到上一步」短时高亮的目标 localId */
 const mjParentHighlightLocalId = ref<number | null>(null)
 let mjParentHighlightTimer: ReturnType<typeof setTimeout> | null = null
@@ -473,7 +496,9 @@ const mjImagineMultsParsed = computed(() =>
   parseMjImagineChargeMultipliersJson(authStore.globalConfig?.mjImagineChargeMultipliers)
 )
 
-function mjParentFieldsFromSource(source?: MjJobItem | null): Pick<MjJobItem, 'parentTaskId' | 'parentLocalId'> {
+function mjParentFieldsFromSource(
+  source?: MjJobItem | null
+): Pick<MjJobItem, 'parentTaskId' | 'parentLocalId'> {
   if (!source) return {}
   const tid = String(source.taskId || '').trim()
   const out: Pick<MjJobItem, 'parentTaskId' | 'parentLocalId'> = {}
@@ -1141,7 +1166,7 @@ function resolveMjParentJob(job: MjJobItem): MjJobItem | undefined {
 function mjParentJumpVisible(job: MjJobItem): boolean {
   return Boolean(
     String(job.parentTaskId || '').trim() ||
-      (job.parentLocalId != null && Number.isFinite(job.parentLocalId))
+    (job.parentLocalId != null && Number.isFinite(job.parentLocalId))
   )
 }
 
@@ -1290,6 +1315,7 @@ function mergeMjJobWithRemote(local: MjJobItem, remote: MjJobItem): MjJobItem {
     deductTypeSnapshot,
     parentTaskId,
     parentLocalId,
+    queuedAtMs: local.queuedAtMs ?? remote.queuedAtMs,
   }
 }
 
@@ -1344,6 +1370,11 @@ function startPollTask(taskId: string, job: MjJobItem) {
       const outcome = mjTaskPollOutcome(task)
       if (outcome.phase === 'running') return
 
+      if (outcome.phase === 'done_ok' && collectMjImageUrls(task).length === 0) {
+        /** 上游已标完成但图链尚未返回；若此时停轮询会出现「完成却空白」直到手动刷新 */
+        return
+      }
+
       stopPoll(taskId)
       live.loading = false
       if (outcome.phase === 'done_fail') {
@@ -1391,6 +1422,10 @@ function resumePollingRestoredJobs() {
 }
 
 onUnmounted(() => {
+  if (mjDrawElapsedTimer) {
+    clearInterval(mjDrawElapsedTimer)
+    mjDrawElapsedTimer = null
+  }
   if (persistMjJobsReady.value) void persistMjJobsHybrid()
   pollTimers.forEach(t => clearInterval(t))
   pollTimers.clear()
@@ -1437,6 +1472,7 @@ async function handleMjImagine() {
     promptLabel: msg,
     loading: true,
     mjStyleSnapshot: mjStyle.value,
+    queuedAtMs: Date.now(),
   }
   attachMjJobModelMeta(job, m)
   mjJobs.value.unshift(job)
@@ -1472,6 +1508,7 @@ async function handleMjDescribe() {
     promptLabel: 'Describe',
     loading: true,
     mjStyleSnapshot: mjStyle.value,
+    queuedAtMs: Date.now(),
   }
   attachMjJobModelMeta(job, m)
   mjJobs.value.unshift(job)
@@ -1507,6 +1544,7 @@ async function handleMjShorten() {
     promptLabel: msg,
     loading: true,
     mjStyleSnapshot: mjStyle.value,
+    queuedAtMs: Date.now(),
   }
   attachMjJobModelMeta(job, m)
   mjJobs.value.unshift(job)
@@ -1559,6 +1597,7 @@ async function handleMjBlend() {
     promptLabel: `Blend (${blendBase64List.value.length})`,
     loading: true,
     mjStyleSnapshot: mjStyle.value,
+    queuedAtMs: Date.now(),
   }
   attachMjJobModelMeta(job, m)
   mjJobs.value.unshift(job)
@@ -1598,11 +1637,7 @@ function fillEditsUrlFromLatestJob() {
 function mjNormalizeEditsUrlKey(u: string): string {
   const s = u.trim()
   if (!s) return ''
-  return s
-    .split('#')[0]
-    .trim()
-    .toLowerCase()
-    .replace(/\/+$/, '')
+  return s.split('#')[0].trim().toLowerCase().replace(/\/+$/, '')
 }
 
 function mjEditsUrlsMatch(a: string, b: string): boolean {
@@ -1705,6 +1740,7 @@ async function handleMjEdits() {
     promptLabel: msg,
     loading: true,
     mjStyleSnapshot: mjStyle.value,
+    queuedAtMs: Date.now(),
     ...mjParentFieldsFromSource(editsSrc),
   }
   attachMjJobModelMeta(job, m)
@@ -1822,6 +1858,7 @@ async function handleMjChangeSubmit() {
     promptLabel: `change ${mjChangeAction.value}${mjChangeAction.value === 'REGENERATE' ? '' : ` #${mjChangeIndex.value}`}`,
     loading: true,
     mjStyleSnapshot: mjStyle.value,
+    queuedAtMs: Date.now(),
     ...mjParentFieldsFromSource(srcChange),
   }
   attachMjJobModelMeta(job, m)
@@ -1895,6 +1932,7 @@ async function handleMjSimpleChangeSubmit() {
     promptLabel: `simple-change`,
     loading: true,
     mjStyleSnapshot: mjStyle.value,
+    queuedAtMs: Date.now(),
     ...mjParentFieldsFromSource(srcSimple),
   }
   attachMjJobModelMeta(job, m)
@@ -1954,6 +1992,7 @@ async function onMjButtonClick(
     promptLabel,
     loading: true,
     mjStyleSnapshot: mjStyle.value,
+    queuedAtMs: Date.now(),
     ...mjParentFieldsFromSource(sourceJob),
   }
   attachMjJobModelMeta(job, m, { mjMode: mjModeForFollowUp(sourceJob) })
@@ -2570,17 +2609,14 @@ const mjMiscPolicyModalBody = computed(() => {
   return ''
 })
 
-watch(
-  mjMiscPolicyModalOpen,
-  (open, _prev, onCleanup) => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeMjMiscPolicyModal()
-    }
-    document.addEventListener('keydown', onKey)
-    onCleanup(() => document.removeEventListener('keydown', onKey))
+watch(mjMiscPolicyModalOpen, (open, _prev, onCleanup) => {
+  if (!open) return
+  const onKey = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') closeMjMiscPolicyModal()
   }
-)
+  document.addEventListener('keydown', onKey)
+  onCleanup(() => document.removeEventListener('keydown', onKey))
+})
 
 const varyRegionImageUrl = computed(() => {
   const snap = varyRegionModalTaskSnap.value
@@ -2719,6 +2755,7 @@ async function beginVaryRegionFlow(
         promptLabel,
         loading: true,
         mjStyleSnapshot: mjStyle.value,
+        queuedAtMs: Date.now(),
         ...mjParentFieldsFromSource(job),
       }
       attachMjJobModelMeta(newJob, m, { mjMode: mjModeForFollowUp(job) })
@@ -2802,6 +2839,7 @@ async function onMjVaryRegionSubmitted(res: unknown) {
     promptLabel,
     loading: true,
     mjStyleSnapshot: srcJob?.mjStyleSnapshot ?? mjStyle.value,
+    queuedAtMs: Date.now(),
     ...mjParentFieldsFromSource(srcJob),
   }
   attachMjJobModelMeta(job, m, { mjMode: mjModeForFollowUp(srcJob) })
@@ -2936,6 +2974,15 @@ function mjJobProgressText(job: MjJobItem): string {
   const p = job.task?.progress ?? job.task?.Progress
   if (p != null && String(p).trim()) return String(p)
   return t('drawing.generating')
+}
+
+function mjJobElapsedLine(job: MjJobItem): string {
+  void mjElapsedTick.value
+  if (!job.loading) return ''
+  const t0 = job.queuedAtMs
+  if (t0 == null || !Number.isFinite(t0)) return ''
+  const s = Math.max(0, Math.floor((Date.now() - t0) / 1000))
+  return t('drawing.mjElapsedSeconds', { s })
 }
 
 function mjStyleTag(style?: MjStyle): string {
@@ -3466,12 +3513,14 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                                     class="relative block w-full cursor-zoom-in bg-black/30 p-0 text-left outline-none ring-sky-500/40 focus-visible:ring-2"
                                     @click="openMjJobImagePreview(imgUrl, job, ix)"
                                   >
-                                    <img
-                                      :src="imgUrl"
-                                      class="h-auto w-full max-h-[min(70vh,520px)] object-contain align-bottom opacity-95"
-                                      loading="lazy"
-                                      alt=""
-                                    />
+                                    <div
+                                      class="max-h-[min(70vh,520px)] w-full overflow-hidden opacity-95"
+                                    >
+                                      <MjTaskImage
+                                        :key="`${job.localId}-run-${ix}-${imgUrl}`"
+                                        :src="imgUrl"
+                                      />
+                                    </div>
                                   </button>
                                   <button
                                     type="button"
@@ -3510,6 +3559,12 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                               </div>
                             </div>
                             <div class="space-y-2 border-t border-slate-800/90 px-3 py-3">
+                              <p
+                                v-if="mjJobElapsedLine(job)"
+                                class="text-center text-[11px] font-medium tabular-nums text-slate-400"
+                              >
+                                {{ mjJobElapsedLine(job) }}
+                              </p>
                               <div
                                 v-if="mjJobImageUrls(job).length === 0"
                                 class="flex items-center justify-center gap-2 text-center text-sm font-medium text-slate-200"
@@ -3572,12 +3627,12 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                                 class="block w-full cursor-zoom-in bg-black/20 p-0 text-left outline-none ring-sky-500/40 focus-visible:ring-2"
                                 @click="openMjJobImagePreview(imgUrl, job, ix)"
                               >
-                                <img
-                                  :src="imgUrl"
-                                  class="h-auto w-full max-h-[min(70vh,520px)] object-contain align-bottom"
-                                  loading="lazy"
-                                  alt=""
-                                />
+                                <div class="max-h-[min(70vh,520px)] w-full overflow-hidden">
+                                  <MjTaskImage
+                                    :key="`${job.localId}-done-${ix}-${imgUrl}`"
+                                    :src="imgUrl"
+                                  />
+                                </div>
                               </button>
                               <button
                                 type="button"
@@ -4066,10 +4121,7 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                     class="w-full max-w-md rounded-xl border border-slate-600 bg-[#121822] p-5 shadow-2xl"
                     @click.stop
                   >
-                    <h3
-                      id="mj-misc-policy-title"
-                      class="text-base font-semibold text-slate-100"
-                    >
+                    <h3 id="mj-misc-policy-title" class="text-base font-semibold text-slate-100">
                       {{ t('drawing.mjMiscPolicyModalTitle') }}
                     </h3>
                     <p class="mt-3 text-sm leading-relaxed text-slate-300">
