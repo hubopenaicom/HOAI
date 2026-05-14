@@ -225,6 +225,10 @@ export interface MjDrawingJobDto {
   id: number
   clientKey?: number
   taskId: string
+  /** 父任务 MJ taskId（后续操作来源） */
+  parentTaskId?: string
+  /** 父任务 clientKey，与前端 localId 一致 */
+  parentClientKey?: number
   modelKey: string
   mjMode: MjSpeedMode
   mjStyleSnapshot?: string
@@ -242,6 +246,8 @@ export interface MjDrawingJobDto {
 export interface MjDrawingJobSnapshot {
   clientKey: number
   taskId?: string
+  parentTaskId?: string | null
+  parentClientKey?: string | number | null
   modelKey: string
   mjMode: MjSpeedMode
   mjStyleSnapshot?: string
