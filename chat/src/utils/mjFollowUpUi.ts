@@ -187,7 +187,9 @@ export function analyzeMjMiscButton(btn: MjFollowBtn): {
 
   // 实用工具
   if (
-    /remove[\s_-]*background|removebackground|rem[\s_-]*bg|\brembg\b|去背|抠图|移除背景|删除背景/i.test(s)
+    /remove[\s_-]*background|removebackground|rem[\s_-]*bg|\brembg\b|去背|抠图|移除背景|删除背景/i.test(
+      s
+    )
   ) {
     return { group: 'utility', hintKey: 'drawing.mjHintRemoveBg' }
   }
@@ -327,7 +329,8 @@ export function mjParentLineForFollowUp(job: MjParentJobLike | undefined): strin
     }
   }
   const fromTask = mjExtractPromptFirstLineFromTask(job.task)
-  if (fromTask) return clampOneLine(mjFollowUpSourceTextForNextWrap(fromTask), MJ_FOLLOW_UP_PARENT_SOURCE_MAX)
+  if (fromTask)
+    return clampOneLine(mjFollowUpSourceTextForNextWrap(fromTask), MJ_FOLLOW_UP_PARENT_SOURCE_MAX)
   return pl ? clampOneLine(mjFollowUpSourceTextForNextWrap(pl), MJ_FOLLOW_UP_PARENT_SOURCE_MAX) : ''
 }
 
