@@ -300,3 +300,9 @@ export async function fetchMjProxyImageBlob(imageUrl: string): Promise<Blob> {
   const mime = String(ct).split(';')[0].trim()
   return new Blob([res.data], { type: mime || 'application/octet-stream' })
 }
+
+/** 复用 proxy-image，转为 blob: URL 供绘画卡片 <img> 同源内嵌（带 JWT） */
+export async function fetchMjProxyImageInlineBlobUrl(remoteUrl: string): Promise<string> {
+  const blob = await fetchMjProxyImageBlob(remoteUrl)
+  return URL.createObjectURL(blob)
+}
