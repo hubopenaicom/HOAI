@@ -3,6 +3,12 @@
  * @see https://docs.midjourney.com — Upscalers, Vary Region, Zoom Out, Pan 等
  */
 
+import {
+  mjTaskPromptFirstLine,
+  mjCollapseNestedFollowUpLabelForDisplay,
+  mjFollowUpSourceTextForNextWrap,
+} from '@/utils/mjApiParse'
+
 export type MjFollowBtn = { customId: string; label: string; emoji?: string }
 
 /** 放大后「其它」里的逻辑分组（展示顺序） */
@@ -161,10 +167,18 @@ export function analyzeMjMiscButton(btn: MjFollowBtn): {
   }
 
   // Animate（合作方短片；文案随上游）
-  if (/animate\s*\(\s*high|high\s*motion|高动态|高幅度|high\s*anim/i.test(s)) {
+  if (
+    /animate\s*\(\s*high|animate\s*\(\s*high\s*motion|animate\s*\(\s*high\)|高动态|高幅度|high\s*motion|high\s*anim/i.test(
+      s
+    )
+  ) {
     return { group: 'animate', hintKey: 'drawing.mjHintAnimateHigh' }
   }
-  if (/animate\s*\(\s*low|low\s*motion|低动态|低幅度|low\s*anim/i.test(s)) {
+  if (
+    /animate\s*\(\s*low|animate\s*\(\s*low\s*motion|animate\s*\(\s*low\)|低动态|低幅度|low\s*motion|low\s*anim/i.test(
+      s
+    )
+  ) {
     return { group: 'animate', hintKey: 'drawing.mjHintAnimateLow' }
   }
   if (/animate|animation|motion|动态影像|短片|luma|runway|视频化/i.test(s)) {
@@ -172,7 +186,9 @@ export function analyzeMjMiscButton(btn: MjFollowBtn): {
   }
 
   // 实用工具
-  if (/remove\s*background|rembg|去背|抠图|移除背景|删除背景/i.test(s)) {
+  if (
+    /remove[\s_-]*background|removebackground|rem[\s_-]*bg|\brembg\b|去背|抠图|移除背景|删除背景/i.test(s)
+  ) {
     return { group: 'utility', hintKey: 'drawing.mjHintRemoveBg' }
   }
 
@@ -181,6 +197,43 @@ export function analyzeMjMiscButton(btn: MjFollowBtn): {
 
 export function mjMiscButtonHintKey(btn: MjFollowBtn): string | null {
   return analyzeMjMiscButton(btn).hintKey
+}
+
+/**
+ * 从 customId / 拼接串识别「动态短片」「去背景」等（上游常把类型写在 id 里、label 为空或与展示不一致）。
+ */
+export function mjMiscPolicyBlockFromProbeText(text: string): 'animate' | 'utility' | null {
+  const low = String(text || '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+  if (!low) return null
+  if (
+    /::\s*animate|\banimate::|mj::[^:\n]*animate|_animate_|animate[_\s-]*high|animate[_\s-]*low|high[_\s-]*motion|low[_\s-]*motion|highmotion|lowmotion|\bluma\b|\brunway\b|motion[_\s-]*clip|video[_\s-]*to[_\s-]*anim|short[_\s-]*clip|dynamic[_\s-]*video|🎬/.test(
+      low
+    ) ||
+    (/\banimate\b/.test(low) && /high|low|motion|luma|runway|clip|video|短片|动态/.test(low))
+  ) {
+    return 'animate'
+  }
+  if (
+    /remove[_\s-]*background|removebackground|\brembg\b|rem[_\s-]*bg|delete[_\s-]*background|background[_\s-]*removal|::rembg|::removebg|去背|抠图|移除背景|删除背景/.test(
+      low
+    )
+  ) {
+    return 'utility'
+  }
+  return null
+}
+
+/** 运营策略：动态短片 / 实用工具点击后仅提示，不提交上游 */
+export function mjMiscButtonPolicyBlockReason(
+  btn: MjFollowBtn | null | undefined
+): 'animate' | 'utility' | null {
+  if (!btn) return null
+  const { group } = analyzeMjMiscButton(btn)
+  if (group === 'animate' || group === 'utility') return group
+  const probe = `${String(btn.customId || '')}\n${rawFull(btn)}`
+  return mjMiscPolicyBlockFromProbeText(probe)
 }
 
 /** Vary (Region) / 局部重绘：需弹窗绘制蒙版后走 submit/modal，不可直接 submit/action */
@@ -229,6 +282,9 @@ export type MjParentJobLike = {
   task?: Record<string, unknown>
 }
 
+/** 后续任务写入 `mjFollowUpLabeled` 的 `{source}` 单行上限；过小易在「」外截断导致壳解析失败、再次套娃。 */
+const MJ_FOLLOW_UP_PARENT_SOURCE_MAX = 120
+
 function clampOneLine(s: string, max: number): string {
   const t = s.replace(/\s+/g, ' ').trim()
   if (!t) return ''
@@ -242,26 +298,7 @@ function isGenericFollowUpLabel(s: string): boolean {
 }
 
 function mjExtractPromptFirstLineFromTask(task: Record<string, unknown> | undefined): string {
-  if (!task) return ''
-  const pr = task.properties as Record<string, unknown> | undefined
-  const pick = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : '')
-  const firstLine = (s: string) => {
-    const line = s.split(/\r?\n/)[0]?.trim() ?? ''
-    return line.replace(/^\/(?:imagine|describe|shorten)\s+/i, '').trim() || line
-  }
-  const tryPick = (v: unknown) => {
-    const s = pick(v)
-    return s ? firstLine(s) : ''
-  }
-  return (
-    tryPick(task.promptEn) ||
-    tryPick(task.prompt) ||
-    tryPick(pr?.finalPrompt) ||
-    tryPick(pr?.promptEn) ||
-    tryPick(pr?.prompt) ||
-    tryPick(task.description) ||
-    ''
-  )
+  return mjTaskPromptFirstLine(task)
 }
 
 function mjFollowBtnIsRegenerate(btn: MjFollowBtn): boolean {
@@ -277,18 +314,21 @@ function mjFollowBtnIsRegenerate(btn: MjFollowBtn): boolean {
 }
 
 /**
- * 父任务在列表中的摘要一行（用于后续任务标题里的「来自哪张图/哪条提示」）。
+ * 父任务在列表中的摘要一行（用于下一次 `mjFollowUpLabeled` 的 `{source}`，勿含外层「来自「」壳，否则会套娃）。
  * 若 promptLabel 仅为「后续任务」等泛称，则回退到任务对象里的首行提示。
  */
 export function mjParentLineForFollowUp(job: MjParentJobLike | undefined): string {
   if (!job) return ''
   const pl = (job.promptLabel || '').trim()
   if (pl && !isGenericFollowUpLabel(pl)) {
-    return clampOneLine(pl, 52)
+    const core = mjCollapseNestedFollowUpLabelForDisplay(pl).trim() || pl
+    if (core && !isGenericFollowUpLabel(core)) {
+      return clampOneLine(mjFollowUpSourceTextForNextWrap(core), MJ_FOLLOW_UP_PARENT_SOURCE_MAX)
+    }
   }
   const fromTask = mjExtractPromptFirstLineFromTask(job.task)
-  if (fromTask) return clampOneLine(fromTask, 52)
-  return pl ? clampOneLine(pl, 52) : ''
+  if (fromTask) return clampOneLine(mjFollowUpSourceTextForNextWrap(fromTask), MJ_FOLLOW_UP_PARENT_SOURCE_MAX)
+  return pl ? clampOneLine(mjFollowUpSourceTextForNextWrap(pl), MJ_FOLLOW_UP_PARENT_SOURCE_MAX) : ''
 }
 
 /**
