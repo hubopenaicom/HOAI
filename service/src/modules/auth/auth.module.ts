@@ -59,6 +59,7 @@ import { AuthService } from './auth.service';
     UserBalanceService,
     RedisCacheService,
   ],
-  exports: [AuthService],
+  /* JwtAuthGuard 依赖 JwtService；各业务 Module 里 @UseGuards(AdminAuthGuard) 会在该模块上下文中解析守卫，须导出 JwtModule */
+  exports: [AuthService, JwtModule],
 })
 export class AuthModule {}
