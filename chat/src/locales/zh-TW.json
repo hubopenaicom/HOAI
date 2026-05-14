@@ -48,6 +48,11 @@
     "needModel": "請選擇繪畫模型",
     "viewerCaptionOriginal": "畫面描述",
     "viewerCaptionTranslated": "翻譯描述",
+    "viewerCaptionTranslatedNone": "無翻譯",
+    "viewerCaptionDetailBtn": "查看全文",
+    "viewerCaptionDetailTitle": "完整描述",
+    "viewerCaptionDetailHint": "畫面描述與翻譯描述全文，便於複製或核對。",
+    "viewerCaptionDetailCopyAll": "複製全部",
     "viewerOpenInNewTab": "新分頁開啟",
     "viewerOpenInNewTabTitle": "在新分頁開啟原圖後，可右鍵選「將影像另存為」（網頁無法代替系統右鍵選單）",
     "viewerSaveAs": "另存為…",
@@ -66,7 +71,11 @@
     "viewerImageAlt": "預覽圖片",
     "viewerSaveFailed": "儲存失敗，請稍後再試",
     "viewerSaveBlockedWithLink": "無法直接儲存（多為跨域限制）。已將圖片連結複製到剪貼簿。",
-    "viewerSaveBlockedManual": "無法讀取圖片資料，請在預覽區圖片上右鍵選擇「將影像儲存為」。"
+    "viewerSaveBlockedManual": "無法讀取圖片資料，請在預覽區圖片上右鍵選擇「將影像儲存為」。",
+    "mjMiscPolicyModalTitle": "提示",
+    "mjMiscPolicyAnimateBody": "動態短片費用較高，本站暫不提供此功能。",
+    "mjMiscPolicyUtilityBody": "實用工具暫時無法使用。",
+    "mjMiscPolicyGotIt": "知道了"
   },
   "chat": {
     "newChatButton": "新建對話",
