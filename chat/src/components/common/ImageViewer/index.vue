@@ -36,6 +36,15 @@
                   {{ captionOriginalDisplay }}
                 </p>
                 <button
+                  v-if="captionDetailEntryVisible"
+                  type="button"
+                  class="viewer-caption-detail-btn mt-0.5 shrink-0"
+                  :title="t('drawing.viewerCaptionDetailTitle')"
+                  @click="openCaptionDetail"
+                >
+                  {{ t('drawing.viewerCaptionDetailBtn') }}
+                </button>
+                <button
                   type="button"
                   class="viewer-icon-btn mt-0.5 shrink-0"
                   :disabled="!trimOriginal"
@@ -46,13 +55,14 @@
                 </button>
               </div>
 
-              <div v-if="showTranslatedRow" class="flex gap-3 border-t border-slate-700/60 pt-4">
+              <div class="flex gap-3 border-t border-slate-700/60 pt-4">
                 <span
                   class="mt-0.5 w-[4.75rem] shrink-0 text-[11px] font-semibold uppercase tracking-wide text-violet-400/95"
                   >{{ t('drawing.viewerCaptionTranslated') }}</span
                 >
                 <p
-                  class="min-w-0 flex-1 whitespace-pre-wrap break-words text-[13px] leading-relaxed text-slate-200/95"
+                  class="min-w-0 flex-1 whitespace-pre-wrap break-words text-[13px] leading-relaxed"
+                  :class="trimTranslated ? 'text-slate-200/95' : 'text-slate-500/90 italic'"
                 >
                   {{ captionTranslatedDisplay }}
                 </p>
@@ -196,6 +206,80 @@
       </div>
     </div>
   </Teleport>
+
+  <!-- 完整描述卡片：叠在预览之上，ESC 先关此层 -->
+  <Teleport to="body">
+    <div
+      v-if="visible && captionDetailOpen"
+      class="fixed inset-0 z-[10050] flex items-center justify-center bg-black/65 px-3 py-8 backdrop-blur-sm sm:px-5"
+      role="presentation"
+      @click.self="closeCaptionDetail"
+    >
+      <div
+        class="flex max-h-[min(88vh,720px)] w-full max-w-[min(96vw,640px)] flex-col overflow-hidden rounded-2xl border border-slate-600/70 bg-[#0d141e] shadow-[0_24px_80px_rgba(0,0,0,0.65)] ring-1 ring-white/10"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="viewer-caption-detail-title"
+        @click.stop
+      >
+        <div
+          class="flex shrink-0 items-start justify-between gap-3 border-b border-slate-700/80 bg-gradient-to-b from-[#141c2a]/98 to-[#0d141e] px-4 py-3.5"
+        >
+          <div class="min-w-0">
+            <h2
+              id="viewer-caption-detail-title"
+              class="text-sm font-semibold tracking-wide text-slate-100"
+            >
+              {{ t('drawing.viewerCaptionDetailTitle') }}
+            </h2>
+            <p class="mt-1 text-[11px] leading-snug text-slate-500">
+              {{ t('drawing.viewerCaptionDetailHint') }}
+            </p>
+          </div>
+          <div class="flex shrink-0 items-center gap-1.5">
+            <button
+              type="button"
+              class="inline-flex items-center rounded-lg border border-slate-600/80 bg-slate-800/90 px-2.5 py-1.5 text-[11px] font-medium text-slate-200 transition hover:border-sky-500/45 hover:bg-slate-700/90"
+              @click="copyCaptionDetailAll"
+            >
+              {{ t('drawing.viewerCaptionDetailCopyAll') }}
+            </button>
+            <button
+              type="button"
+              class="rounded-full bg-black/40 p-2 text-slate-200 ring-1 ring-white/10 transition hover:bg-black/55 hover:text-white"
+              :title="t('drawing.viewerClose')"
+              @click="closeCaptionDetail"
+            >
+              <Close size="20" />
+            </button>
+          </div>
+        </div>
+        <div class="custom-scrollbar min-h-0 flex-1 overflow-y-auto px-4 py-4">
+          <div class="space-y-5">
+            <section>
+              <h3 class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-sky-400/95">
+                {{ t('drawing.viewerCaptionOriginal') }}
+              </h3>
+              <pre
+                class="whitespace-pre-wrap break-words rounded-xl border border-slate-700/50 bg-slate-900/40 p-3 text-[13px] leading-relaxed text-slate-100"
+                >{{ captionOriginalFull }}</pre
+              >
+            </section>
+            <section class="border-t border-slate-700/50 pt-5">
+              <h3 class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-violet-400/95">
+                {{ t('drawing.viewerCaptionTranslated') }}
+              </h3>
+              <pre
+                class="whitespace-pre-wrap break-words rounded-xl border border-slate-700/50 bg-slate-900/40 p-3 text-[13px] leading-relaxed"
+                :class="trimTranslated ? 'text-slate-200/95' : 'text-slate-500/90 italic'"
+                >{{ captionTranslatedFull }}</pre
+              >
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -252,13 +336,50 @@ const trimOriginal = computed(() => props.captionOriginal?.trim() ?? '')
 const trimTranslated = computed(() => props.captionTranslated?.trim() ?? '')
 
 const captionOriginalDisplay = computed(() => trimOriginal.value || EM_DASH)
-const captionTranslatedDisplay = computed(() => trimTranslated.value)
+/** 无上游翻译时仍展示该行，占位文案见 i18n viewerCaptionTranslatedNone */
+const captionTranslatedDisplay = computed(() =>
+  trimTranslated.value ? trimTranslated.value : t('drawing.viewerCaptionTranslatedNone')
+)
 
-const showTranslatedRow = computed(() => {
-  const tr = trimTranslated.value
-  const or = trimOriginal.value
-  return !!tr && tr !== or
-})
+const captionDetailOpen = ref(false)
+
+/** 有任一非空文案时可打开全文卡片（含仅翻译占位时） */
+const captionDetailEntryVisible = computed(
+  () => trimOriginal.value.length > 0 || trimTranslated.value.length > 0
+)
+
+const captionOriginalFull = computed(() =>
+  trimOriginal.value.length > 0 ? trimOriginal.value : EM_DASH
+)
+
+const captionTranslatedFull = computed(() =>
+  trimTranslated.value ? trimTranslated.value : t('drawing.viewerCaptionTranslatedNone')
+)
+
+function openCaptionDetail() {
+  captionDetailOpen.value = true
+}
+
+function closeCaptionDetail() {
+  captionDetailOpen.value = false
+}
+
+async function copyCaptionDetailAll() {
+  const o = trimOriginal.value.length > 0 ? trimOriginal.value : EM_DASH
+  const tr = trimTranslated.value ? trimTranslated.value : t('drawing.viewerCaptionTranslatedNone')
+  const text = `${t('drawing.viewerCaptionOriginal')}\n${o}\n\n${t('drawing.viewerCaptionTranslated')}\n${tr}`
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+      msg().success(t('drawing.viewerCopied'))
+      return
+    }
+  } catch {
+    /* fallback below */
+  }
+  if (copyViaFallbackDom(text)) msg().success(t('drawing.viewerCopied'))
+  else msg().error(t('drawing.viewerCopyFailed'))
+}
 
 const imageStyle = computed(() => ({
   transform: `translate(-50%, -50%) translate(${translateX.value}px, ${translateY.value}px) scale(${scale.value}) rotate(${rotation.value}deg)`,
@@ -586,6 +707,12 @@ function close() {
 function handleKeyDown(event: KeyboardEvent) {
   if (!props.visible) return
 
+  if (captionDetailOpen.value && event.key === 'Escape') {
+    event.preventDefault()
+    closeCaptionDetail()
+    return
+  }
+
   const { key, ctrlKey, metaKey } = event
   const isCtrl = ctrlKey || metaKey
 
@@ -640,6 +767,9 @@ let bodyOverflowBackup = ''
 watch(
   () => props.visible,
   newVisible => {
+    if (!newVisible) {
+      captionDetailOpen.value = false
+    }
     if (newVisible) {
       loading.value = true
       error.value = false
@@ -682,6 +812,10 @@ onUnmounted(() => {
 
 .viewer-toolbar-btn {
   @apply flex h-9 w-9 items-center justify-center rounded-lg text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40;
+}
+
+.viewer-caption-detail-btn {
+  @apply inline-flex h-9 shrink-0 items-center justify-center rounded-lg border border-sky-500/45 bg-sky-950/40 px-2.5 text-[11px] font-semibold text-sky-100/95 transition hover:border-sky-400/60 hover:bg-sky-900/45 hover:text-white;
 }
 
 .custom-scrollbar {
