@@ -329,7 +329,7 @@ function classifyMjNumericStatus(n: number): 'running' | 'success' | 'fail' | 'u
  * 单次轮询解析结果：running | 完成成功 | 完成失败
  */
 
-/** 收集任务里可展示的 HTTP(S) 图片地址（含四宫格 / 多 URL） */
+/** 收集任务里可展示的 HTTP(S) 图片地址（含四宫格 / 多 URL），去重；顺序为历史兼容（偏先大图字段） */
 export function collectMjImageUrls(task: Record<string, unknown> | undefined): string[] {
   if (!task) return []
   const out: string[] = []
@@ -366,6 +366,77 @@ export function collectMjImageUrls(task: Record<string, unknown> | undefined): s
   }
   const list = task.imageUrls ?? task.image_urls ?? props?.imageUrls ?? props?.image_urls
   if (Array.isArray(list)) list.forEach(add)
+  return out
+}
+
+/**
+ * 多图分槽（常见 2×2 四宫）：仅当 imageUrls 数组有 2 条及以上有效 URL 时返回，否则 null（走渐进单图链）。
+ */
+export function collectMjImageMultiSlotForGrid(
+  task: Record<string, unknown> | undefined
+): string[] | null {
+  if (!task) return null
+  const props = task.properties as Record<string, unknown> | undefined
+  const list = task.imageUrls ?? task.image_urls ?? props?.imageUrls ?? props?.image_urls
+  if (!Array.isArray(list) || list.length < 2) return null
+  const out: string[] = []
+  const seen = new Set<string>()
+  for (const u of list) {
+    if (typeof u !== 'string') continue
+    const s = u.trim()
+    if (!/^https?:\/\//i.test(s) || seen.has(s)) continue
+    seen.add(s)
+    out.push(s)
+  }
+  return out.length >= 2 ? out : null
+}
+
+/**
+ * 单合成图 / 单 URL：先轻后重，供前端渐进显示（预览 → 清晰）。
+ * 若仅有 imageUrls 单元素，会排在链末作为「主图」。
+ */
+export function collectMjImageProgressiveChain(
+  task: Record<string, unknown> | undefined
+): string[] {
+  if (!task) return []
+  if (collectMjImageMultiSlotForGrid(task)) return []
+
+  const out: string[] = []
+  const seen = new Set<string>()
+  const add = (u: unknown) => {
+    if (typeof u !== 'string') return
+    const s = u.trim()
+    if (!/^https?:\/\//i.test(s) || seen.has(s)) return
+    seen.add(s)
+    out.push(s)
+  }
+
+  add(task.progressImageUrl)
+  add(task.tempImageUrl)
+  add(task.previewUrl)
+  add(task.preview_url)
+  add(task.thumbnailUrl)
+  add(task.thumbnail_url)
+  add(task.coverUrl)
+  const props = task.properties as Record<string, unknown> | undefined
+  if (props) {
+    add(props.previewUrl)
+    add(props.preview_url)
+    add(props.thumbnailUrl)
+    add(props.thumbnail_url)
+  }
+  add(task.imageUrl)
+  add(task.image_url)
+  add(task.cdnImage)
+  add(task.picUrl)
+  add(task.pic_url)
+  add(task.discordImageUrl)
+  const list = task.imageUrls ?? task.image_urls ?? props?.imageUrls ?? props?.image_urls
+  if (Array.isArray(list) && list.length === 1) list.forEach(add)
+
+  if (out.length === 0) {
+    for (const u of collectMjImageUrls(task)) add(u)
+  }
   return out
 }
 
@@ -800,8 +871,7 @@ export function mjCollapseNestedFollowUpLabelForDisplay(label: string): string {
   t0 = mjPeelLeadingStackedFromOpens(t0)
   const shell = matchMjFollowUpShell(t0)
   if (!shell) return t0
-  const cleanedSource =
-    mjNormalizeFollowUpQuotedSource(shell.source).trim() || shell.source.trim()
+  const cleanedSource = mjNormalizeFollowUpQuotedSource(shell.source).trim() || shell.source.trim()
   return `${shell.prefix}${cleanedSource}${shell.tail}`
 }
 
