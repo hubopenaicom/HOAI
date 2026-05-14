@@ -70,19 +70,19 @@ const showSharpBadge = computed(
 </script>
 
 <template>
-  <div class="relative w-full overflow-hidden bg-slate-950/40">
+  <div class="relative w-full overflow-hidden bg-[var(--drawing-card-media)]">
     <div
       v-if="!loaded || broken"
-      class="pointer-events-none absolute inset-0 z-[1] flex flex-col items-center justify-center gap-1 bg-slate-950/92 px-2 text-center"
+      class="pointer-events-none absolute inset-0 z-[1] flex flex-col items-center justify-center gap-1 bg-[var(--drawing-image-overlay)] px-2 text-center"
     >
       <span v-if="!broken" class="loading loading-spinner loading-md text-sky-400" />
-      <span class="text-[11px] leading-snug text-slate-300">{{ loadHint }}</span>
-      <span v-if="!broken" class="font-mono text-[10px] text-slate-500 tabular-nums">{{
+      <span class="text-[11px] leading-snug text-[var(--text-secondary)]">{{ loadHint }}</span>
+      <span v-if="!broken" class="font-mono text-[10px] text-[var(--text-muted)] tabular-nums">{{
         tickLabel
       }}</span>
       <p
         v-if="showStallHint"
-        class="pointer-events-auto max-w-[240px] text-[10px] leading-snug text-slate-500"
+        class="pointer-events-auto max-w-[240px] text-[10px] leading-snug text-[var(--text-muted)]"
       >
         {{ t('drawing.mjImageStallHint') }}
       </p>
@@ -110,7 +110,7 @@ const showSharpBadge = computed(
     />
     <div
       v-if="showSharpBadge"
-      class="pointer-events-none absolute bottom-1 left-1 z-[2] rounded bg-black/55 px-1.5 py-0.5 font-mono text-[9px] text-slate-200/95"
+      class="pointer-events-none absolute bottom-1 left-1 z-[2] rounded-md border border-white/20 bg-neutral-950/78 px-1.5 py-0.5 font-mono text-[10px] font-semibold tabular-nums text-white shadow-sm [text-shadow:0_1px_1px_rgba(0,0,0,0.65)]"
     >
       {{ t('drawing.mjImageSharpReadyMs', { ms: sharpMs }) }}
     </div>
