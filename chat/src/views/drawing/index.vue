@@ -139,6 +139,10 @@ interface MjJobItem {
   /** 服务端 drawing_mj_job.id，云端同步用 */
   serverJobId?: number
   taskId: string
+  /** 本任务所基于的上一任务 MJ taskId（放大/变体等后续） */
+  parentTaskId?: string
+  /** 上一任务在本列表中的 localId，用于唯一定位与滚动 */
+  parentLocalId?: number
   /** 提交时的模型 model 字段，用于恢复轮询 */
   modelKey?: string
   mjModeSnapshot?: MjSpeedMode
@@ -441,6 +445,9 @@ const MJ_ADV_SLIDERS_LS = 'hoai_drawing_mj_adv_sliders_v1'
 const mjSubmitting = ref(false)
 const taskSearchQuery = ref('')
 const mjJobs = ref<MjJobItem[]>([])
+/** 列表内「跳转到上一步」短时高亮的目标 localId */
+const mjParentHighlightLocalId = ref<number | null>(null)
+let mjParentHighlightTimer: ReturnType<typeof setTimeout> | null = null
 /** 与云端 users.mj_jobs_sync_seq 对齐；每次 DELETE 递增，batch-upsert 须带 baseSyncSeq */
 const mjListSyncSeq = ref(0)
 const implyBase64List = ref<string[]>([])
@@ -448,6 +455,8 @@ const blendBase64List = ref<string[]>([])
 const blendDimensions = ref<MjBlendDimensions>('SQUARE')
 const editsImageUrl = ref('')
 const editsMaskBase64 = ref('')
+/** 侧栏 Edits 图片来源任务 localId；与 editsImageUrl 一致时提交 Edits 自动挂父任务 */
+const editsSourceLocalId = ref<number | null>(null)
 const mjChangeTaskId = ref('')
 const mjChangeAction = ref('UPSCALE')
 const mjChangeIndex = ref(1)
@@ -463,6 +472,15 @@ const selectedModel = computed(() =>
 const mjImagineMultsParsed = computed(() =>
   parseMjImagineChargeMultipliersJson(authStore.globalConfig?.mjImagineChargeMultipliers)
 )
+
+function mjParentFieldsFromSource(source?: MjJobItem | null): Pick<MjJobItem, 'parentTaskId' | 'parentLocalId'> {
+  if (!source) return {}
+  const tid = String(source.taskId || '').trim()
+  const out: Pick<MjJobItem, 'parentTaskId' | 'parentLocalId'> = {}
+  if (tid) out.parentTaskId = tid
+  if (Number.isFinite(source.localId)) out.parentLocalId = source.localId
+  return out
+}
 
 function mjJobsStorageKey(): string {
   const uid = authStore.userInfo?.id
@@ -564,6 +582,11 @@ function mjDrawingJobDtoToLocal(row: MjDrawingJobDto): MjJobItem {
     localId: row.clientKey ?? row.id,
     serverJobId: row.id,
     taskId: row.taskId || '',
+    parentTaskId: row.parentTaskId?.trim() || undefined,
+    parentLocalId:
+      typeof row.parentClientKey === 'number' && Number.isFinite(row.parentClientKey)
+        ? row.parentClientKey
+        : undefined,
     modelKey: row.modelKey,
     mjModeSnapshot: row.mjMode,
     mjStyleSnapshot: (row.mjStyleSnapshot as MjStyle | undefined) ?? 'realistic',
@@ -581,6 +604,8 @@ function mjJobToSnapshot(job: MjJobItem): MjDrawingJobSnapshot {
   return {
     clientKey: job.localId,
     taskId: job.taskId || undefined,
+    parentTaskId: job.parentTaskId?.trim() || undefined,
+    parentClientKey: job.parentLocalId,
     modelKey: job.modelKey || '',
     mjMode: job.mjModeSnapshot || 'fast',
     mjStyleSnapshot: job.mjStyleSnapshot,
@@ -1099,6 +1124,65 @@ const filteredMjJobs = computed(() => {
   )
 })
 
+function resolveMjParentJob(job: MjJobItem): MjJobItem | undefined {
+  const plid = job.parentLocalId
+  if (plid != null && Number.isFinite(plid)) {
+    const byLid = mjJobs.value.find(j => j.localId === plid)
+    if (byLid) return byLid
+  }
+  const pt = String(job.parentTaskId || '').trim()
+  if (!pt) return undefined
+  const matches = mjJobs.value.filter(j => String(j.taskId || '').trim() === pt)
+  if (!matches.length) return undefined
+  if (matches.length === 1) return matches[0]
+  return matches.find(j => j.localId !== job.localId) ?? matches[0]
+}
+
+function mjParentJumpVisible(job: MjJobItem): boolean {
+  return Boolean(
+    String(job.parentTaskId || '').trim() ||
+      (job.parentLocalId != null && Number.isFinite(job.parentLocalId))
+  )
+}
+
+async function navigateToMjParentJob(job: MjJobItem) {
+  const parent = resolveMjParentJob(job)
+  if (!parent) {
+    ms.info(t('drawing.mjParentNotFound'))
+    return
+  }
+  const q = taskSearchQuery.value.trim().toLowerCase()
+  if (q) {
+    const hit =
+      parent.promptLabel.toLowerCase().includes(q) ||
+      String(parent.taskId).toLowerCase().includes(q) ||
+      String(parent.serverJobId ?? '').includes(q) ||
+      String(parent.error || '')
+        .toLowerCase()
+        .includes(q)
+    if (!hit) {
+      taskSearchQuery.value = ''
+      await nextTick()
+    }
+  }
+  await nextTick()
+  const el = document.querySelector(`[data-mj-job-local-id="${parent.localId}"]`)
+  if (!el || !(el instanceof HTMLElement)) {
+    ms.info(t('drawing.mjParentNotFound'))
+    return
+  }
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  if (mjParentHighlightTimer) {
+    clearTimeout(mjParentHighlightTimer)
+    mjParentHighlightTimer = null
+  }
+  mjParentHighlightLocalId.value = parent.localId
+  mjParentHighlightTimer = setTimeout(() => {
+    if (mjParentHighlightLocalId.value === parent.localId) mjParentHighlightLocalId.value = null
+    mjParentHighlightTimer = null
+  }, 2400)
+}
+
 const sizeOptions = computed(() => [
   { label: t('chat.square1'), value: '1024x1024' },
   { label: t('chat.illustration'), value: '1024x768' },
@@ -1184,6 +1268,16 @@ function mergeMjJobWithRemote(local: MjJobItem, remote: MjJobItem): MjJobItem {
   const deductCharged = remote.deductCharged ?? local.deductCharged
   const chargeMult = remote.chargeMult ?? local.chargeMult
   const deductTypeSnapshot = remote.deductTypeSnapshot ?? local.deductTypeSnapshot
+  const rt = String(remote.parentTaskId || '').trim()
+  const lt = String(local.parentTaskId || '').trim()
+  const parentTaskId = rt || lt || undefined
+  const parentLocalId =
+    (remote.parentLocalId != null && Number.isFinite(remote.parentLocalId)
+      ? remote.parentLocalId
+      : undefined) ??
+    (local.parentLocalId != null && Number.isFinite(local.parentLocalId)
+      ? local.parentLocalId
+      : undefined)
   return {
     ...remote,
     ...local,
@@ -1194,6 +1288,8 @@ function mergeMjJobWithRemote(local: MjJobItem, remote: MjJobItem): MjJobItem {
     deductCharged,
     chargeMult,
     deductTypeSnapshot,
+    parentTaskId,
+    parentLocalId,
   }
 }
 
@@ -1298,6 +1394,10 @@ onUnmounted(() => {
   if (persistMjJobsReady.value) void persistMjJobsHybrid()
   pollTimers.forEach(t => clearInterval(t))
   pollTimers.clear()
+  if (mjParentHighlightTimer) {
+    clearTimeout(mjParentHighlightTimer)
+    mjParentHighlightTimer = null
+  }
 })
 
 async function handleMjImagine() {
@@ -1486,11 +1586,72 @@ function fillEditsUrlFromLatestJob() {
     const urls = mjJobImageUrls(job)
     if (urls.length) {
       editsImageUrl.value = urls[0]
+      editsSourceLocalId.value = job.localId
       return
     }
   }
+  editsSourceLocalId.value = null
   ms.warning(t('drawing.mjEditsNoImageToFill'))
 }
+
+/** 用于判断「侧栏 URL 是否仍来自某张任务卡片」以决定是否挂父任务 */
+function mjNormalizeEditsUrlKey(u: string): string {
+  const s = u.trim()
+  if (!s) return ''
+  return s
+    .split('#')[0]
+    .trim()
+    .toLowerCase()
+    .replace(/\/+$/, '')
+}
+
+function mjEditsUrlsMatch(a: string, b: string): boolean {
+  return mjNormalizeEditsUrlKey(a) === mjNormalizeEditsUrlKey(b)
+}
+
+/** 从指定任务填入待编辑图 URL，切换至 Edits 并记录来源以便提交时挂父任务 */
+function fillEditsUrlFromJob(job: MjJobItem, imageUrl?: string) {
+  const live = resolveMjJobRef(job) ?? job
+  const urls = mjJobImageUrls(live)
+  if (!urls.length) {
+    ms.warning(t('drawing.mjEditsNoImageToFill'))
+    return
+  }
+  const pick =
+    (imageUrl && urls.find(u => mjEditsUrlsMatch(u, imageUrl))) ||
+    (imageUrl && urls.find(u => u.trim() === imageUrl.trim())) ||
+    urls[0]
+  editsImageUrl.value = pick
+  editsSourceLocalId.value = live.localId
+  studioTab.value = 'edits'
+  ms.info(t('drawing.mjEditsFilledFromCard'))
+}
+
+function resolveMjEditsSourceJobForSubmit(currentUrl: string): MjJobItem | undefined {
+  const img = currentUrl.trim()
+  if (!img) return undefined
+  const lid = editsSourceLocalId.value
+  if (lid != null) {
+    const j = mjJobs.value.find(x => x.localId === lid)
+    if (j && mjJobImageUrls(j).some(u => mjEditsUrlsMatch(u, img))) return resolveMjJobRef(j) ?? j
+  }
+  for (const j of mjJobs.value) {
+    if (mjJobImageUrls(j).some(u => mjEditsUrlsMatch(u, img))) return resolveMjJobRef(j) ?? j
+  }
+  return undefined
+}
+
+watch(editsImageUrl, v => {
+  const lid = editsSourceLocalId.value
+  if (lid == null) return
+  const j = mjJobs.value.find(x => x.localId === lid)
+  const cur = v.trim()
+  if (!j || !cur) {
+    editsSourceLocalId.value = null
+    return
+  }
+  if (!mjJobImageUrls(j).some(u => mjEditsUrlsMatch(u, cur))) editsSourceLocalId.value = null
+})
 
 async function onEditsMaskFile(e: Event) {
   const inp = e.target as HTMLInputElement
@@ -1537,12 +1698,14 @@ async function handleMjEdits() {
   await nextTick()
   await nextTick()
   const fullPrompt = buildMjPrompt(msg, 'edits')
+  const editsSrc = resolveMjEditsSourceJobForSubmit(img)
   const job: MjJobItem = {
     localId: nextMjClientKey(),
     taskId: '',
     promptLabel: msg,
     loading: true,
     mjStyleSnapshot: mjStyle.value,
+    ...mjParentFieldsFromSource(editsSrc),
   }
   attachMjJobModelMeta(job, m)
   mjJobs.value.unshift(job)
@@ -1652,12 +1815,14 @@ async function handleMjChangeSubmit() {
     ms.warning(t('drawing.mjChangeNeedTaskId'))
     return
   }
+  const srcChange = mjJobs.value.find(j => j.taskId === tid)
   const job: MjJobItem = {
     localId: nextMjClientKey(),
     taskId: '',
     promptLabel: `change ${mjChangeAction.value}${mjChangeAction.value === 'REGENERATE' ? '' : ` #${mjChangeIndex.value}`}`,
     loading: true,
     mjStyleSnapshot: mjStyle.value,
+    ...mjParentFieldsFromSource(srcChange),
   }
   attachMjJobModelMeta(job, m)
   mjJobs.value.unshift(job)
@@ -1695,6 +1860,20 @@ function fillMjChangeTaskFromLatest() {
   ms.warning(t('drawing.mjChangeNoTask'))
 }
 
+/** simple-change 内容常为「taskId + 空格 + 操作码」，据此反查来源任务 */
+function resolveMjSourceJobFromSimpleChangeContent(content: string): MjJobItem | undefined {
+  const s = content.trim()
+  if (!s) return undefined
+  for (const j of mjJobs.value) {
+    const tid = String(j.taskId || '').trim()
+    if (!tid) continue
+    if (s.startsWith(tid) && (s.length === tid.length || /\s/.test(s.charAt(tid.length)))) return j
+  }
+  const first = s.split(/\s+/)[0]?.trim()
+  if (first) return mjJobs.value.find(j => j.taskId === first)
+  return undefined
+}
+
 async function handleMjSimpleChangeSubmit() {
   if (!authStore.isLogin) {
     ms.warning(t('drawing.loginRequired'))
@@ -1709,12 +1888,14 @@ async function handleMjSimpleChangeSubmit() {
     ms.warning(t('drawing.mjSimpleChangeNeedContent'))
     return
   }
+  const srcSimple = resolveMjSourceJobFromSimpleChangeContent(content)
   const job: MjJobItem = {
     localId: nextMjClientKey(),
     taskId: '',
     promptLabel: `simple-change`,
     loading: true,
     mjStyleSnapshot: mjStyle.value,
+    ...mjParentFieldsFromSource(srcSimple),
   }
   attachMjJobModelMeta(job, m)
   mjJobs.value.unshift(job)
@@ -1773,6 +1954,7 @@ async function onMjButtonClick(
     promptLabel,
     loading: true,
     mjStyleSnapshot: mjStyle.value,
+    ...mjParentFieldsFromSource(sourceJob),
   }
   attachMjJobModelMeta(job, m, { mjMode: mjModeForFollowUp(sourceJob) })
   mjJobs.value.unshift(job)
@@ -2537,6 +2719,7 @@ async function beginVaryRegionFlow(
         promptLabel,
         loading: true,
         mjStyleSnapshot: mjStyle.value,
+        ...mjParentFieldsFromSource(job),
       }
       attachMjJobModelMeta(newJob, m, { mjMode: mjModeForFollowUp(job) })
       mjJobs.value.unshift(newJob)
@@ -2619,6 +2802,7 @@ async function onMjVaryRegionSubmitted(res: unknown) {
     promptLabel,
     loading: true,
     mjStyleSnapshot: srcJob?.mjStyleSnapshot ?? mjStyle.value,
+    ...mjParentFieldsFromSource(srcJob),
   }
   attachMjJobModelMeta(job, m, { mjMode: mjModeForFollowUp(srcJob) })
   mjJobs.value.unshift(job)
@@ -3254,7 +3438,13 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                     <article
                       v-for="job in filteredMjJobs"
                       :key="job.localId"
-                      class="flex flex-col overflow-visible rounded-xl border border-slate-700/80 bg-[#121822]"
+                      :data-mj-job-local-id="job.localId"
+                      class="flex flex-col overflow-visible rounded-xl border border-slate-700/80 bg-[#121822] transition-shadow duration-300"
+                      :class="
+                        mjParentHighlightLocalId === job.localId
+                          ? 'ring-2 ring-sky-400/75 ring-offset-2 ring-offset-[#0f1419]'
+                          : ''
+                      "
                     >
                       <div class="overflow-hidden rounded-t-xl bg-[#0c1018]">
                         <template v-if="job.loading">
@@ -3266,20 +3456,32 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                                   mjJobImageUrls(job).length > 1 ? 'grid grid-cols-2 gap-0.5' : ''
                                 "
                               >
-                                <button
+                                <div
                                   v-for="(imgUrl, ix) in mjJobImageUrls(job)"
                                   :key="ix"
-                                  type="button"
-                                  class="relative block w-full cursor-zoom-in bg-black/30 p-0 text-left outline-none ring-sky-500/40 focus-visible:ring-2"
-                                  @click="openMjJobImagePreview(imgUrl, job, ix)"
+                                  class="relative w-full"
                                 >
-                                  <img
-                                    :src="imgUrl"
-                                    class="h-auto w-full max-h-[min(70vh,520px)] object-contain align-bottom opacity-95"
-                                    loading="lazy"
-                                    alt=""
-                                  />
-                                </button>
+                                  <button
+                                    type="button"
+                                    class="relative block w-full cursor-zoom-in bg-black/30 p-0 text-left outline-none ring-sky-500/40 focus-visible:ring-2"
+                                    @click="openMjJobImagePreview(imgUrl, job, ix)"
+                                  >
+                                    <img
+                                      :src="imgUrl"
+                                      class="h-auto w-full max-h-[min(70vh,520px)] object-contain align-bottom opacity-95"
+                                      loading="lazy"
+                                      alt=""
+                                    />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    class="pointer-events-auto absolute bottom-1 right-1 z-[2] rounded-md border border-violet-500/55 bg-violet-950/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-violet-100 shadow-md backdrop-blur-sm hover:bg-violet-900/95"
+                                    :title="t('drawing.mjEditsFillFromCardImgTitle')"
+                                    @click.stop="fillEditsUrlFromJob(job, imgUrl)"
+                                  >
+                                    {{ t('drawing.mjEditsChip') }}
+                                  </button>
+                                </div>
                               </div>
                               <div
                                 class="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/25 via-transparent to-black/45"
@@ -3360,20 +3562,32 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                               mjJobImageUrls(job).length > 1 ? 'grid grid-cols-2 gap-0.5' : ''
                             "
                           >
-                            <button
+                            <div
                               v-for="(imgUrl, ix) in mjJobImageUrls(job)"
                               :key="ix"
-                              type="button"
-                              class="block w-full cursor-zoom-in bg-black/20 p-0 text-left outline-none ring-sky-500/40 focus-visible:ring-2"
-                              @click="openMjJobImagePreview(imgUrl, job, ix)"
+                              class="relative w-full"
                             >
-                              <img
-                                :src="imgUrl"
-                                class="h-auto w-full max-h-[min(70vh,520px)] object-contain align-bottom"
-                                loading="lazy"
-                                alt=""
-                              />
-                            </button>
+                              <button
+                                type="button"
+                                class="block w-full cursor-zoom-in bg-black/20 p-0 text-left outline-none ring-sky-500/40 focus-visible:ring-2"
+                                @click="openMjJobImagePreview(imgUrl, job, ix)"
+                              >
+                                <img
+                                  :src="imgUrl"
+                                  class="h-auto w-full max-h-[min(70vh,520px)] object-contain align-bottom"
+                                  loading="lazy"
+                                  alt=""
+                                />
+                              </button>
+                              <button
+                                type="button"
+                                class="pointer-events-auto absolute bottom-1 right-1 z-[2] rounded-md border border-violet-500/55 bg-violet-950/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-violet-100 shadow-md backdrop-blur-sm hover:bg-violet-900/95"
+                                :title="t('drawing.mjEditsFillFromCardImgTitle')"
+                                @click.stop="fillEditsUrlFromJob(job, imgUrl)"
+                              >
+                                {{ t('drawing.mjEditsChip') }}
+                              </button>
+                            </div>
                           </div>
                         </template>
                         <div
@@ -3447,7 +3661,26 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                           class="inline-flex items-center rounded-full border border-slate-600/60 bg-slate-800/50 px-2 py-0.5 text-[10px] font-medium text-slate-400"
                           >{{ mjStyleTag(job.mjStyleSnapshot) }}</span
                         >
+                        <button
+                          v-if="mjJobImageUrls(job).length && !job.error"
+                          type="button"
+                          class="inline-flex shrink-0 items-center rounded-full border border-violet-500/45 bg-violet-950/40 px-2.5 py-1 text-[10px] font-semibold leading-none text-violet-100 transition hover:border-violet-400/55 hover:bg-violet-900/45"
+                          :title="t('drawing.mjEditsFillFromCardTitle')"
+                          @click.stop="fillEditsUrlFromJob(job)"
+                        >
+                          {{ t('drawing.mjEditsFillFromCard') }}
+                        </button>
                         <div class="ml-auto flex items-center gap-1.5">
+                          <button
+                            v-if="mjParentJumpVisible(job)"
+                            type="button"
+                            class="inline-flex shrink-0 items-center rounded-full border border-sky-600/50 bg-sky-950/35 px-3 py-1 text-[11px] font-semibold leading-none text-sky-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition hover:border-sky-400/55 hover:bg-sky-900/40"
+                            :title="t('drawing.mjParentNavigateTitle')"
+                            :aria-label="t('drawing.mjParentNavigateTitle')"
+                            @click.stop="navigateToMjParentJob(job)"
+                          >
+                            {{ t('drawing.mjParentNavigate') }}
+                          </button>
                           <button
                             type="button"
                             class="inline-flex shrink-0 items-center rounded-full border border-slate-600/70 bg-slate-800/90 px-3 py-1 text-[11px] font-semibold leading-none text-slate-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition hover:border-rose-500/45 hover:bg-rose-950/35 hover:text-rose-100"
