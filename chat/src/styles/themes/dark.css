@@ -56,4 +56,20 @@ html.dark {
   --focus-ring-offset: #0f172a;
   --hoai-accent: #d4af37;
   --hoai-accent-muted: #e8c547;
+
+  /* 绘画 / Midjourney 工作室（暗色稿与原先硬编码一致） */
+  --drawing-main: #0a0e14;
+  --drawing-sidebar: #06090e;
+  --drawing-sidebar-grad-from: #0a0f18;
+  --drawing-sidebar-grad-via: #080c12;
+  --drawing-sidebar-grad-to: #06090e;
+  --drawing-panel: rgba(30, 41, 59, 0.38);
+  --drawing-panel-elevated: rgba(15, 23, 42, 0.55);
+  --drawing-field: #151b26;
+  --drawing-toolbar: #0f1419;
+  --drawing-card: #121822;
+  --drawing-card-media: #0c1018;
+  --drawing-card-footer: #0d1219;
+  --drawing-popover: #131a24;
+  --drawing-image-overlay: rgba(2, 6, 12, 0.92);
 }
