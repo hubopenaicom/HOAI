@@ -241,6 +241,32 @@ async function ensureModelsTokenPricingColumns(conn: mysql.Connection) {
   }
 }
 
+/** drawing_mj_job：后续任务指向父任务（生产 synchronize=false 时由迁移添加） */
+async function ensureDrawingMjJobParentColumns(conn: mysql.Connection) {
+  const db = process.env.DB_DATABASE;
+  const table = 'drawing_mj_job';
+  const specs: { name: string; ddl: string }[] = [
+    {
+      name: 'parentTaskId',
+      ddl: "`parentTaskId` varchar(191) DEFAULT NULL COMMENT '父任务 MJ taskId'",
+    },
+    {
+      name: 'parentClientKey',
+      ddl: "`parentClientKey` varchar(32) DEFAULT NULL COMMENT '父任务 clientKey(与前端 localId 对齐)'",
+    },
+  ];
+  for (const { name, ddl } of specs) {
+    const [colRows] = (await conn.execute(
+      `SELECT COUNT(*) as c FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+      [db, table, name],
+    )) as [RowDataPacket[], unknown];
+    if (Number(colRows[0]?.c) === 0) {
+      await conn.execute(`ALTER TABLE \`${table}\` ADD COLUMN ${ddl}`);
+      Logger.log(`drawing_mj_job 表已添加列 ${name}`, 'Database');
+    }
+  }
+}
+
 /** 全站：外币 token 成本折算为积分的倍率（可在后台基础配置修改） */
 async function ensureTokenBillingConfigRows(conn: mysql.Connection) {
   const rows: [string, string][] = [
@@ -331,6 +357,12 @@ async function runAllMigrations() {
       await ensureTokenBillingConfigRows(conn);
     } catch (error) {
       Logger.log(`config Token 折算默认值跳过: ${error.message}`, 'Database');
+    }
+
+    try {
+      await ensureDrawingMjJobParentColumns(conn);
+    } catch (error) {
+      Logger.log(`drawing_mj_job 父任务列迁移跳过: ${error.message}`, 'Database');
     }
   } finally {
     await conn.end();
