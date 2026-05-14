@@ -11,6 +11,10 @@ import { collectMjImageUrls } from './mj-task-image-urls';
 export interface CreateDrawingMjJobDto {
   clientKey?: number;
   taskId?: string;
+  /** 父任务 MJ taskId（后续任务来源） */
+  parentTaskId?: string | null;
+  /** 父任务 clientKey，与前端 localId 一致 */
+  parentClientKey?: string | number | null;
   modelKey: string;
   mjMode: string;
   mjStyleSnapshot?: string;
@@ -82,6 +86,14 @@ export class DrawingMjJobService {
       userId,
       clientKey: dto.clientKey != null ? String(dto.clientKey) : null,
       taskId: dto.taskId ?? null,
+      parentTaskId:
+        dto.parentTaskId != null && String(dto.parentTaskId).trim()
+          ? String(dto.parentTaskId).trim()
+          : null,
+      parentClientKey:
+        dto.parentClientKey != null && String(dto.parentClientKey).trim()
+          ? String(dto.parentClientKey).trim()
+          : null,
       modelKey: dto.modelKey,
       mjMode: dto.mjMode,
       mjStyleSnapshot: dto.mjStyleSnapshot ?? null,
@@ -123,6 +135,18 @@ export class DrawingMjJobService {
       const existing = await this.repo.findOne({ where: { userId, clientKey: ck } });
       if (existing) {
         if (dto.taskId !== undefined) existing.taskId = dto.taskId ?? null;
+        if (dto.parentTaskId !== undefined) {
+          existing.parentTaskId =
+            dto.parentTaskId != null && String(dto.parentTaskId).trim()
+              ? String(dto.parentTaskId).trim()
+              : null;
+        }
+        if (dto.parentClientKey !== undefined) {
+          existing.parentClientKey =
+            dto.parentClientKey != null && String(dto.parentClientKey).trim()
+              ? String(dto.parentClientKey).trim()
+              : null;
+        }
         if (dto.loading !== undefined) existing.loading = dto.loading;
         if (dto.error !== undefined) existing.error = dto.error ?? null;
         if (dto.promptLabel !== undefined) existing.promptLabel = dto.promptLabel;
