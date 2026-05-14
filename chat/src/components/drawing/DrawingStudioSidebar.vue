@@ -202,7 +202,7 @@ function segBtn(active: boolean) {
     'min-h-[2.25rem] flex-1 rounded-lg px-2 py-1.5 text-center text-[11px] font-semibold leading-tight transition-all duration-150 sm:text-xs',
     active
       ? 'bg-gradient-to-b from-sky-500 to-sky-600 text-white shadow-[0_0_0_1px_rgba(56,189,248,0.4),0_4px_14px_rgba(14,165,233,0.22)]'
-      : 'border border-slate-600/70 bg-slate-900/50 text-slate-400 hover:border-slate-500 hover:bg-slate-800/60 hover:text-slate-200',
+      : 'border border-[var(--border-default)] bg-[var(--drawing-field)] text-[var(--text-muted)] hover:border-[var(--input-border-hover)] hover:bg-[var(--surface-muted)] hover:text-[var(--text-secondary)]',
   ]
 }
 
@@ -214,26 +214,27 @@ function onMjSpeedClick(id: MjSpeedMode) {
 
 <template>
   <aside
-    class="drawing-studio-sidebar flex w-full shrink-0 flex-col border-b border-slate-700/50 bg-gradient-to-b from-[#0a0f18] via-[#080c12] to-[#06090e]"
+    class="drawing-studio-sidebar flex w-full shrink-0 flex-col border-b border-[var(--border-default)] bg-gradient-to-b from-[var(--drawing-sidebar-grad-from)] via-[var(--drawing-sidebar-grad-via)] to-[var(--drawing-sidebar-grad-to)]"
     :class="
       embedded
         ? 'gap-2 p-3 md:gap-2.5 md:p-4 md:h-auto md:w-full md:border-b-0 md:border-r-0'
-        : 'gap-3 p-4 md:gap-3.5 md:p-5 md:h-full md:w-[min(100%,380px)] md:border-b-0 md:border-r md:border-slate-700/40'
+        : 'gap-3 p-4 md:gap-3.5 md:p-5 md:h-full md:w-[min(100%,380px)] md:border-b-0 md:border-r md:border-[var(--border-default)]'
     "
   >
     <!-- 模型 + 工作流 -->
     <section
-      class="rounded-2xl border border-slate-700/35 bg-slate-900/25 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:p-3.5"
+      class="rounded-2xl border border-[var(--border-default)] bg-[var(--drawing-panel)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:p-3.5"
     >
       <div class="mb-1 flex items-center justify-between gap-2">
-        <span class="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">{{
-          t('drawing.studioSectionModel')
-        }}</span>
+        <span
+          class="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]"
+          >{{ t('drawing.studioSectionModel') }}</span
+        >
       </div>
       <label class="sr-only">{{ t('drawing.selectModel') }}</label>
       <div class="relative mt-2">
         <select
-          class="h-11 w-full cursor-pointer appearance-none rounded-xl border border-slate-600/50 bg-slate-950/60 pl-3.5 pr-10 text-sm font-medium text-slate-100 shadow-inner transition-colors hover:border-slate-500/70 focus:border-sky-500/60 focus:outline-none focus:ring-2 focus:ring-sky-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+          class="h-11 w-full cursor-pointer appearance-none rounded-xl border border-[var(--border-default)] bg-[var(--drawing-field)] pl-3.5 pr-10 text-sm font-medium text-[var(--text-primary)] shadow-inner transition-colors hover:border-[var(--input-border-hover)] focus:border-sky-500/60 focus:outline-none focus:ring-2 focus:ring-sky-500/25 disabled:cursor-not-allowed disabled:opacity-50"
           :value="selectedModelKey"
           :disabled="modelsLoading || drawingModels.length === 0"
           @change="emit('update:selectedModelKey', ($event.target as HTMLSelectElement).value)"
@@ -246,7 +247,7 @@ function onMjSpeedClick(id: MjSpeedMode) {
           </option>
         </select>
         <span
-          class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500"
+          class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
           aria-hidden="true"
         >
           <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -260,11 +261,13 @@ function onMjSpeedClick(id: MjSpeedMode) {
         </span>
       </div>
 
-      <p class="mb-1.5 mt-4 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+      <p
+        class="mb-1.5 mt-4 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]"
+      >
         {{ t('drawing.studioSectionMode') }}
       </p>
       <div
-        class="flex flex-wrap gap-1 rounded-xl border border-slate-700/40 bg-slate-950/40 p-1 shadow-inner"
+        class="flex flex-wrap gap-1 rounded-xl border border-[var(--border-default)] bg-[var(--drawing-field)] p-1 shadow-inner"
       >
         <button
           v-for="tab in [
@@ -304,7 +307,7 @@ function onMjSpeedClick(id: MjSpeedMode) {
       </div>
 
       <details
-        class="group mt-3 rounded-xl border border-slate-700/40 bg-slate-950/30 open:border-slate-600/45"
+        class="group mt-3 rounded-xl border border-[var(--border-default)] bg-[var(--drawing-panel)] open:border-[var(--border-default)]"
       >
         <summary
           class="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2.5 text-left [&::-webkit-details-marker]:hidden"
@@ -315,7 +318,7 @@ function onMjSpeedClick(id: MjSpeedMode) {
             {{ t('drawing.studioModeHelpFold') }}
           </span>
           <svg
-            class="h-3.5 w-3.5 shrink-0 text-slate-500 transition group-open:rotate-180"
+            class="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)] transition group-open:rotate-180"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -330,7 +333,7 @@ function onMjSpeedClick(id: MjSpeedMode) {
           </svg>
         </summary>
         <div
-          class="border-t border-slate-700/35 px-3 pb-3 pt-2 text-[11px] leading-relaxed text-slate-400"
+          class="border-t border-[var(--border-default)] px-3 pb-3 pt-2 text-[11px] leading-relaxed text-[var(--text-muted)]"
         >
           <p class="whitespace-pre-line">{{ studioModeHelpBody }}</p>
         </div>
@@ -347,7 +350,7 @@ function onMjSpeedClick(id: MjSpeedMode) {
             t('drawing.mjSpellApiHelpFold')
           }}</span>
           <svg
-            class="h-3.5 w-3.5 shrink-0 text-slate-500 transition group-open:rotate-180"
+            class="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)] transition group-open:rotate-180"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -362,7 +365,7 @@ function onMjSpeedClick(id: MjSpeedMode) {
           </svg>
         </summary>
         <div
-          class="border-t border-slate-700/35 px-3 pb-3 pt-2 text-[11px] leading-relaxed text-slate-400"
+          class="border-t border-[var(--border-default)] px-3 pb-3 pt-2 text-[11px] leading-relaxed text-[var(--text-muted)]"
         >
           <p v-if="spellMode === 'describe'" class="whitespace-pre-line">
             {{ t('drawing.mjSpellApiHelpBodyDescribe') }}
@@ -375,14 +378,15 @@ function onMjSpeedClick(id: MjSpeedMode) {
     <!-- 风格 · 版本 · Seed（非嵌入页保持平铺；嵌入绘画页收入「更多选项」折叠，默认收起省高度） -->
     <section
       v-if="!embedded && (studioTab === 't2i' || studioTab === 'i2i' || studioTab === 'edits')"
-      class="rounded-2xl border border-slate-700/35 bg-slate-900/25 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:p-3.5"
+      class="rounded-2xl border border-[var(--border-default)] bg-[var(--drawing-panel)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:p-3.5"
       :class="dimOpt(customParamsOnly, studioTab)"
     >
-      <span class="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">{{
-        t('drawing.studioSectionStyle')
-      }}</span>
+      <span
+        class="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]"
+        >{{ t('drawing.studioSectionStyle') }}</span
+      >
 
-      <p class="mb-2 mt-3 text-[11px] text-slate-500">{{ t('drawing.mjStyleTitle') }}</p>
+      <p class="mb-2 mt-3 text-[11px] text-[var(--text-muted)]">{{ t('drawing.mjStyleTitle') }}</p>
       <div class="flex gap-1.5">
         <button
           type="button"
@@ -404,12 +408,12 @@ function onMjSpeedClick(id: MjSpeedMode) {
 
       <div class="mt-4">
         <div class="mb-2 flex items-center gap-1.5">
-          <span class="text-[11px] font-medium text-slate-400">{{
+          <span class="text-[11px] font-medium text-[var(--text-muted)]">{{
             t('drawing.mjVersionLabel')
           }}</span>
           <button
             type="button"
-            class="inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] text-slate-600 transition hover:bg-slate-800 hover:text-slate-400"
+            class="inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] text-[var(--text-muted)] transition hover:bg-[var(--surface-muted)] hover:text-[var(--text-muted)]"
             :title="t('drawing.mjVersionHint')"
             :aria-label="t('drawing.mjVersionHint')"
           >
@@ -443,10 +447,12 @@ function onMjSpeedClick(id: MjSpeedMode) {
 
       <div class="mt-4">
         <div class="mb-2 flex items-center gap-1.5">
-          <span class="text-[11px] font-medium text-slate-400">{{ t('drawing.mjSeedLabel') }}</span>
+          <span class="text-[11px] font-medium text-[var(--text-muted)]">{{
+            t('drawing.mjSeedLabel')
+          }}</span>
           <button
             type="button"
-            class="inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] text-slate-600 transition hover:bg-slate-800 hover:text-slate-400"
+            class="inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] text-[var(--text-muted)] transition hover:bg-[var(--surface-muted)] hover:text-[var(--text-muted)]"
             :title="t('drawing.mjSeedHint')"
             :aria-label="t('drawing.mjSeedHint')"
           >
@@ -457,7 +463,7 @@ function onMjSpeedClick(id: MjSpeedMode) {
           type="text"
           inputmode="numeric"
           pattern="[0-9]*"
-          class="h-10 w-full rounded-xl border border-slate-600/50 bg-slate-950/60 px-3.5 font-mono text-sm text-slate-100 placeholder:text-slate-600 focus:border-sky-500/60 focus:outline-none focus:ring-2 focus:ring-sky-500/25"
+          class="h-10 w-full rounded-xl border border-[var(--border-default)] bg-[var(--drawing-field)] px-3.5 font-mono text-sm text-[var(--text-primary)] placeholder:text-neutral-600 dark:placeholder:text-[var(--text-muted)] focus:border-sky-500/60 focus:outline-none focus:ring-2 focus:ring-sky-500/25"
           :value="mjSeed"
           :placeholder="t('drawing.mjSeedPlaceholder')"
           autocomplete="off"
@@ -468,10 +474,12 @@ function onMjSpeedClick(id: MjSpeedMode) {
 
     <!-- 速度（绘画嵌入页紧跟工作流，便于先选通道再写描述） -->
     <section
-      class="rounded-2xl border border-slate-700/35 bg-slate-900/25 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:p-3.5"
+      class="rounded-2xl border border-[var(--border-default)] bg-[var(--drawing-panel)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:p-3.5"
       :class="embedded ? '!p-2.5 md:!p-3' : ''"
     >
-      <p class="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+      <p
+        class="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]"
+      >
         {{ t('drawing.studioSectionSpeed') }}
       </p>
       <div class="grid grid-cols-3 gap-1.5">
@@ -499,10 +507,12 @@ function onMjSpeedClick(id: MjSpeedMode) {
     <!-- 比例（独立绘画页平铺；嵌入页收入下方「更多选项」） -->
     <section
       v-if="!embedded && (studioTab === 't2i' || studioTab === 'i2i' || studioTab === 'edits')"
-      class="rounded-2xl border border-slate-700/35 bg-slate-900/25 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:p-3.5"
+      class="rounded-2xl border border-[var(--border-default)] bg-[var(--drawing-panel)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:p-3.5"
       :class="dimOpt(customParamsOnly, studioTab)"
     >
-      <p class="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+      <p
+        class="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]"
+      >
         {{ t('drawing.studioAspectTitle') }}
       </p>
       <div class="grid grid-cols-3 gap-1.5">
@@ -521,7 +531,7 @@ function onMjSpeedClick(id: MjSpeedMode) {
           type="text"
           inputmode="numeric"
           autocomplete="off"
-          class="w-full rounded-xl border border-slate-600/50 bg-slate-950/50 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-sky-500/50 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+          class="w-full rounded-xl border border-[var(--border-default)] bg-[var(--drawing-field)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-neutral-600 dark:placeholder:text-[var(--text-muted)] focus:border-sky-500/50 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
           :class="aspectCustomInvalid ? 'border-amber-500/40 ring-1 ring-amber-500/15' : ''"
           :value="aspectCustomRatio"
           :placeholder="t('drawing.studioAspectCustomPlaceholder')"
@@ -536,16 +546,18 @@ function onMjSpeedClick(id: MjSpeedMode) {
     <!-- 画面描述与参考图（置于自定义参数之上，先写需求再决定是否手写参数） -->
     <section
       v-if="studioTab === 't2i' || studioTab === 'i2i' || studioTab === 'edits'"
-      class="rounded-2xl border border-sky-500/15 bg-gradient-to-b from-slate-900/40 to-slate-950/30 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] md:p-3.5"
+      class="rounded-2xl border border-sky-500/15 bg-gradient-to-b from-[var(--drawing-panel)] to-[var(--drawing-field)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] md:p-3.5"
     >
-      <p class="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-sky-500/80">
+      <p
+        class="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-sky-800 dark:text-sky-500/80"
+      >
         {{ t('drawing.studioSectionPrompt') }}
       </p>
-      <label class="mb-2 block text-[11px] font-medium text-slate-400">{{
+      <label class="mb-2 block text-[11px] font-medium text-[var(--text-muted)]">{{
         studioTab === 'edits' ? t('drawing.mjEditsPromptLabel') : t('drawing.imageDescription')
       }}</label>
       <textarea
-        class="w-full resize-none rounded-xl border border-slate-600/50 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:border-sky-500/50 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+        class="w-full resize-none rounded-xl border border-[var(--border-default)] bg-[var(--drawing-field)] px-3 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-neutral-600 dark:placeholder:text-[var(--text-muted)] focus:border-sky-500/50 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
         :class="embedded ? 'min-h-[5.25rem]' : 'min-h-[120px]'"
         :value="promptText"
         :placeholder="
@@ -558,11 +570,11 @@ function onMjSpeedClick(id: MjSpeedMode) {
       />
       <div v-if="studioTab === 't2i' || studioTab === 'i2i'" class="mt-3">
         <label
-          class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500"
+          class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-secondary)]"
           >{{ t('drawing.mjRefImages') }}</label
         >
         <label
-          class="relative flex min-h-10 w-full cursor-pointer items-center justify-between gap-2 rounded-xl border border-slate-600/50 bg-slate-950/50 px-3 py-2 text-sm text-slate-300 transition-colors hover:border-sky-500/40"
+          class="relative flex min-h-10 w-full cursor-pointer items-center justify-between gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--drawing-field)] px-3 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:border-sky-500/40"
         >
           <input
             type="file"
@@ -571,7 +583,9 @@ function onMjSpeedClick(id: MjSpeedMode) {
             class="absolute inset-0 z-[1] h-full w-full cursor-pointer opacity-0"
             @change="emit('imagineFiles', $event)"
           />
-          <span class="pointer-events-none min-w-0 flex-1 text-[11px] leading-snug text-slate-400">
+          <span
+            class="pointer-events-none min-w-0 flex-1 text-[11px] leading-snug text-[var(--text-muted)]"
+          >
             {{ t('drawing.mjTapToPickImages') }}
           </span>
           <span
@@ -586,7 +600,7 @@ function onMjSpeedClick(id: MjSpeedMode) {
           @remove="emit('removeRefImage', $event)"
           @clear="emit('clearRefImages')"
         />
-        <p v-if="refImagePreviews.length > 0" class="mt-1.5 text-[11px] text-slate-500">
+        <p v-if="refImagePreviews.length > 0" class="mt-1.5 text-[11px] text-[var(--text-muted)]">
           {{ refImagePreviews.length }} {{ t('drawing.mjFilesSelected') }}
         </p>
       </div>
@@ -595,12 +609,16 @@ function onMjSpeedClick(id: MjSpeedMode) {
     <!-- Blend：多图混合（无文生描述，仅速度与模型） -->
     <section
       v-if="studioTab === 'blend'"
-      class="rounded-2xl border border-teal-500/20 bg-gradient-to-b from-slate-900/40 to-slate-950/30 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] md:p-3.5"
+      class="rounded-2xl border border-teal-500/20 bg-gradient-to-b from-[var(--drawing-panel)] to-[var(--drawing-field)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] md:p-3.5"
     >
-      <p class="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-teal-500/85">
+      <p
+        class="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-teal-900 dark:text-teal-500/85"
+      >
         {{ t('drawing.mjToolBlend') }}
       </p>
-      <p class="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+      <p
+        class="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-secondary)]"
+      >
         {{ t('drawing.mjBlendDims') }}
       </p>
       <div class="mb-3 grid grid-cols-3 gap-1.5">
@@ -619,11 +637,11 @@ function onMjSpeedClick(id: MjSpeedMode) {
         </button>
       </div>
       <label
-        class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500"
+        class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-secondary)]"
         >{{ t('drawing.mjBlendImages') }}</label
       >
       <label
-        class="relative flex min-h-10 w-full cursor-pointer items-center justify-between gap-2 rounded-xl border border-slate-600/50 bg-slate-950/50 px-3 py-2 text-sm text-slate-300 transition-colors hover:border-teal-500/40"
+        class="relative flex min-h-10 w-full cursor-pointer items-center justify-between gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--drawing-field)] px-3 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:border-teal-500/40"
       >
         <input
           type="file"
@@ -632,7 +650,9 @@ function onMjSpeedClick(id: MjSpeedMode) {
           class="absolute inset-0 z-[1] h-full w-full cursor-pointer opacity-0"
           @change="emit('blendFiles', $event)"
         />
-        <span class="pointer-events-none min-w-0 flex-1 text-[11px] leading-snug text-slate-400">
+        <span
+          class="pointer-events-none min-w-0 flex-1 text-[11px] leading-snug text-[var(--text-muted)]"
+        >
           {{ t('drawing.mjTapToPickImages') }}
         </span>
         <span
@@ -647,7 +667,7 @@ function onMjSpeedClick(id: MjSpeedMode) {
         @remove="emit('removeBlendImage', $event)"
         @clear="emit('clearBlendImages')"
       />
-      <p v-if="blendImagePreviews.length > 0" class="mt-1.5 text-[11px] text-slate-500">
+      <p v-if="blendImagePreviews.length > 0" class="mt-1.5 text-[11px] text-[var(--text-muted)]">
         {{ blendImagePreviews.length }} {{ t('drawing.mjFilesSelected') }}
       </p>
       <details
@@ -659,13 +679,13 @@ function onMjSpeedClick(id: MjSpeedMode) {
         >
           <span>{{ t('drawing.mjBlendApiHelpFold') }}</span>
           <span
-            class="text-[10px] text-slate-500 transition-transform group-open:rotate-180"
+            class="text-[10px] text-[var(--text-muted)] transition-transform group-open:rotate-180"
             aria-hidden="true"
             >▾</span
           >
         </summary>
         <p
-          class="border-t border-teal-900/30 px-2 pb-2 pt-2 text-[10px] leading-relaxed text-slate-400 whitespace-pre-line"
+          class="border-t border-teal-900/30 px-2 pb-2 pt-2 text-[10px] leading-relaxed text-[var(--text-muted)] whitespace-pre-line"
         >
           {{ t('drawing.mjBlendApiHelpBody') }}
         </p>
@@ -675,28 +695,31 @@ function onMjSpeedClick(id: MjSpeedMode) {
     <!-- 嵌入绘画页：风格 / 比例 / 自定义参数 / 否定 / 小贴士（默认收起） -->
     <details
       v-if="embedded && (studioTab === 't2i' || studioTab === 'i2i' || studioTab === 'edits')"
-      class="group rounded-2xl border border-slate-700/45 bg-slate-900/20 open:border-slate-600/55"
+      class="group rounded-2xl border border-[var(--border-default)] bg-[var(--drawing-panel)] open:border-[var(--border-default)]"
     >
       <summary
-        class="flex cursor-pointer list-none items-center justify-between gap-2 rounded-2xl px-3 py-2.5 text-left text-xs font-semibold text-slate-300 transition hover:bg-slate-800/40 [&::-webkit-details-marker]:hidden"
+        class="flex cursor-pointer list-none items-center justify-between gap-2 rounded-2xl px-3 py-2.5 text-left text-xs font-semibold text-[var(--text-secondary)] transition hover:bg-[var(--surface-muted)]/40 [&::-webkit-details-marker]:hidden"
       >
         <span>{{ t('drawing.mjSidebarMoreOptions') }}</span>
         <span
-          class="inline-block shrink-0 text-[10px] text-slate-500 transition-transform duration-200 group-open:rotate-180"
+          class="inline-block shrink-0 text-[10px] text-[var(--text-muted)] transition-transform duration-200 group-open:rotate-180"
           aria-hidden="true"
           >▾</span
         >
       </summary>
-      <div class="space-y-3 border-t border-slate-700/40 px-3 pb-3 pt-2">
+      <div class="space-y-3 border-t border-[var(--border-default)] px-3 pb-3 pt-2">
         <section
-          class="rounded-xl border border-slate-700/35 bg-slate-900/25 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:p-3"
+          class="rounded-xl border border-[var(--border-default)] bg-[var(--drawing-panel)] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:p-3"
           :class="dimOpt(customParamsOnly, studioTab)"
         >
-          <span class="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">{{
-            t('drawing.studioSectionStyle')
-          }}</span>
+          <span
+            class="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]"
+            >{{ t('drawing.studioSectionStyle') }}</span
+          >
 
-          <p class="mb-2 mt-2 text-[11px] text-slate-500">{{ t('drawing.mjStyleTitle') }}</p>
+          <p class="mb-2 mt-2 text-[11px] text-[var(--text-muted)]">
+            {{ t('drawing.mjStyleTitle') }}
+          </p>
           <div class="flex gap-1.5">
             <button
               type="button"
@@ -718,12 +741,12 @@ function onMjSpeedClick(id: MjSpeedMode) {
 
           <div class="mt-3">
             <div class="mb-1.5 flex items-center gap-1.5">
-              <span class="text-[11px] font-medium text-slate-400">{{
+              <span class="text-[11px] font-medium text-[var(--text-muted)]">{{
                 t('drawing.mjVersionLabel')
               }}</span>
               <button
                 type="button"
-                class="inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] text-slate-600 transition hover:bg-slate-800 hover:text-slate-400"
+                class="inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] text-[var(--text-muted)] transition hover:bg-[var(--surface-muted)] hover:text-[var(--text-muted)]"
                 :title="t('drawing.mjVersionHint')"
                 :aria-label="t('drawing.mjVersionHint')"
               >
@@ -757,12 +780,12 @@ function onMjSpeedClick(id: MjSpeedMode) {
 
           <div class="mt-3">
             <div class="mb-1.5 flex items-center gap-1.5">
-              <span class="text-[11px] font-medium text-slate-400">{{
+              <span class="text-[11px] font-medium text-[var(--text-muted)]">{{
                 t('drawing.mjSeedLabel')
               }}</span>
               <button
                 type="button"
-                class="inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] text-slate-600 transition hover:bg-slate-800 hover:text-slate-400"
+                class="inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] text-[var(--text-muted)] transition hover:bg-[var(--surface-muted)] hover:text-[var(--text-muted)]"
                 :title="t('drawing.mjSeedHint')"
                 :aria-label="t('drawing.mjSeedHint')"
               >
@@ -773,7 +796,7 @@ function onMjSpeedClick(id: MjSpeedMode) {
               type="text"
               inputmode="numeric"
               pattern="[0-9]*"
-              class="h-9 w-full rounded-xl border border-slate-600/50 bg-slate-950/60 px-3 font-mono text-sm text-slate-100 placeholder:text-slate-600 focus:border-sky-500/60 focus:outline-none focus:ring-2 focus:ring-sky-500/25"
+              class="h-9 w-full rounded-xl border border-[var(--border-default)] bg-[var(--drawing-field)] px-3 font-mono text-sm text-[var(--text-primary)] placeholder:text-neutral-600 dark:placeholder:text-[var(--text-muted)] focus:border-sky-500/60 focus:outline-none focus:ring-2 focus:ring-sky-500/25"
               :value="mjSeed"
               :placeholder="t('drawing.mjSeedPlaceholder')"
               autocomplete="off"
@@ -784,10 +807,12 @@ function onMjSpeedClick(id: MjSpeedMode) {
 
         <section
           v-if="studioTab === 't2i' || studioTab === 'i2i' || studioTab === 'edits'"
-          class="rounded-xl border border-slate-700/35 bg-slate-900/25 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:p-3"
+          class="rounded-xl border border-[var(--border-default)] bg-[var(--drawing-panel)] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:p-3"
           :class="dimOpt(customParamsOnly, studioTab)"
         >
-          <p class="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+          <p
+            class="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]"
+          >
             {{ t('drawing.studioAspectTitle') }}
           </p>
           <div class="grid grid-cols-3 gap-1.5">
@@ -806,7 +831,7 @@ function onMjSpeedClick(id: MjSpeedMode) {
               type="text"
               inputmode="numeric"
               autocomplete="off"
-              class="w-full rounded-xl border border-slate-600/50 bg-slate-950/50 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-sky-500/50 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+              class="w-full rounded-xl border border-[var(--border-default)] bg-[var(--drawing-field)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-neutral-600 dark:placeholder:text-[var(--text-muted)] focus:border-sky-500/50 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
               :class="aspectCustomInvalid ? 'border-amber-500/40 ring-1 ring-amber-500/15' : ''"
               :value="aspectCustomRatio"
               :placeholder="t('drawing.studioAspectCustomPlaceholder')"
@@ -836,15 +861,15 @@ function onMjSpeedClick(id: MjSpeedMode) {
 
         <section
           v-if="studioTab === 't2i' || studioTab === 'i2i' || studioTab === 'edits'"
-          class="rounded-xl border border-slate-700/35 bg-slate-900/25 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:p-3"
+          class="rounded-xl border border-[var(--border-default)] bg-[var(--drawing-panel)] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:p-3"
           :class="dimOpt(customParamsOnly, studioTab)"
         >
           <label
-            class="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500"
+            class="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]"
             >{{ t('drawing.negativePrompt') }}</label
           >
           <textarea
-            class="min-h-[3.25rem] w-full resize-none rounded-xl border border-slate-600/50 bg-slate-950/60 px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:border-sky-500/50 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+            class="min-h-[3.25rem] w-full resize-none rounded-xl border border-[var(--border-default)] bg-[var(--drawing-field)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-neutral-600 dark:placeholder:text-[var(--text-muted)] focus:border-sky-500/50 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
             :value="negativePrompt"
             :placeholder="t('drawing.negativePlaceholder')"
             rows="2"
@@ -900,7 +925,7 @@ function onMjSpeedClick(id: MjSpeedMode) {
           @mj-ref-uploading="emit('mjRefUploading', $event)"
         />
 
-        <p class="px-0.5 text-[10px] leading-relaxed text-slate-600">
+        <p class="px-0.5 text-[10px] leading-relaxed text-[var(--text-muted)]">
           {{ t('drawing.studioTips') }}
         </p>
       </div>
@@ -926,15 +951,15 @@ function onMjSpeedClick(id: MjSpeedMode) {
     <!-- 否定提示 -->
     <section
       v-if="!embedded && (studioTab === 't2i' || studioTab === 'i2i' || studioTab === 'edits')"
-      class="rounded-2xl border border-slate-700/35 bg-slate-900/25 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:p-3.5"
+      class="rounded-2xl border border-[var(--border-default)] bg-[var(--drawing-panel)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:p-3.5"
       :class="dimOpt(customParamsOnly, studioTab)"
     >
       <label
-        class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500"
+        class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]"
         >{{ t('drawing.negativePrompt') }}</label
       >
       <textarea
-        class="min-h-[4.5rem] w-full resize-none rounded-xl border border-slate-600/50 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 focus:border-sky-500/50 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+        class="min-h-[4.5rem] w-full resize-none rounded-xl border border-[var(--border-default)] bg-[var(--drawing-field)] px-3 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-neutral-600 dark:placeholder:text-[var(--text-muted)] focus:border-sky-500/50 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
         :value="negativePrompt"
         :placeholder="t('drawing.negativePlaceholder')"
         rows="3"
@@ -990,27 +1015,27 @@ function onMjSpeedClick(id: MjSpeedMode) {
       @mj-ref-uploading="emit('mjRefUploading', $event)"
     />
 
-    <p v-if="!embedded" class="px-0.5 text-[10px] leading-relaxed text-slate-600">
+    <p v-if="!embedded" class="px-0.5 text-[10px] leading-relaxed text-[var(--text-muted)]">
       {{ t('drawing.studioTips') }}
     </p>
     <details
       v-else-if="embedded && studioTab !== 't2i' && studioTab !== 'i2i' && studioTab !== 'edits'"
-      class="group rounded-xl border border-slate-700/40 bg-slate-900/15 px-0.5 open:border-slate-600/45"
+      class="group rounded-xl border border-[var(--border-default)] bg-[var(--drawing-panel)] px-0.5 open:border-[var(--border-default)]"
     >
       <summary
-        class="cursor-pointer list-none rounded-lg px-2 py-1.5 text-[11px] font-medium text-slate-500 transition hover:bg-slate-800/30 hover:text-slate-400 [&::-webkit-details-marker]:hidden"
+        class="cursor-pointer list-none rounded-lg px-2 py-1.5 text-[11px] font-medium text-[var(--text-secondary)] transition hover:bg-[var(--surface-muted)]/30 hover:text-[var(--text-primary)] [&::-webkit-details-marker]:hidden"
       >
         <span class="inline-flex w-full items-center justify-between gap-2">
           {{ t('drawing.mjStudioTipFold') }}
           <span
-            class="text-[9px] text-slate-600 transition-transform group-open:rotate-180"
+            class="text-[9px] text-[var(--text-muted)] transition-transform group-open:rotate-180"
             aria-hidden="true"
             >▾</span
           >
         </span>
       </summary>
       <p
-        class="border-t border-slate-700/30 px-2 pb-2 pt-2 text-[10px] leading-relaxed text-slate-600"
+        class="border-t border-[var(--border-default)] px-2 pb-2 pt-2 text-[10px] leading-relaxed text-[var(--text-muted)]"
       >
         {{ t('drawing.studioTips') }}
       </p>
