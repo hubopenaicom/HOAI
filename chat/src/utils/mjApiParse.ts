@@ -606,7 +606,333 @@ export function isMjSuccessStatus(st: string): boolean {
   return ['SUCCESS', 'COMPLETE', 'DONE', 'FINISHED', 'FINISH', 'OK', 'SUCCEEDED'].includes(st)
 }
 
-/** 预览弹窗：画面描述 + 上游可能返回的翻译/英文描述 */
+/**
+ * 本站后续任务标题模板（与 i18n `drawing.mjFollowUpLabeled` 及历史/变体格式一致）会反复把父摘要包进「来自…「…」…」，
+ * 若不处理展示层会堆叠「来自」；更关键的是 {@link mjParentLineForFollowUp} 若把整段「来自「…」· 操作」
+ * 直接塞进下一次 i18n `mjFollowUpLabeled` 的 `{source}`，模板会再包一层「来自「」，每多一级后续就多一层。
+ *
+ * - **展示**（画面描述、父任务摘要）：用 {@link mjCollapseNestedFollowUpLabelForDisplay}，保留最外层「来自「源」· / - 操作」，只把「源」里的嵌套剥干净。
+ * - **仅要纯提示词**（如比对、剥壳递归）：用 {@link mjUnwrapFollowUpPromptLabel}。
+ *
+ * 变体：部分环境或旧文案会在「来自」与「」之间插入空格（`来自 「`）；动作用连字符（` - U1 - 左上`）而非中间点 `·`；
+ * 或混用 `『』`、半角 `｢｣`（FF62/FF63）；或 `」` 与操作段顺序与模板不完全一致时需栈匹配。
+ * 另有「来自于」口语、以及截断/拼接导致的「来自「来自 提示词」」（内层无第二重「」）等，见 {@link mjNormalizeFollowUpQuotedSource}。
+ */
+
+/** `」` 之后、操作文案之前：中间点、全角点、连字符等（兼容 `·` 与 ` - U1`） */
+const MJ_FOLLOW_UP_AFTER_SOURCE_RE = /^(?:[·\u00b7\u30fb．]|\s*[-–—])\s*/
+
+/** 前缀「来自」类 token（与 i18n `mjFollowUpLabeled`、历史脏数据对齐） */
+const MJ_FROM_HEAD_RE_SRC = '(?:来自|來自|来自于|來自於|From|from)'
+
+/** 半角「」→ 标准直角引号（不做 NFKC，以免把 ， 等标点改成半角） */
+function normalizeMjFollowUpLabelText(s: string): string {
+  return String(s ?? '')
+    .replace(/\uFF62/g, '\u300C') // ｢ → 「
+    .replace(/\uFF63/g, '\u300D') // ｣ → 」
+}
+
+const MJ_FOLLOW_UP_HEAD_RE = new RegExp(`^${MJ_FROM_HEAD_RE_SRC}\\s*`, 'i')
+
+/** 行首连续两段「来自」口令紧接一个「：压成一段，修复 `来自来自「` / `来自「来自来自「` 内层 */
+function mjCollapseDuplicateFromBeforeInnerQuote(raw: string): string {
+  let t = normalizeMjFollowUpLabelText(String(raw ?? '').trim())
+  const re = new RegExp(`^(${MJ_FROM_HEAD_RE_SRC})(${MJ_FROM_HEAD_RE_SRC})(\\s*「)`, 'i')
+  for (let n = 0; n < 32; n++) {
+    if (!re.test(t)) break
+    t = normalizeMjFollowUpLabelText(t.replace(re, '$1$3').trim())
+  }
+  return t
+}
+
+/**
+ * 解析最外层「来自…「来源」·/ - 操作」结构；无法解析则返回 null。
+ * prefix 含至开引号；tail 自闭引号「」起至串末。
+ */
+function matchMjFollowUpShell(
+  raw: string
+): { prefix: string; source: string; tail: string } | null {
+  const t = normalizeMjFollowUpLabelText(raw.trim())
+  const hm = MJ_FOLLOW_UP_HEAD_RE.exec(t)
+  if (!hm) return null
+  let i = hm[0].length
+  const open = t[i]
+  if (open !== '「' && open !== '『') return null
+  const expectFirst = open === '「' ? '」' : '』'
+  const bracketIdx = i
+  i += 1
+  const sourceStart = i
+  const stack: string[] = [expectFirst]
+  while (i < t.length && stack.length > 0) {
+    const ch = t[i]
+    if (ch === '「') {
+      stack.push('」')
+      i += 1
+      continue
+    }
+    if (ch === '『') {
+      stack.push('』')
+      i += 1
+      continue
+    }
+    const top = stack[stack.length - 1]
+    if (ch === top) {
+      stack.pop()
+      i += 1
+      continue
+    }
+    i += 1
+  }
+  if (stack.length !== 0) return null
+
+  const afterSource = t.slice(i).trimStart()
+  if (!MJ_FOLLOW_UP_AFTER_SOURCE_RE.test(afterSource) && afterSource.length > 0) return null
+
+  const prefix = t.slice(0, bracketIdx + 1)
+  const source = t.slice(sourceStart, i - 1)
+  const tail = t.slice(i - 1)
+  return { prefix, source, tail }
+}
+
+/** 剥掉一层「前缀 + 成对括号内来源 + 分隔符 + 操作」外壳；无法解析则返回 null */
+function stripOneMjFollowUpLabelLayer(raw: string): string | null {
+  const m = matchMjFollowUpShell(raw)
+  if (!m) return null
+  const inner = m.source.trim()
+  return inner || null
+}
+
+const MJ_DOUBLE_FROM_OPEN_RE = new RegExp(
+  `^${MJ_FROM_HEAD_RE_SRC}\\s*「\\s*${MJ_FROM_HEAD_RE_SRC}\\s*「`,
+  'i'
+)
+
+const MJ_FIRST_FROM_OPEN_RE = new RegExp(`^${MJ_FROM_HEAD_RE_SRC}\\s*「\\s*`, 'i')
+
+/**
+ * 当括号与模板不完全一致导致 stripOne 失败时，去掉最外层「来自「…」」前缀（仅在有明显双重套娃时）。
+ */
+function mjPeelDoubleFollowUpHead(raw: string): string | null {
+  const t = normalizeMjFollowUpLabelText(raw.trim())
+  if (!MJ_DOUBLE_FROM_OPEN_RE.test(t)) return null
+  return t.replace(MJ_FIRST_FROM_OPEN_RE, '').trim()
+}
+
+/**
+ * 行首反复出现「来自「来自「…」（可无空格）时逐层剥掉多余前缀；不依赖整串能否 parse 成壳（截断/缺 `」` 时常仍有效）。
+ */
+function mjPeelLeadingStackedFromOpens(raw: string): string {
+  let t = normalizeMjFollowUpLabelText(String(raw ?? '').trim())
+  for (let n = 0; n < 64; n++) {
+    const p = mjPeelDoubleFollowUpHead(t)
+    if (p == null || p === t) break
+    t = normalizeMjFollowUpLabelText(p.trim())
+  }
+  return t
+}
+
+/**
+ * 引号内串已无法解析成「来自「…」· 操作」壳，但行首仍带松散 `来自 / 来自于 + 空格 + 正文`（无第二重「」）时剥掉，
+ * 修复 `来自「来自 某提示词」` 类脏数据（父摘要被包进引号时多写了一个「来自」）。
+ */
+function mjStripLooseLeadingFromWhenNotShell(raw: string): string {
+  let t = normalizeMjFollowUpLabelText(String(raw ?? '').trim())
+  if (!t) return t
+  const loose = new RegExp(`^${MJ_FROM_HEAD_RE_SRC}\\s+(?![「『])`, 'i')
+  for (let n = 0; n < 48; n++) {
+    if (matchMjFollowUpShell(t)) break
+    if (!loose.test(t)) break
+    t = normalizeMjFollowUpLabelText(t.replace(loose, '').trim())
+  }
+  return t
+}
+
+/** 连续剥壳至最内层，供父任务摘要、预览「画面描述」、列表主文案使用 */
+export function mjUnwrapFollowUpPromptLabel(label: string): string {
+  let cur = mjCollapseDuplicateFromBeforeInnerQuote(String(label ?? '').trim())
+  for (let n = 0; n < 48; n++) {
+    const inner = stripOneMjFollowUpLabelLayer(cur)
+    if (inner != null) {
+      cur = mjCollapseDuplicateFromBeforeInnerQuote(inner.trim())
+      continue
+    }
+    const peeled = mjPeelDoubleFollowUpHead(cur)
+    if (peeled != null && peeled !== cur) {
+      cur = mjCollapseDuplicateFromBeforeInnerQuote(peeled.trim())
+      continue
+    }
+    break
+  }
+  return cur
+}
+
+/**
+ * 引号内「来源」字段：先 {@link mjUnwrapFollowUpPromptLabel}；若仍残留「来自「来自「」套娃（unwrap 因分隔符与模板不一致失败），
+ * 用 {@link mjPeelDoubleFollowUpHead} 逐层剥掉多余前缀后再 unwrap，直到干净或达上限；
+ * 并压平行首「来自来自「」、去掉无法成壳的多余「来自 + 空格」前缀。
+ */
+function mjNormalizeFollowUpQuotedSource(source: string): string {
+  let t = normalizeMjFollowUpLabelText(String(source ?? '').trim())
+  if (!t) return t
+  t = mjPeelLeadingStackedFromOpens(t)
+  t = mjCollapseDuplicateFromBeforeInnerQuote(t)
+  t = mjUnwrapFollowUpPromptLabel(t).trim() || t
+  t = mjCollapseDuplicateFromBeforeInnerQuote(t)
+  for (let n = 0; n < 32; n++) {
+    if (!MJ_DOUBLE_FROM_OPEN_RE.test(t)) break
+    const peeled = mjPeelDoubleFollowUpHead(t)
+    if (!peeled || peeled === t) break
+    let nxt = mjUnwrapFollowUpPromptLabel(peeled).trim() || peeled.trim()
+    nxt = mjCollapseDuplicateFromBeforeInnerQuote(nxt)
+    if (nxt === t) break
+    t = nxt
+  }
+  t = mjStripLooseLeadingFromWhenNotShell(t)
+  return t
+}
+
+/**
+ * 展示用：保留最外层「来自「…」· / - 操作」以便看出自哪条任务、哪一步；
+ * 仅对引号内的「来源」文本递归 {@link mjUnwrapFollowUpPromptLabel}，去掉嵌套套娃，避免再次提交时指数级「来自」。
+ */
+export function mjCollapseNestedFollowUpLabelForDisplay(label: string): string {
+  let t0 = normalizeMjFollowUpLabelText(String(label ?? '').trim())
+  t0 = mjPeelLeadingStackedFromOpens(t0)
+  const shell = matchMjFollowUpShell(t0)
+  if (!shell) return t0
+  const cleanedSource =
+    mjNormalizeFollowUpQuotedSource(shell.source).trim() || shell.source.trim()
+  return `${shell.prefix}${cleanedSource}${shell.tail}`
+}
+
+/**
+ * 供下一次 `drawing.mjFollowUpLabeled` 模板的 `{source}`：父摘要若已是「来自「…」· 操作」，
+ * 则去掉最外层壳，只保留「引号内来源（已归一）+ 父级操作名」，避免再包一层「来自「」造成套娃。
+ */
+export function mjFollowUpSourceTextForNextWrap(label: string): string {
+  const t0 = normalizeMjFollowUpLabelText(String(label ?? '').trim())
+  if (!t0) return ''
+  let collapsed = mjCollapseNestedFollowUpLabelForDisplay(t0).trim() || t0
+  let shell = matchMjFollowUpShell(collapsed)
+  if (!shell) {
+    const peeled = mjPeelLeadingStackedFromOpens(collapsed)
+    if (peeled !== collapsed) {
+      collapsed = mjCollapseNestedFollowUpLabelForDisplay(peeled).trim() || peeled
+      shell = matchMjFollowUpShell(collapsed)
+    }
+  }
+  if (!shell) return collapsed.trim()
+  const src = mjNormalizeFollowUpQuotedSource(shell.source).trim() || shell.source.trim()
+  let afterClose = shell.tail
+  const fc = afterClose.charAt(0)
+  if (fc === '」' || fc === '』') afterClose = afterClose.slice(1)
+  let rest = normalizeMjFollowUpLabelText(afterClose).trim()
+  if (MJ_FOLLOW_UP_AFTER_SOURCE_RE.test(rest)) {
+    rest = rest.replace(MJ_FOLLOW_UP_AFTER_SOURCE_RE, '').trim()
+  }
+  if (rest) {
+    return `${src} · ${rest}`.replace(/\s*·\s*·+/g, ' · ').trim()
+  }
+  return src
+}
+
+/** clamp 写入的「…」或残缺 `--v..」` 等（历史父摘要曾限 52 字）；与上游首行比对前缀后决定是否用上游补全引号内来源 */
+function mjFollowUpSourceLooksTruncated(source: string): boolean {
+  const s = source.trim()
+  if (!s) return false
+  if (s.includes('\u2026') || s.includes('…')) return true
+  if (/--v\.{2,}/i.test(s)) return true
+  if (/\.{2}\s*[\)」』]/.test(s)) return true
+  return false
+}
+
+function mjCommonPrefixLen(a: string, b: string, max = 28): number {
+  const lim = Math.min(a.length, b.length, max)
+  let n = 0
+  while (n < lim && a.charCodeAt(n) === b.charCodeAt(n)) n += 1
+  return n
+}
+
+/**
+ * 后续任务 `promptLabel` 中「来源」易被单行截断并带 …，导致壳解析失败；
+ * 用上游 {@link mjTaskPromptFirstLine} 在保留「来自「…」· 操作」外壳的前提下补全，供预览/全文卡片使用。
+ */
+export function mjRepairFollowUpCaptionWithUpstream(
+  promptLabel: string,
+  upstreamFirstLine: string
+): string {
+  const raw = (promptLabel || '').trim()
+  const up = (upstreamFirstLine || '').trim()
+  const collapsed = mjCollapseNestedFollowUpLabelForDisplay(raw)
+  if (!raw || !up) return collapsed
+
+  const shell = matchMjFollowUpShell(collapsed)
+  if (!shell) return collapsed
+
+  const src = shell.source.trim()
+  const srcCore = mjUnwrapFollowUpPromptLabel(src).trim() || src
+  const upCore = mjUnwrapFollowUpPromptLabel(up).trim() || up
+  if (!srcCore) return collapsed
+
+  const truncated = mjFollowUpSourceLooksTruncated(src)
+  const upstreamMuchLonger = upCore.length > srcCore.length + 6
+  const prefixOk = mjCommonPrefixLen(srcCore, upCore) >= 10
+
+  if (!truncated && !(upstreamMuchLonger && prefixOk)) return collapsed
+
+  const rawInner = mjCollapseNestedFollowUpLabelForDisplay(up).trim() || up
+  const newInner = mjNormalizeFollowUpQuotedSource(rawInner).trim() || rawInner
+  return `${shell.prefix}${newInner}${shell.tail}`
+}
+
+function mjCaptionCollapseWs(s: string): string {
+  return s.replace(/\s+/g, ' ').trim()
+}
+
+/** 局部重绘、父任务摘要、翻译副行等共用：从上游 task 抽「首行」有效提示（含 properties） */
+export function mjTaskPromptFirstLine(task: Record<string, unknown> | undefined): string {
+  if (!task) return ''
+  const pr = task.properties as Record<string, unknown> | undefined
+  const pick = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : '')
+  const firstLine = (s: string) => {
+    const line = s.split(/\r?\n/)[0]?.trim() ?? ''
+    return line.replace(/^\/(?:imagine|describe|shorten)\s+/i, '').trim() || line
+  }
+  const tryPick = (v: unknown) => {
+    const s = pick(v)
+    return s ? firstLine(s) : ''
+  }
+  return (
+    tryPick(task.promptEn) ||
+    tryPick(task.prompt) ||
+    tryPick(pr?.finalPrompt) ||
+    tryPick(pr?.promptEn) ||
+    tryPick(pr?.prompt) ||
+    tryPick(task.description) ||
+    ''
+  )
+}
+
+function mjCaptionLineLooksLikeMjError(s: string): boolean {
+  const t = s.trim()
+  if (!t) return true
+  if (mjKnownDrawingErrorI18nKey(t)) return true
+  if (
+    /^invalid\s*parameter|^无效参数|waiting\s*for\s*window\s*confirm|窗口等待|^\[?\s*invalid/i.test(
+      t
+    )
+  )
+    return true
+  if (
+    t.length <= 240 &&
+    !/[,]|--ar\s|--v\s|--niji/i.test(t) &&
+    /^(error|fail|exception)\b/i.test(t)
+  )
+    return true
+  return false
+}
+
+/** 预览弹窗 / 任务卡片：主行（用户侧摘要）+ 副行（英译或上游最终提示词等） */
 export function extractMjViewerCaptions(job: {
   promptLabel: string
   task?: Record<string, unknown>
@@ -625,7 +951,18 @@ export function extractMjViewerCaptions(job: {
     return ''
   }
 
-  const translated = pick([
+  const upstreamLine = mjTaskPromptFirstLine(task)
+
+  let translated = pick([
+    'zhPrompt',
+    'zh_prompt',
+    'cnPrompt',
+    'cn_prompt',
+    'chinesePrompt',
+    'chinese_prompt',
+    'promptZh',
+    'prompt_zh',
+    'resultZh',
     'enPrompt',
     'en_prompt',
     'translatePrompt',
@@ -640,12 +977,29 @@ export function extractMjViewerCaptions(job: {
     'resultEn',
   ])
 
-  const original =
-    (job.promptLabel && job.promptLabel.trim()) ||
-    pick(['prompt', 'fullPrompt', 'submitPrompt', 'description']) ||
-    ''
+  const labelRaw = (job.promptLabel && job.promptLabel.trim()) || ''
+  const pickStr = pick(['prompt', 'fullPrompt', 'submitPrompt', 'description']) || ''
 
-  if (translated && original && translated === original) {
+  const upTrim = upstreamLine.trim()
+  let candidateOriginal = labelRaw || upTrim || pickStr.trim() || ''
+  if (labelRaw && upTrim) {
+    candidateOriginal = mjRepairFollowUpCaptionWithUpstream(labelRaw, upTrim)
+  }
+
+  const original =
+    mjCollapseNestedFollowUpLabelForDisplay(candidateOriginal).trim() || candidateOriginal.trim()
+
+  if (!translated && task && mjTaskPollOutcome(task).phase !== 'done_fail' && upstreamLine.trim()) {
+    const u = upstreamLine.trim()
+    if (
+      mjCaptionCollapseWs(u) !== mjCaptionCollapseWs(original) &&
+      !mjCaptionLineLooksLikeMjError(u)
+    ) {
+      translated = u
+    }
+  }
+
+  if (translated && original && mjCaptionCollapseWs(translated) === mjCaptionCollapseWs(original)) {
     return { original, translated: '' }
   }
   return { original, translated }
