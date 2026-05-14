@@ -65,4 +65,20 @@
   --focus-ring-offset: #ffffff;
   --hoai-accent: #d4af37;
   --hoai-accent-muted: #c9a227;
+
+  /* 绘画 / Midjourney 工作室（与 Header 的 light|dark 同步，勿写死 #0a0e14 等） */
+  --drawing-main: #f1f5f9;
+  --drawing-sidebar: #ffffff;
+  --drawing-sidebar-grad-from: #f8fafc;
+  --drawing-sidebar-grad-via: #f4f6f8;
+  --drawing-sidebar-grad-to: #eef2f6;
+  --drawing-panel: #f1f5f9;
+  --drawing-panel-elevated: #e8edf4;
+  --drawing-field: #ffffff;
+  --drawing-toolbar: #ffffff;
+  --drawing-card: #ffffff;
+  --drawing-card-media: #f8fafc;
+  --drawing-card-footer: #f1f5f9;
+  --drawing-popover: #ffffff;
+  --drawing-image-overlay: rgba(255, 255, 255, 0.94);
 }
