@@ -2547,7 +2547,7 @@ function mjMiscBucketBtnWrapClass(group: MjMiscGroup): string {
 
 function mjMiscBucketBtnClass(group: MjMiscGroup): string {
   const common =
-    'btn btn-xs inline-flex min-w-0 flex-col gap-1 border-slate-600 bg-slate-800/80 normal-case text-slate-200 hover:bg-slate-700'
+    'btn btn-xs inline-flex min-w-0 flex-col gap-1 border-[var(--border-default)] bg-[var(--surface-muted)] normal-case text-[var(--text-primary)] hover:bg-[var(--surface-elevated)]'
   if (group === 'pan') {
     return `${common} min-h-[2.5rem] items-center justify-center px-1.5 py-1 text-center text-[11px] leading-tight`
   }
@@ -3021,13 +3021,13 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
           <HeaderComponent class="relative z-10 flex-shrink-0 bg-white dark:bg-gray-800" />
 
           <main
-            class="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden bg-[#0a0e14] dark:bg-[#0a0e14]"
+            class="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--drawing-main)]"
           >
             <!-- Midjourney：左栏（菜单 + AI 绘画输入）| 中间主区（任务网格占满剩余宽度） -->
             <div v-if="isMjModel" class="flex min-h-0 flex-1 flex-col lg:flex-row">
               <!-- 左栏：侧栏单独滚动，底部「生成」固定可见（避免侧栏过长时按钮被顶出视口） -->
               <div
-                class="flex min-h-0 w-full shrink-0 flex-col border-slate-800/80 bg-[#06090e] lg:h-full lg:max-w-[min(100%,460px)] lg:w-[min(100%,460px)] lg:border-r lg:border-slate-700/35"
+                class="flex min-h-0 w-full shrink-0 flex-col border-[var(--border-default)] bg-[var(--drawing-sidebar)] lg:h-full lg:max-w-[min(100%,460px)] lg:w-[min(100%,460px)] lg:border-r"
               >
                 <div class="custom-scrollbar lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
                   <DrawingStudioSidebar
@@ -3116,58 +3116,62 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                 </div>
 
                 <div
-                  class="flex shrink-0 flex-col gap-2 border-t border-slate-700/40 bg-gradient-to-b from-[#070a10] to-[#05070c] p-3 lg:gap-2.5 lg:p-4 lg:pb-5"
+                  class="flex shrink-0 flex-col gap-2 border-t border-[var(--border-default)] bg-gradient-to-b from-[var(--drawing-sidebar-grad-from)] to-[var(--drawing-sidebar-grad-to)] p-3 lg:gap-2.5 lg:p-4 lg:pb-5"
                 >
                   <div
-                    class="flex items-center justify-between gap-2 rounded-xl border border-slate-700/35 bg-slate-900/30 px-3 py-2"
+                    class="flex items-center justify-between gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--drawing-panel)] px-3 py-2"
                   >
-                    <h1 class="text-sm font-semibold tracking-tight text-slate-100 md:text-base">
+                    <h1
+                      class="text-sm font-semibold tracking-tight text-[var(--text-primary)] md:text-base"
+                    >
                       {{ t('drawing.title') }}
                     </h1>
                   </div>
 
                   <details
-                    class="group rounded-xl border border-slate-700/40 bg-slate-900/15 open:border-slate-600/50"
+                    class="group rounded-xl border border-[var(--border-default)] bg-[var(--drawing-panel)] open:border-[var(--border-default)]"
                   >
                     <summary
-                      class="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-left text-[11px] font-medium text-slate-400 transition hover:bg-slate-800/35 hover:text-slate-300 [&::-webkit-details-marker]:hidden"
+                      class="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-left text-[11px] font-medium text-[var(--text-muted)] transition hover:bg-[var(--surface-muted)]/35 hover:text-[var(--text-secondary)] [&::-webkit-details-marker]:hidden"
                     >
                       <span>{{ t('drawing.mjSideHelpFold') }}</span>
                       <span
-                        class="text-[10px] text-slate-600 transition-transform group-open:rotate-180"
+                        class="text-[10px] text-[var(--text-muted)] transition-transform group-open:rotate-180"
                         aria-hidden="true"
                         >▾</span
                       >
                     </summary>
                     <div
-                      class="space-y-3 border-t border-slate-700/35 px-3 pb-3 pt-2 text-[11px] leading-relaxed text-slate-500"
+                      class="space-y-3 border-t border-[var(--border-default)] px-3 pb-3 pt-2 text-[11px] leading-relaxed text-[var(--text-muted)]"
                     >
                       <p>{{ t('drawing.mjSideHint') }}</p>
                       <div
-                        class="rounded-lg border border-slate-700/30 bg-slate-950/30 p-2.5 text-slate-400"
+                        class="rounded-lg border border-[var(--border-default)] bg-[var(--drawing-panel)] p-2.5 text-[var(--text-muted)]"
                       >
                         <p
-                          class="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500"
+                          class="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-muted)]"
                         >
                           {{ t('drawing.mjPromptTipsTitle') }}
                         </p>
-                        <p class="mb-1 text-emerald-400/95">
+                        <p class="mb-1 font-medium text-emerald-800 dark:text-emerald-400/95">
                           ✓ {{ t('drawing.mjPromptTipsGood') }}
                         </p>
-                        <p class="text-rose-400/90">✗ {{ t('drawing.mjPromptTipsBad') }}</p>
+                        <p class="font-medium text-rose-800 dark:text-rose-400/90">
+                          ✗ {{ t('drawing.mjPromptTipsBad') }}
+                        </p>
                       </div>
                     </div>
                   </details>
 
                   <template v-if="studioTab === 'spell' && spellMode === 'describe'">
                     <div
-                      class="rounded-2xl border border-slate-700/35 bg-slate-900/25 p-3.5 md:p-4"
+                      class="rounded-2xl border border-[var(--border-default)] bg-[var(--drawing-panel)] p-3.5 md:p-4"
                     >
-                      <span class="mb-2 block text-xs font-medium text-slate-400">{{
+                      <span class="mb-2 block text-xs font-medium text-[var(--text-muted)]">{{
                         t('drawing.mjDescribeImage')
                       }}</span>
                       <label
-                        class="relative flex min-h-10 w-full cursor-pointer items-center justify-between gap-2 rounded-xl border border-slate-600/50 bg-slate-950/50 px-3 py-2 text-sm text-slate-300 hover:border-sky-500/40"
+                        class="relative flex min-h-10 w-full cursor-pointer items-center justify-between gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--drawing-field)] px-3 py-2 text-sm text-[var(--text-secondary)] hover:border-sky-500/40"
                       >
                         <input
                           type="file"
@@ -3176,7 +3180,7 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                           @change="onDescribeFile"
                         />
                         <span
-                          class="pointer-events-none min-w-0 flex-1 text-[11px] leading-snug text-slate-400"
+                          class="pointer-events-none min-w-0 flex-1 text-[11px] leading-snug text-[var(--text-muted)]"
                         >
                           {{ t('drawing.mjTapToPickOneImage') }}
                         </span>
@@ -3198,14 +3202,14 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
 
                   <template v-else-if="studioTab === 'spell' && spellMode === 'shorten'">
                     <section
-                      class="rounded-2xl border border-slate-700/35 bg-slate-900/30 p-3.5 md:p-4"
+                      class="rounded-2xl border border-[var(--border-default)] bg-[var(--drawing-panel)] p-3.5 md:p-4"
                     >
-                      <label class="mb-2 block text-xs font-medium text-slate-400">{{
+                      <label class="mb-2 block text-xs font-medium text-[var(--text-muted)]">{{
                         t('drawing.mjToolShorten')
                       }}</label>
                       <textarea
                         v-model="promptText"
-                        class="min-h-[96px] w-full resize-y rounded-xl border border-slate-600/50 bg-slate-950/50 px-3.5 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:border-sky-500/50 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                        class="min-h-[96px] w-full resize-y rounded-xl border border-[var(--border-default)] bg-[var(--drawing-field)] px-3.5 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-sky-500/50 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                         :placeholder="t('drawing.mjShortenPlaceholder')"
                         rows="4"
                       />
@@ -3214,10 +3218,10 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
 
                   <template v-else-if="studioTab === 'blend'">
                     <details
-                      class="group rounded-xl border border-teal-500/25 bg-teal-950/15 open:border-teal-500/40"
+                      class="group rounded-xl border border-teal-200 bg-teal-50 open:border-teal-300 dark:border-teal-500/25 dark:bg-teal-950/15 dark:open:border-teal-500/40"
                     >
                       <summary
-                        class="cursor-pointer list-none px-3 py-2 text-[11px] font-medium text-teal-100/95 [&::-webkit-details-marker]:hidden"
+                        class="cursor-pointer list-none px-3 py-2 text-[11px] font-medium text-teal-900 dark:text-teal-100/95 [&::-webkit-details-marker]:hidden"
                       >
                         <span class="inline-flex w-full items-center justify-between gap-2">
                           {{ t('drawing.mjBlendHintFold') }}
@@ -3228,7 +3232,7 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                         </span>
                       </summary>
                       <p
-                        class="border-t border-teal-500/20 px-3 pb-2.5 pt-2 text-[10px] leading-relaxed text-teal-100/85"
+                        class="border-t border-teal-200 px-3 pb-2.5 pt-2 text-[10px] leading-relaxed text-teal-900 dark:border-teal-500/20 dark:text-teal-100/85"
                       >
                         {{ t('drawing.mjBlendBottomHint') }}
                       </p>
@@ -3237,13 +3241,13 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
 
                   <template v-else-if="studioTab === 'edits'">
                     <div
-                      class="space-y-2 rounded-2xl border border-violet-500/25 bg-violet-950/15 p-3 md:p-3.5"
+                      class="space-y-2 rounded-2xl border border-violet-200 bg-violet-50 p-3 md:p-3.5 dark:border-violet-500/25 dark:bg-violet-950/15"
                     >
                       <details
-                        class="group rounded-lg border border-violet-500/20 bg-violet-950/10 open:border-violet-500/35"
+                        class="group rounded-lg border border-violet-200 bg-white/60 open:border-violet-300 dark:border-violet-500/20 dark:bg-violet-950/10 dark:open:border-violet-500/35"
                       >
                         <summary
-                          class="cursor-pointer list-none px-2 py-1.5 text-[11px] font-medium text-violet-200/90 [&::-webkit-details-marker]:hidden"
+                          class="cursor-pointer list-none px-2 py-1.5 text-[11px] font-medium text-violet-900 dark:text-violet-200/90 [&::-webkit-details-marker]:hidden"
                         >
                           <span class="inline-flex w-full items-center justify-between gap-2">
                             {{ t('drawing.mjEditsHintFold') }}
@@ -3254,36 +3258,36 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                           </span>
                         </summary>
                         <p
-                          class="border-t border-violet-500/15 px-2 pb-2 pt-2 text-[10px] leading-relaxed text-violet-100/75"
+                          class="border-t border-violet-200 px-2 pb-2 pt-2 text-[10px] leading-relaxed text-violet-900 dark:border-violet-500/15 dark:text-violet-100/75"
                         >
                           {{ t('drawing.mjEditsHint') }}
                         </p>
                       </details>
                       <div>
-                        <label class="mb-1.5 block text-xs font-medium text-slate-400">{{
+                        <label class="mb-1.5 block text-xs font-medium text-[var(--text-muted)]">{{
                           t('drawing.mjEditsImageUrl')
                         }}</label>
                         <input
                           v-model="editsImageUrl"
                           type="url"
                           autocomplete="off"
-                          class="h-10 w-full rounded-xl border border-slate-600/50 bg-slate-950/50 px-3 text-sm text-slate-100 placeholder:text-slate-600 focus:border-violet-500/50 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                          class="h-10 w-full rounded-xl border border-[var(--border-default)] bg-[var(--drawing-field)] px-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-violet-500/50 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
                           :placeholder="t('drawing.mjEditsUrlPlaceholder')"
                         />
                         <button
                           type="button"
-                          class="mt-2 w-full rounded-lg border border-slate-600/60 bg-slate-900/50 py-2 text-[11px] font-medium text-slate-300 transition hover:border-slate-500 hover:bg-slate-800/60"
+                          class="mt-2 w-full rounded-lg border border-[var(--border-default)] bg-[var(--drawing-panel)] py-2 text-[11px] font-medium text-[var(--text-secondary)] transition hover:border-[var(--input-border-hover)] hover:bg-[var(--surface-muted)]"
                           @click="fillEditsUrlFromLatestJob"
                         >
                           {{ t('drawing.mjEditsFillFirstUrl') }}
                         </button>
                       </div>
                       <div>
-                        <span class="mb-1.5 block text-xs font-medium text-slate-400">{{
+                        <span class="mb-1.5 block text-xs font-medium text-[var(--text-muted)]">{{
                           t('drawing.mjEditsMaskOptional')
                         }}</span>
                         <label
-                          class="relative flex min-h-10 w-full cursor-pointer items-center justify-between gap-2 rounded-xl border border-slate-600/50 bg-slate-950/50 px-3 py-2 text-sm text-slate-300 hover:border-violet-500/40"
+                          class="relative flex min-h-10 w-full cursor-pointer items-center justify-between gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--drawing-field)] px-3 py-2 text-sm text-[var(--text-secondary)] hover:border-violet-500/40"
                         >
                           <input
                             type="file"
@@ -3292,7 +3296,7 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                             @change="onEditsMaskFile"
                           />
                           <span
-                            class="pointer-events-none min-w-0 flex-1 text-[11px] leading-snug text-slate-400"
+                            class="pointer-events-none min-w-0 flex-1 text-[11px] leading-snug text-[var(--text-muted)]"
                           >
                             {{ t('drawing.mjTapToPickOneImage') }}
                           </span>
@@ -3309,7 +3313,7 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                           :show-clear-all="false"
                           @remove="removeEditsMaskUpload"
                         />
-                        <p v-if="editsMaskBase64" class="mt-1 text-[10px] text-slate-500">
+                        <p v-if="editsMaskBase64" class="mt-1 text-[10px] text-[var(--text-muted)]">
                           {{ t('drawing.mjEditsMaskReady') }}
                         </p>
                       </div>
@@ -3317,17 +3321,17 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                   </template>
 
                   <details
-                    class="rounded-2xl border border-slate-700/40 bg-slate-900/20 p-3 text-slate-300 open:border-slate-600/50 md:p-3.5"
+                    class="rounded-2xl border border-[var(--border-default)] bg-[var(--drawing-panel)] p-3 text-[var(--text-secondary)] open:border-[var(--border-default)] md:p-3.5"
                   >
                     <summary
-                      class="cursor-pointer select-none text-xs font-semibold text-slate-400 hover:text-slate-200"
+                      class="cursor-pointer select-none text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                     >
                       {{ t('drawing.mjAdvancedApis') }}
                     </summary>
-                    <div class="mt-3 space-y-4 border-t border-slate-700/40 pt-3">
+                    <div class="mt-3 space-y-4 border-t border-[var(--border-default)] pt-3">
                       <div>
                         <p
-                          class="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500"
+                          class="mb-2 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-muted)]"
                         >
                           {{ t('drawing.mjChangeTitle') }}
                         </p>
@@ -3336,12 +3340,12 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                             <input
                               v-model="mjChangeTaskId"
                               type="text"
-                              class="min-w-0 flex-1 rounded-lg border border-slate-600/50 bg-slate-950/50 px-2 py-1.5 text-xs text-slate-100"
+                              class="min-w-0 flex-1 rounded-lg border border-[var(--border-default)] bg-[var(--drawing-field)] px-2 py-1.5 text-xs text-[var(--text-primary)]"
                               :placeholder="t('drawing.mjChangeTaskIdPh')"
                             />
                             <button
                               type="button"
-                              class="shrink-0 rounded-lg border border-slate-600 bg-slate-800/80 px-2 py-1.5 text-[11px] text-slate-200"
+                              class="shrink-0 rounded-lg border-[var(--border-default)] bg-[var(--surface-muted)] px-2 py-1.5 text-[11px] text-[var(--text-primary)]"
                               @click="fillMjChangeTaskFromLatest"
                             >
                               {{ t('drawing.mjChangeFillLatest') }}
@@ -3350,21 +3354,23 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                           <div class="flex flex-wrap items-center gap-2">
                             <select
                               v-model="mjChangeAction"
-                              class="rounded-lg border border-slate-600/50 bg-slate-950/50 px-2 py-1.5 text-xs text-slate-100"
+                              class="rounded-lg border border-[var(--border-default)] bg-[var(--drawing-field)] px-2 py-1.5 text-xs text-[var(--text-primary)]"
                             >
                               <option value="UPSCALE">UPSCALE</option>
                               <option value="VARIATION">VARIATION</option>
                               <option value="REGENERATE">REGENERATE</option>
                               <option value="REROLL">REROLL</option>
                             </select>
-                            <label class="flex items-center gap-1 text-[11px] text-slate-500">
+                            <label
+                              class="flex items-center gap-1 text-[11px] text-[var(--text-muted)]"
+                            >
                               <span>{{ t('drawing.mjChangeIndex') }}</span>
                               <input
                                 v-model.number="mjChangeIndex"
                                 type="number"
                                 min="1"
                                 max="4"
-                                class="w-14 rounded border border-slate-600/50 bg-slate-950/50 px-1 py-1 text-xs text-slate-100"
+                                class="w-14 rounded border border-[var(--border-default)] bg-[var(--drawing-field)] px-1 py-1 text-xs text-[var(--text-primary)]"
                               />
                             </label>
                           </div>
@@ -3379,13 +3385,13 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                       </div>
                       <div>
                         <p
-                          class="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500"
+                          class="mb-2 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-muted)]"
                         >
                           {{ t('drawing.mjSimpleChangeTitle') }}
                         </p>
                         <textarea
                           v-model="mjSimpleChangeContent"
-                          class="mb-2 min-h-[72px] w-full resize-none rounded-lg border border-slate-600/50 bg-slate-950/50 px-2 py-2 text-xs text-slate-100"
+                          class="mb-2 min-h-[72px] w-full resize-none rounded-lg border border-[var(--border-default)] bg-[var(--drawing-field)] px-2 py-2 text-xs text-[var(--text-primary)]"
                           :placeholder="t('drawing.mjSimpleChangePlaceholder')"
                           rows="3"
                         />
@@ -3415,37 +3421,37 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
 
               <!-- 中间主区：任务列表（大屏下列数更多） -->
               <div
-                class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-t border-slate-800 lg:border-t-0"
+                class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-t border-[var(--border-default)] lg:border-t-0"
               >
                 <div
-                  class="flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-800 bg-[#0f1419] px-3 py-3"
+                  class="flex shrink-0 flex-wrap items-center gap-2 border-b border-[var(--border-default)] bg-[var(--drawing-toolbar)] px-3 py-3"
                 >
                   <input
                     v-model="taskSearchQuery"
                     type="search"
-                    class="input input-bordered input-sm min-w-[160px] flex-1 border-slate-600 bg-[#151b26] text-sm text-slate-200 placeholder:text-slate-600"
+                    class="input input-bordered input-sm min-w-[160px] flex-1 border-[var(--border-default)] bg-[var(--drawing-field)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
                     :placeholder="t('drawing.studioSearchPlaceholder')"
                   />
                   <button
                     type="button"
-                    class="btn btn-ghost btn-sm shrink-0 border border-slate-600 text-[11px] font-medium text-slate-300 hover:bg-slate-800"
+                    class="btn btn-ghost btn-sm shrink-0 border-[var(--border-default)] text-[11px] font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-muted)]"
                     :disabled="mjBatchSyncing || !authStore.isLogin"
                     @click="syncMjTasksBatch"
                   >
                     {{ mjBatchSyncing ? '…' : t('drawing.mjBatchSyncTasks') }}
                   </button>
                   <div
-                    class="inline-flex shrink-0 overflow-hidden rounded-lg border border-slate-600"
+                    class="inline-flex shrink-0 overflow-hidden rounded-lg border-[var(--border-default)]"
                     role="group"
                     :aria-label="t('drawing.mjFollowUpLayoutTiled')"
                   >
                     <button
                       type="button"
-                      class="border-r border-slate-600 px-2.5 py-1.5 text-[11px] font-medium transition"
+                      class="border-r border-[var(--border-default)] px-2.5 py-1.5 text-[11px] font-medium transition"
                       :class="
                         mjFollowUpLayout === 'tiled'
-                          ? 'bg-sky-900/55 text-sky-100'
-                          : 'bg-transparent text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
+                          ? 'bg-sky-200 text-sky-950 dark:bg-sky-900/55 dark:text-sky-100'
+                          : 'bg-transparent text-[var(--text-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--text-primary)]'
                       "
                       @click="mjFollowUpLayout = 'tiled'"
                     >
@@ -3456,8 +3462,8 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                       class="px-2.5 py-1.5 text-[11px] font-medium transition"
                       :class="
                         mjFollowUpLayout === 'dropdown'
-                          ? 'bg-sky-900/55 text-sky-100'
-                          : 'bg-transparent text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
+                          ? 'bg-sky-200 text-sky-950 dark:bg-sky-900/55 dark:text-sky-100'
+                          : 'bg-transparent text-[var(--text-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--text-primary)]'
                       "
                       @click="mjFollowUpLayout = 'dropdown'"
                     >
@@ -3467,14 +3473,16 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                 </div>
                 <div class="flex-1 overflow-y-auto p-4 custom-scrollbar">
                   <div class="mb-3 space-y-1">
-                    <p class="text-xs font-medium text-slate-500">{{ t('drawing.mjJobsHint') }}</p>
-                    <p class="text-[11px] leading-snug text-slate-600">
+                    <p class="text-xs font-semibold text-[var(--text-secondary)]">
+                      {{ t('drawing.mjJobsHint') }}
+                    </p>
+                    <p class="text-[11px] leading-snug text-[var(--text-muted)]">
                       {{ t('drawing.mjTasksLocalPersist') }}
                     </p>
                   </div>
                   <div
                     v-if="filteredMjJobs.length === 0"
-                    class="py-12 text-center text-sm text-slate-600"
+                    class="py-12 text-center text-sm text-[var(--text-muted)]"
                   >
                     {{ taskSearchQuery.trim() ? '—' : t('drawing.emptyHint') }}
                   </div>
@@ -3486,14 +3494,14 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                       v-for="job in filteredMjJobs"
                       :key="job.localId"
                       :data-mj-job-local-id="job.localId"
-                      class="flex flex-col overflow-visible rounded-xl border border-slate-700/80 bg-[#121822] transition-shadow duration-300"
+                      class="flex flex-col overflow-visible rounded-xl border border-[var(--border-default)] bg-[var(--drawing-card)] transition-shadow duration-300"
                       :class="
                         mjParentHighlightLocalId === job.localId
-                          ? 'ring-2 ring-sky-400/75 ring-offset-2 ring-offset-[#0f1419]'
+                          ? 'ring-2 ring-sky-400/75 ring-offset-2 ring-offset-[var(--drawing-main)]'
                           : ''
                       "
                     >
-                      <div class="overflow-hidden rounded-t-xl bg-[#0c1018]">
+                      <div class="overflow-hidden rounded-t-xl bg-[var(--drawing-card-media)]">
                         <template v-if="job.loading">
                           <div class="flex flex-col">
                             <div v-if="mjJobImageUrls(job).length" class="relative w-full">
@@ -3524,7 +3532,7 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                                   </button>
                                   <button
                                     type="button"
-                                    class="pointer-events-auto absolute bottom-1 right-1 z-[2] rounded-md border border-violet-500/55 bg-violet-950/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-violet-100 shadow-md backdrop-blur-sm hover:bg-violet-900/95"
+                                    class="pointer-events-auto absolute bottom-1 right-1 z-[2] rounded-md border border-violet-300 bg-violet-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-violet-900 shadow-md hover:bg-violet-200 dark:border-violet-500/55 dark:bg-violet-950/90 dark:text-violet-100 dark:backdrop-blur-sm dark:hover:bg-violet-900/95"
                                     :title="t('drawing.mjEditsFillFromCardImgTitle')"
                                     @click.stop="fillEditsUrlFromJob(job, imgUrl)"
                                   >
@@ -3551,23 +3559,25 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                               <div
                                 v-for="si in 4"
                                 :key="si"
-                                class="aspect-square overflow-hidden bg-slate-900/80"
+                                class="aspect-square overflow-hidden bg-[var(--drawing-panel)]"
                               >
                                 <div
-                                  class="h-full w-full animate-pulse bg-gradient-to-br from-slate-600/50 via-slate-800/80 to-slate-950"
+                                  class="h-full w-full animate-pulse bg-gradient-to-br from-[var(--border-default)] via-[var(--surface-muted)] to-[var(--drawing-panel)]"
                                 />
                               </div>
                             </div>
-                            <div class="space-y-2 border-t border-slate-800/90 px-3 py-3">
+                            <div
+                              class="space-y-2 border-t border-[var(--border-default)]/90 px-3 py-3"
+                            >
                               <p
                                 v-if="mjJobElapsedLine(job)"
-                                class="text-center text-[11px] font-medium tabular-nums text-slate-400"
+                                class="text-center text-[11px] font-medium tabular-nums text-[var(--text-secondary)]"
                               >
                                 {{ mjJobElapsedLine(job) }}
                               </p>
                               <div
                                 v-if="mjJobImageUrls(job).length === 0"
-                                class="flex items-center justify-center gap-2 text-center text-sm font-medium text-slate-200"
+                                class="flex items-center justify-center gap-2 text-center text-sm font-medium text-[var(--text-primary)]"
                               >
                                 <span class="loading loading-spinner loading-sm text-sky-500" />
                                 {{ mjJobPhaseLabel(job) }}
@@ -3581,7 +3591,7 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                                   :value="mjJobProgressPercent(job)!"
                                   max="100"
                                 />
-                                <p class="text-center text-xs text-sky-400">
+                                <p class="text-center text-xs text-sky-800 dark:text-sky-400">
                                   {{
                                     t('drawing.mjProgressPercent', {
                                       n: mjJobProgressPercent(job)!,
@@ -3590,12 +3600,14 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                                 </p>
                               </div>
                               <div v-else class="w-full space-y-1">
-                                <div class="h-2 w-full overflow-hidden rounded-full bg-slate-800">
+                                <div
+                                  class="h-2 w-full overflow-hidden rounded-full bg-[var(--border-default)]"
+                                >
                                   <div
                                     class="h-full w-full animate-pulse rounded-full bg-sky-500/40"
                                   />
                                 </div>
-                                <p class="text-center text-xs text-slate-400">
+                                <p class="text-center text-xs text-[var(--text-secondary)]">
                                   {{ mjJobProgressText(job) }}
                                 </p>
                               </div>
@@ -3607,7 +3619,9 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                             class="flex flex-col items-center justify-center gap-2 px-4 py-10 text-center"
                           >
                             <span class="text-2xl text-rose-500">✕</span>
-                            <p class="text-xs leading-snug text-rose-300">{{ job.error }}</p>
+                            <p class="text-xs leading-snug text-rose-800 dark:text-rose-300">
+                              {{ job.error }}
+                            </p>
                           </div>
                         </template>
                         <template v-else-if="mjJobImageUrls(job).length">
@@ -3636,7 +3650,7 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                               </button>
                               <button
                                 type="button"
-                                class="pointer-events-auto absolute bottom-1 right-1 z-[2] rounded-md border border-violet-500/55 bg-violet-950/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-violet-100 shadow-md backdrop-blur-sm hover:bg-violet-900/95"
+                                class="pointer-events-auto absolute bottom-1 right-1 z-[2] rounded-md border border-violet-300 bg-violet-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-violet-900 shadow-md hover:bg-violet-200 dark:border-violet-500/55 dark:bg-violet-950/90 dark:text-violet-100 dark:backdrop-blur-sm dark:hover:bg-violet-900/95"
                                 :title="t('drawing.mjEditsFillFromCardImgTitle')"
                                 @click.stop="fillEditsUrlFromJob(job, imgUrl)"
                               >
@@ -3647,22 +3661,22 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                         </template>
                         <div
                           v-else
-                          class="flex items-center justify-center px-4 py-8 text-xs text-slate-500"
+                          class="flex items-center justify-center px-4 py-8 text-xs text-[var(--text-muted)]"
                         >
                           <pre
                             v-if="job.task?.description || job.task?.prompt"
-                            class="max-h-[280px] overflow-auto whitespace-pre-wrap break-words text-left text-[11px] leading-relaxed text-slate-400"
+                            class="max-h-[280px] overflow-auto whitespace-pre-wrap break-words text-left text-[11px] leading-relaxed text-[var(--text-muted)]"
                             >{{ job.task?.description || job.task?.prompt }}</pre
                           >
                           <span v-else>—</span>
                         </div>
                       </div>
                       <div
-                        class="flex flex-wrap items-center gap-2 border-t border-slate-800/90 bg-[#0d1219]/80 px-3 py-2.5"
+                        class="flex flex-wrap items-center gap-2 border-t border-[var(--border-default)] bg-[var(--drawing-card-footer)] px-3 py-2.5"
                       >
                         <span
                           v-if="job.loading"
-                          class="inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-gradient-to-r from-amber-500/[0.14] to-orange-600/[0.08] px-2.5 py-1 pl-2 text-[11px] font-semibold tracking-wide text-amber-100 shadow-[0_0_20px_rgba(245,158,11,0.12),inset_0_1px_0_rgba(255,255,255,0.06)]"
+                          class="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-100 px-2.5 py-1 pl-2 text-[11px] font-semibold tracking-wide text-amber-950 shadow-sm dark:border-amber-400/30 dark:bg-gradient-to-r dark:from-amber-500/[0.14] dark:to-orange-600/[0.08] dark:text-amber-100 dark:shadow-[0_0_20px_rgba(245,158,11,0.12),inset_0_1px_0_rgba(255,255,255,0.06)]"
                         >
                           <span class="relative flex h-2 w-2 shrink-0" aria-hidden="true">
                             <span
@@ -3676,10 +3690,10 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                         </span>
                         <span
                           v-else-if="job.error"
-                          class="inline-flex items-center gap-1 rounded-full border border-rose-500/35 bg-rose-950/45 px-2.5 py-1 text-[11px] font-semibold text-rose-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
+                          class="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-100 px-2.5 py-1 text-[11px] font-semibold text-rose-900 shadow-sm dark:border-rose-500/35 dark:bg-rose-950/45 dark:text-rose-100 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
                         >
                           <svg
-                            class="h-3.5 w-3.5 shrink-0 text-rose-400"
+                            class="h-3.5 w-3.5 shrink-0 text-rose-600 dark:text-rose-400"
                             xmlns="http://www.w3.org/2000/svg"
                             viewBox="0 0 20 20"
                             fill="currentColor"
@@ -3695,10 +3709,10 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                         </span>
                         <span
                           v-else
-                          class="inline-flex items-center gap-1 rounded-full border border-emerald-400/35 bg-gradient-to-r from-emerald-500/[0.16] to-teal-600/[0.1] px-2.5 py-1 text-[11px] font-semibold text-emerald-50 shadow-[0_0_18px_rgba(16,185,129,0.14),inset_0_1px_0_rgba(255,255,255,0.08)]"
+                          class="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-900 shadow-sm dark:border-emerald-400/35 dark:bg-gradient-to-r dark:from-emerald-500/[0.16] dark:to-teal-600/[0.1] dark:text-emerald-50 dark:shadow-[0_0_18px_rgba(16,185,129,0.14),inset_0_1px_0_rgba(255,255,255,0.08)]"
                         >
                           <svg
-                            class="h-3.5 w-3.5 shrink-0 text-emerald-400"
+                            class="h-3.5 w-3.5 shrink-0 text-emerald-700 dark:text-emerald-400"
                             xmlns="http://www.w3.org/2000/svg"
                             viewBox="0 0 20 20"
                             fill="currentColor"
@@ -3713,13 +3727,13 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                           {{ t('drawing.mjStatusDone') }}
                         </span>
                         <span
-                          class="inline-flex items-center rounded-full border border-slate-600/60 bg-slate-800/50 px-2 py-0.5 text-[10px] font-medium text-slate-400"
+                          class="inline-flex items-center rounded-full border border-[var(--border-default)] bg-[var(--surface-muted)] px-2 py-0.5 text-[10px] font-medium text-[var(--text-secondary)]"
                           >{{ mjStyleTag(job.mjStyleSnapshot) }}</span
                         >
                         <button
                           v-if="mjJobImageUrls(job).length && !job.error"
                           type="button"
-                          class="inline-flex shrink-0 items-center rounded-full border border-violet-500/45 bg-violet-950/40 px-2.5 py-1 text-[10px] font-semibold leading-none text-violet-100 transition hover:border-violet-400/55 hover:bg-violet-900/45"
+                          class="inline-flex shrink-0 items-center rounded-full border border-violet-300 bg-violet-100 px-2.5 py-1 text-[10px] font-semibold leading-none text-violet-900 transition hover:border-violet-400 hover:bg-violet-200 dark:border-violet-500/45 dark:bg-violet-950/40 dark:text-violet-100 dark:hover:border-violet-400/55 dark:hover:bg-violet-900/45"
                           :title="t('drawing.mjEditsFillFromCardTitle')"
                           @click.stop="fillEditsUrlFromJob(job)"
                         >
@@ -3729,7 +3743,7 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                           <button
                             v-if="mjParentJumpVisible(job)"
                             type="button"
-                            class="inline-flex shrink-0 items-center rounded-full border border-sky-600/50 bg-sky-950/35 px-3 py-1 text-[11px] font-semibold leading-none text-sky-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition hover:border-sky-400/55 hover:bg-sky-900/40"
+                            class="inline-flex shrink-0 items-center rounded-full border border-sky-300 bg-sky-100 px-3 py-1 text-[11px] font-semibold leading-none text-sky-900 shadow-sm transition hover:border-sky-400 hover:bg-sky-200 dark:border-sky-600/50 dark:bg-sky-950/35 dark:text-sky-100 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] dark:hover:border-sky-400/55 dark:hover:bg-sky-900/40"
                             :title="t('drawing.mjParentNavigateTitle')"
                             :aria-label="t('drawing.mjParentNavigateTitle')"
                             @click.stop="navigateToMjParentJob(job)"
@@ -3738,7 +3752,7 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                           </button>
                           <button
                             type="button"
-                            class="inline-flex shrink-0 items-center rounded-full border border-slate-600/70 bg-slate-800/90 px-3 py-1 text-[11px] font-semibold leading-none text-slate-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition hover:border-rose-500/45 hover:bg-rose-950/35 hover:text-rose-100"
+                            class="inline-flex shrink-0 items-center rounded-full border border-neutral-300 bg-neutral-100 px-3 py-1 text-[11px] font-semibold leading-none text-neutral-800 shadow-sm transition hover:border-rose-400 hover:bg-rose-100 hover:text-rose-900 dark:border-[var(--border-default)] dark:bg-[var(--surface-muted)] dark:text-[var(--text-secondary)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] dark:hover:border-rose-500/45 dark:hover:bg-rose-950/35 dark:hover:text-rose-100"
                             :title="t('drawing.mjDelete')"
                             :aria-label="t('drawing.mjDelete')"
                             @click.stop="removeMjJob(job)"
@@ -3747,29 +3761,29 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                           </button>
                           <span
                             v-if="job.taskId"
-                            class="hidden max-w-[min(100%,9rem)] truncate font-mono text-[10px] text-slate-600 sm:inline"
+                            class="hidden max-w-[min(100%,9rem)] truncate font-mono text-[10px] text-neutral-700 dark:text-[var(--text-muted)] sm:inline"
                             >{{ job.taskId }}</span
                           >
                         </div>
                       </div>
                       <div
                         v-if="mjJobSeedToolbarVisible(job)"
-                        class="flex flex-wrap items-center gap-2 border-t border-slate-800/80 px-3 py-2"
+                        class="flex flex-wrap items-center gap-2 border-t border-[var(--border-default)]/80 px-3 py-2"
                       >
                         <details class="relative">
                           <summary
-                            class="inline-flex cursor-pointer select-none list-none items-center gap-1 rounded-lg border border-sky-500/55 bg-slate-900/55 px-2.5 py-1 text-[11px] font-semibold text-sky-200/95 transition hover:border-sky-400/70 hover:bg-slate-800/70 [&::-webkit-details-marker]:hidden"
+                            class="inline-flex cursor-pointer select-none list-none items-center gap-1 rounded-lg border border-sky-400/70 bg-sky-50 px-2.5 py-1 text-[11px] font-semibold text-sky-900 transition hover:border-sky-500 hover:bg-sky-100 dark:border-sky-500/55 dark:bg-[var(--drawing-panel)] dark:text-sky-200/95 dark:hover:border-sky-400/70 dark:hover:bg-[var(--surface-muted)]/70 [&::-webkit-details-marker]:hidden"
                           >
                             <span class="text-[10px] opacity-90" aria-hidden="true">✉</span>
                             {{ t('drawing.mjSeedToolbar') }}
                           </summary>
                           <div
-                            class="absolute bottom-[calc(100%+6px)] left-0 z-40 min-w-[156px] rounded-xl border border-slate-600/80 bg-[#131a24] p-2.5 shadow-[0_12px_40px_rgba(0,0,0,0.5)]"
+                            class="absolute bottom-[calc(100%+6px)] left-0 z-40 min-w-[156px] rounded-xl border border-[var(--border-default)] bg-[var(--drawing-popover)] p-2.5 shadow-[0_12px_40px_rgba(0,0,0,0.5)]"
                             @click.stop
                           >
                             <button
                               type="button"
-                              class="w-full rounded-lg border border-emerald-500/55 bg-emerald-950/25 px-2.5 py-1.5 text-center text-[11px] font-semibold text-emerald-100 transition hover:bg-emerald-900/35 disabled:cursor-not-allowed disabled:opacity-50"
+                              class="w-full rounded-lg border border-emerald-600 bg-emerald-100 px-2.5 py-1.5 text-center text-[11px] font-semibold text-emerald-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-50 dark:border-emerald-500/55 dark:bg-emerald-950/25 dark:text-emerald-100 dark:hover:bg-emerald-900/35"
                               :disabled="mjJobSeedLoadingByLocalId[job.localId]"
                               @click="onMjJobFetchSeed(job)"
                             >
@@ -3781,27 +3795,27 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                             </button>
                             <p
                               v-if="mjJobSeedErrByLocalId[job.localId]"
-                              class="mt-2 text-[10px] leading-snug text-rose-300"
+                              class="mt-2 text-[10px] leading-snug text-rose-800 dark:text-rose-300"
                             >
                               {{ mjJobSeedErrByLocalId[job.localId] }}
                             </p>
                             <template v-else-if="mjJobSeedByLocalId[job.localId]">
                               <p
-                                class="mt-2 break-all font-mono text-[11px] leading-snug text-slate-100"
+                                class="mt-2 break-all font-mono text-[11px] leading-snug text-[var(--text-primary)]"
                               >
                                 {{ mjJobSeedByLocalId[job.localId] }}
                               </p>
                               <div class="mt-2 flex flex-wrap gap-1.5">
                                 <button
                                   type="button"
-                                  class="rounded-md border border-slate-600/70 bg-slate-800/80 px-2 py-1 text-[10px] font-medium text-slate-200 hover:bg-slate-700/80"
+                                  class="rounded-md border border-[var(--border-default)] bg-[var(--surface-muted)] px-2 py-1 text-[10px] font-medium text-[var(--text-primary)] hover:bg-[var(--surface-muted)]"
                                   @click="applyMjJobSeedToForm(job.localId)"
                                 >
                                   {{ t('drawing.mjSeedFillSidebar') }}
                                 </button>
                                 <button
                                   type="button"
-                                  class="rounded-md border border-slate-600/70 bg-slate-800/80 px-2 py-1 text-[10px] font-medium text-slate-200 hover:bg-slate-700/80"
+                                  class="rounded-md border border-[var(--border-default)] bg-[var(--surface-muted)] px-2 py-1 text-[10px] font-medium text-[var(--text-primary)] hover:bg-[var(--surface-muted)]"
                                   @click="copyMjJobSeedValue(job.localId)"
                                 >
                                   {{ t('drawing.mjSeedCopy') }}
@@ -3814,7 +3828,7 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                       <div class="px-3 pb-2">
                         <p
                           v-if="mjJobChargeMetaLine(job)"
-                          class="mb-1 text-[10px] leading-snug text-slate-500"
+                          class="mb-1 text-[10px] leading-snug text-[var(--text-secondary)]"
                         >
                           {{ mjJobChargeMetaLine(job) }}
                         </p>
@@ -3826,21 +3840,25 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                             class="space-y-1.5"
                             :class="mjButtons(job.task).length ? 'mb-2' : 'mb-0'"
                           >
-                            <p class="line-clamp-2 text-xs text-slate-500">
+                            <p
+                              class="line-clamp-2 text-xs font-medium text-[var(--text-secondary)]"
+                            >
                               {{ cap.original || '—' }}
                             </p>
                             <div
-                              class="rounded-md border border-slate-700/45 bg-slate-900/35 px-2 py-1.5"
+                              class="rounded-md border border-[var(--border-default)] bg-[var(--drawing-panel)] px-2 py-1.5"
                             >
                               <p
-                                class="mb-0.5 text-[9px] font-semibold uppercase tracking-[0.06em] text-slate-500"
+                                class="mb-0.5 text-[9px] font-semibold uppercase tracking-[0.06em] text-[var(--text-secondary)]"
                               >
                                 {{ t('drawing.viewerCaptionTranslated') }}
                               </p>
                               <p
                                 class="line-clamp-4 text-[11px] leading-snug"
                                 :class="
-                                  cap.translated ? 'text-slate-300/95' : 'text-slate-500/90 italic'
+                                  cap.translated
+                                    ? 'text-[var(--text-secondary)]/95'
+                                    : 'text-[var(--text-muted)]/90 italic'
                                 "
                                 :title="cap.translated || t('drawing.viewerCaptionTranslatedNone')"
                               >
@@ -3852,7 +3870,7 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                         <div v-if="mjButtons(job.task).length" class="pb-1">
                           <p
                             v-if="mjHasUvNumberedButtons(job.task)"
-                            class="mb-2 text-[10px] leading-snug text-slate-500"
+                            class="mb-2 text-[10px] leading-snug text-[var(--text-secondary)]"
                           >
                             {{ t('drawing.mjUvGridLegend') }}
                           </p>
@@ -3866,13 +3884,13 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                               <template v-if="seg.type === 'upscale' || seg.type === 'variation'">
                                 <p
                                   v-if="seg.type === 'upscale'"
-                                  class="mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-sky-400/95"
+                                  class="mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-sky-800 dark:text-sky-400/95"
                                 >
                                   {{ t('drawing.mjUpscaleSection') }}
                                 </p>
                                 <p
                                   v-else
-                                  class="mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-violet-400/95"
+                                  class="mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-violet-800 dark:text-violet-400/95"
                                 >
                                   {{ t('drawing.mjVariationSection') }}
                                 </p>
@@ -3881,7 +3899,7 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                                     v-for="(btn, bi) in seg.items"
                                     :key="`${si}-${bi}`"
                                     type="button"
-                                    class="btn btn-xs inline-flex flex-col justify-center gap-0.5 border-slate-600 bg-slate-800/80 px-2 py-1 text-[11px] normal-case leading-tight text-slate-200 hover:bg-slate-700"
+                                    class="btn btn-xs inline-flex flex-col justify-center gap-0.5 border-[var(--border-default)] bg-[var(--surface-muted)] px-2 py-1 text-[11px] normal-case leading-tight text-[var(--text-primary)] hover:bg-[var(--surface-elevated)]"
                                     :class="
                                       mjUvQuadrantLabel(btn.label) || mjButtonIsRegenerate(btn)
                                         ? 'min-h-[2.75rem]'
@@ -3906,7 +3924,7 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                                         >{{ btn.emoji }}</span
                                       >
                                       <span
-                                        class="block text-center text-[10px] font-semibold leading-tight text-slate-100"
+                                        class="block text-center text-[10px] font-semibold leading-tight text-[var(--text-primary)]"
                                         >{{ t('drawing.mjRegenerate') }}</span
                                       >
                                     </template>
@@ -3917,7 +3935,7 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                                       </span>
                                       <span
                                         v-if="mjUvQuadrantLabel(btn.label)"
-                                        class="text-[9px] font-medium leading-none text-sky-400/90"
+                                        class="text-[9px] font-medium leading-none text-sky-800 dark:text-sky-400/90"
                                       >
                                         {{ mjUvQuadrantLabel(btn.label) }}
                                       </span>
@@ -3927,7 +3945,7 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                               </template>
                               <template v-else>
                                 <p
-                                  class="mb-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400/95"
+                                  class="mb-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-neutral-700 dark:text-[var(--text-muted)]/95"
                                 >
                                   {{ t('drawing.mjMiscSection') }}
                                 </p>
@@ -3935,14 +3953,14 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                                   <div
                                     v-for="bucket in groupMjMiscButtons(seg.items)"
                                     :key="`${si}-${bucket.group}`"
-                                    class="rounded-lg border border-slate-700/60 bg-[#0d1219]/90 px-2 py-1.5"
+                                    class="rounded-lg border border-[var(--border-default)] bg-[var(--drawing-card-footer)] px-2 py-1.5"
                                   >
-                                    <p class="text-[10px] font-semibold text-slate-200">
+                                    <p class="text-[10px] font-semibold text-[var(--text-primary)]">
                                       {{ t(mjMiscGroupTitleKey(bucket.group)) }}
                                     </p>
                                     <p
                                       v-if="mjMiscGroupIntroKey(bucket.group)"
-                                      class="mt-0.5 line-clamp-2 text-[9px] leading-snug text-slate-500"
+                                      class="mt-0.5 line-clamp-2 text-[9px] leading-snug text-[var(--text-muted)]"
                                       :title="mjMiscGroupIntroText(bucket.group)"
                                     >
                                       {{ mjMiscGroupIntroText(bucket.group) }}
@@ -3973,7 +3991,7 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                                             >{{ btn.emoji }}</span
                                           >
                                           <span
-                                            class="block w-full font-semibold leading-tight text-slate-100"
+                                            class="block w-full font-semibold leading-tight text-[var(--text-primary)]"
                                             :class="
                                               bucket.group === 'pan'
                                                 ? 'text-center text-[10px]'
@@ -3997,7 +4015,7 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                                           </span>
                                           <span
                                             v-if="mjUvQuadrantLabel(btn.label)"
-                                            class="w-full text-[9px] font-medium leading-none text-sky-400/90"
+                                            class="w-full text-[9px] font-medium leading-none text-sky-800 dark:text-sky-400/90"
                                             :class="
                                               bucket.group === 'pan' ? 'text-center' : 'text-left'
                                             "
@@ -4021,11 +4039,11 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                             >
                               <template v-if="seg.type === 'upscale'">
                                 <label
-                                  class="mb-1 block text-[10px] font-semibold uppercase tracking-[0.08em] text-sky-400/95"
+                                  class="mb-1 block text-[10px] font-semibold uppercase tracking-[0.08em] text-sky-800 dark:text-sky-400/95"
                                   >{{ t('drawing.mjUpscaleSection') }}</label
                                 >
                                 <select
-                                  class="select select-bordered select-sm w-full border-slate-600 bg-[#151b26] text-xs text-slate-200"
+                                  class="select select-bordered select-sm w-full border-[var(--border-default)] bg-[var(--drawing-field)] text-xs text-[var(--text-primary)]"
                                   @change="onMjFollowUpSelect($event, String(job.taskId))"
                                 >
                                   <option value="">{{ t('drawing.mjFollowUpPlaceholder') }}</option>
@@ -4043,11 +4061,11 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                               </template>
                               <template v-else-if="seg.type === 'variation'">
                                 <label
-                                  class="mb-1 block text-[10px] font-semibold uppercase tracking-[0.08em] text-violet-400/95"
+                                  class="mb-1 block text-[10px] font-semibold uppercase tracking-[0.08em] text-violet-800 dark:text-violet-400/95"
                                   >{{ t('drawing.mjVariationSection') }}</label
                                 >
                                 <select
-                                  class="select select-bordered select-sm w-full border-slate-600 bg-[#151b26] text-xs text-slate-200"
+                                  class="select select-bordered select-sm w-full border-[var(--border-default)] bg-[var(--drawing-field)] text-xs text-[var(--text-primary)]"
                                   @change="onMjFollowUpSelect($event, String(job.taskId))"
                                 >
                                   <option value="">{{ t('drawing.mjFollowUpPlaceholder') }}</option>
@@ -4065,11 +4083,11 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                               </template>
                               <template v-else>
                                 <label
-                                  class="mb-1 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400/95"
+                                  class="mb-1 block text-[10px] font-semibold uppercase tracking-[0.08em] text-neutral-700 dark:text-[var(--text-muted)]/95"
                                   >{{ t('drawing.mjMiscSection') }}</label
                                 >
                                 <select
-                                  class="select select-bordered select-sm w-full border-slate-600 bg-[#151b26] text-xs text-slate-200"
+                                  class="select select-bordered select-sm w-full border-[var(--border-default)] bg-[var(--drawing-field)] text-xs text-[var(--text-primary)]"
                                   @change="onMjMiscDropdownChange($event, job)"
                                 >
                                   <option value="">{{ t('drawing.mjFollowUpPlaceholder') }}</option>
@@ -4118,13 +4136,16 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                   @click.self="closeMjMiscPolicyModal"
                 >
                   <div
-                    class="w-full max-w-md rounded-xl border border-slate-600 bg-[#121822] p-5 shadow-2xl"
+                    class="w-full max-w-md rounded-xl border border-[var(--border-default)] bg-[var(--drawing-card)] p-5 shadow-2xl"
                     @click.stop
                   >
-                    <h3 id="mj-misc-policy-title" class="text-base font-semibold text-slate-100">
+                    <h3
+                      id="mj-misc-policy-title"
+                      class="text-base font-semibold text-[var(--text-primary)]"
+                    >
                       {{ t('drawing.mjMiscPolicyModalTitle') }}
                     </h3>
-                    <p class="mt-3 text-sm leading-relaxed text-slate-300">
+                    <p class="mt-3 text-sm leading-relaxed text-[var(--text-secondary)]">
                       {{ mjMiscPolicyModalBody }}
                     </p>
                     <button
@@ -4145,19 +4166,21 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
               class="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col gap-4 overflow-y-auto px-4 py-6 custom-scrollbar"
             >
               <div>
-                <h1 class="text-xl font-semibold text-slate-100">{{ t('drawing.title') }}</h1>
-                <p class="mt-1 text-sm text-slate-500">{{ t('drawing.subtitle') }}</p>
+                <h1 class="text-xl font-semibold text-[var(--text-primary)]">
+                  {{ t('drawing.title') }}
+                </h1>
+                <p class="mt-1 text-sm text-[var(--text-muted)]">{{ t('drawing.subtitle') }}</p>
               </div>
 
               <div
-                class="flex flex-col gap-3 rounded-xl border border-slate-700 bg-[#121822] p-4 shadow-inner"
+                class="flex flex-col gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--drawing-card)] p-4 shadow-inner"
               >
-                <label class="text-sm font-medium text-slate-300">{{
+                <label class="text-sm font-medium text-[var(--text-secondary)]">{{
                   t('drawing.selectModel')
                 }}</label>
                 <select
                   v-model="selectedModelKey"
-                  class="select select-bordered w-full border-slate-600 bg-[#151b26] text-slate-100"
+                  class="select select-bordered w-full border-[var(--border-default)] bg-[var(--drawing-field)] text-[var(--text-primary)]"
                   :disabled="modelsLoading || drawingModels.length === 0"
                 >
                   <option v-if="drawingModels.length === 0" value="">
@@ -4168,12 +4191,12 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                   </option>
                 </select>
 
-                <label class="text-sm font-medium text-slate-300">{{
+                <label class="text-sm font-medium text-[var(--text-secondary)]">{{
                   t('drawing.sizeLabel')
                 }}</label>
                 <select
                   v-model="extraSize"
-                  class="select select-bordered w-full border-slate-600 bg-[#151b26] text-slate-100"
+                  class="select select-bordered w-full border-[var(--border-default)] bg-[var(--drawing-field)] text-[var(--text-primary)]"
                 >
                   <option v-for="s in sizeOptions" :key="s.value" :value="s.value">
                     {{ s.label }}
@@ -4181,7 +4204,7 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                 </select>
                 <textarea
                   v-model="promptText"
-                  class="textarea textarea-bordered min-h-[120px] w-full border-slate-600 bg-[#151b26] text-base text-slate-100 placeholder:text-slate-600"
+                  class="textarea textarea-bordered min-h-[120px] w-full border-[var(--border-default)] bg-[var(--drawing-field)] text-base text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
                   :placeholder="t('drawing.promptPlaceholder')"
                   rows="4"
                 />
@@ -4197,19 +4220,33 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
               </div>
 
               <div class="flex flex-col gap-4 pb-8">
-                <h2 class="text-sm font-medium text-slate-500">{{ t('drawing.emptyHint') }}</h2>
-                <div v-if="results.length === 0" class="text-center text-sm text-slate-600">—</div>
+                <h2 class="text-sm font-medium text-[var(--text-muted)]">
+                  {{ t('drawing.emptyHint') }}
+                </h2>
+                <div
+                  v-if="results.length === 0"
+                  class="text-center text-sm text-[var(--text-muted)]"
+                >
+                  —
+                </div>
                 <article
                   v-for="row in results"
                   :key="row.id"
-                  class="rounded-xl border border-slate-700 bg-[#121822] p-4"
+                  class="rounded-xl border border-[var(--border-default)] bg-[var(--drawing-card)] p-4"
                 >
-                  <p class="mb-2 text-xs text-slate-500">{{ row.prompt }}</p>
-                  <div v-if="row.loading" class="flex items-center gap-2 text-sm text-sky-400">
+                  <p class="mb-2 text-xs font-medium text-[var(--text-secondary)]">
+                    {{ row.prompt }}
+                  </p>
+                  <div
+                    v-if="row.loading"
+                    class="flex items-center gap-2 text-sm text-sky-800 dark:text-sky-400"
+                  >
                     <span class="loading loading-spinner loading-sm" />
                     {{ t('drawing.generating') }}
                   </div>
-                  <p v-else-if="row.error" class="text-sm text-rose-400">{{ row.error }}</p>
+                  <p v-else-if="row.error" class="text-sm text-rose-700 dark:text-rose-400">
+                    {{ row.error }}
+                  </p>
                   <div v-else class="flex flex-col gap-3">
                     <div
                       v-if="extractImageUrls(row.text).length"
@@ -4219,7 +4256,7 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                         v-for="(url, uidx) in extractImageUrls(row.text)"
                         :key="uidx"
                         type="button"
-                        class="block w-full cursor-zoom-in overflow-hidden rounded-lg border border-slate-600 p-0 text-left outline-none ring-sky-500/40 focus-visible:ring-2"
+                        class="block w-full cursor-zoom-in overflow-hidden rounded-lg border-[var(--border-default)] p-0 text-left outline-none ring-sky-500/40 focus-visible:ring-2"
                         @click="openStreamResultImagePreview(url, row, uidx)"
                       >
                         <img :src="url" class="h-auto max-h-[420px] w-full object-contain" alt="" />
@@ -4227,7 +4264,7 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                     </div>
                     <pre
                       v-if="row.text && !extractImageUrls(row.text).length"
-                      class="whitespace-pre-wrap break-words text-sm text-slate-200"
+                      class="whitespace-pre-wrap break-words text-sm text-[var(--text-primary)]"
                       >{{ row.text }}</pre
                     >
                   </div>
