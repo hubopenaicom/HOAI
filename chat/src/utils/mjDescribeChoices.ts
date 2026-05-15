@@ -72,7 +72,8 @@ function pickDescribePromptBlob(task: Record<string, unknown>): string {
   for (const k of keys) {
     const v = task[k]
     if (typeof v === 'string' && v.trim().length > 12) return v.trim()
-    if (pr && typeof pr[k] === 'string' && String(pr[k]).trim().length > 12) return String(pr[k]).trim()
+    if (pr && typeof pr[k] === 'string' && String(pr[k]).trim().length > 12)
+      return String(pr[k]).trim()
   }
   return ''
 }
