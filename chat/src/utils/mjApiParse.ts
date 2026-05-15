@@ -370,6 +370,38 @@ export function collectMjImageUrls(task: Record<string, unknown> | undefined): s
 }
 
 /**
+ * Describe 结果弹窗顶部「参考图」：部分上游把 `imageUrl` 设为低清占位或品牌缩略图，
+ * 而将可用预览放在 `imageUrls` 或渐进链的末帧；本函数按该顺序择优。
+ */
+export function pickMjDescribeModalHeroImageUrl(task: Record<string, unknown> | undefined): string | undefined {
+  if (!task) return undefined
+  const props = task.properties as Record<string, unknown> | undefined
+  const listRaw = task.imageUrls ?? task.image_urls ?? props?.imageUrls ?? props?.image_urls
+  const urlOk = (s: string) => /^https?:\/\//i.test(s.trim())
+
+  if (Array.isArray(listRaw)) {
+    const urls = [
+      ...new Set(
+        listRaw
+          .filter((u): u is string => typeof u === 'string' && urlOk(u))
+          .map(u => u.trim())
+      ),
+    ]
+    if (urls.length >= 1) {
+      const iu = String(task.imageUrl ?? task.image_url ?? props?.imageUrl ?? props?.image_url ?? '').trim()
+      /** 多格分图且顶层主链与格子 URL 均不同 → 顶层常为整张四宫合成图 */
+      if (urls.length >= 2 && iu && urlOk(iu) && !urls.includes(iu)) return iu
+      return urls[0]
+    }
+  }
+
+  const chain = collectMjImageProgressiveChain(task)
+  const last = chain.length ? String(chain[chain.length - 1] ?? '').trim() : ''
+  if (last && urlOk(last)) return last
+  return collectMjImageUrls(task)[0]
+}
+
+/**
  * 多图分槽（常见 2×2 四宫）：仅当 imageUrls 数组有 2 条及以上有效 URL 时返回，否则 null（走渐进单图链）。
  */
 export function collectMjImageMultiSlotForGrid(
