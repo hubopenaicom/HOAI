@@ -7,8 +7,13 @@ const props = withDefaults(
     src: string
     /** 任务卡片内避免 lazy 导致完成态仍长时间空白 */
     eager?: boolean
+    /**
+     * 在固定高度父容器内完整显示（max-h + max-w + object-contain），
+     * 避免极端宽高比时 `w-full h-auto` 被裁成细条或半张图。
+     */
+    bounded?: boolean
   }>(),
-  { eager: true }
+  { eager: true, bounded: false }
 )
 
 const loaded = ref(false)
@@ -67,10 +72,22 @@ const tickLabel = computed(() => {
 const showSharpBadge = computed(
   () => loaded.value && !broken.value && sharpMs.value != null && sharpMs.value >= 120
 )
+
+const rootClass = computed(() =>
+  props.bounded
+    ? 'relative flex h-full min-h-0 w-full items-center justify-center overflow-hidden bg-[var(--drawing-card-media)]'
+    : 'relative w-full overflow-hidden bg-[var(--drawing-card-media)]'
+)
+
+const imgClass = computed(() =>
+  props.bounded
+    ? 'relative z-0 mx-auto block h-auto max-h-full w-auto max-w-full object-contain align-middle transition-opacity duration-200'
+    : 'relative z-0 block h-auto w-full object-contain align-bottom transition-opacity duration-200'
+)
 </script>
 
 <template>
-  <div class="relative w-full overflow-hidden bg-[var(--drawing-card-media)]">
+  <div :class="rootClass">
     <div
       v-if="!loaded || broken"
       class="pointer-events-none absolute inset-0 z-[1] flex flex-col items-center justify-center gap-1 bg-[var(--drawing-image-overlay)] px-2 text-center"
@@ -99,8 +116,7 @@ const showSharpBadge = computed(
     </div>
     <img
       :src="src"
-      class="relative z-0 block h-auto w-full object-contain align-bottom transition-opacity duration-200"
-      :class="loaded && !broken ? 'opacity-100' : 'opacity-0'"
+      :class="[imgClass, loaded && !broken ? 'opacity-100' : 'opacity-0']"
       :loading="eager ? 'eager' : 'lazy'"
       decoding="async"
       fetchpriority="high"
