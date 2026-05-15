@@ -393,6 +393,129 @@ export function buildMjFollowUpPromptLabel(
 }
 
 /**
+ * submit/modal 提示词清洗（与后端 `sanitizeMjSubmitModalPromptLine` 对齐）：
+ * 去掉行首 1️⃣ / 1、 / 1. / 1 等序号（可叠写），避免上游误解析。
+ */
+export function stripMjDescribeLeadImageUrl(s: string): string {
+  const t = String(s ?? '').trim()
+  const m = /^(https?:\/\/\S+)\s+(.+)$/i.exec(t)
+  if (m && m[2].trim().length > 8) return m[2].trim()
+  return t
+}
+
+const MJ_DESCRIBE_SEG_SPLIT =
+  /(?:^|[\r\n]+|\s)(?:(?:[1-4](?:\uFE0F\u20E3|\uFE0F?\u20E3))|(?:[①②③④])|[1-4]\s*[.\u3002\uff0e\uff09\):：、])\s*/gu
+
+export function hasMjDescribeMultiSpellMarkers(s: string): boolean {
+  const raw = String(s ?? '')
+  const re = new RegExp(MJ_DESCRIBE_SEG_SPLIT.source, 'gu')
+  let n = 0
+  while (re.exec(raw)) {
+    n++
+    if (n >= 2) return true
+  }
+  return false
+}
+
+export function splitMjDescribeInlineSegments(blob: string): string[] {
+  const raw = String(blob ?? '')
+    .replace(/[\uFEFF\u200B-\u200D\u2060]/g, '')
+    .trim()
+  if (!raw) return []
+  const parts = raw.split(MJ_DESCRIBE_SEG_SPLIT)
+  const out = parts
+    .map(p => stripMjDescribeLeadImageUrl(p.replace(/\s+/g, ' ').trim()))
+    .filter(p => p.length > 8)
+  if (out.length) return out
+  const one = stripMjDescribeLeadImageUrl(raw.replace(/\s+/g, ' ').trim())
+  return one ? [one] : []
+}
+
+function normalizeMjDescribeSpellHint(h: string): string {
+  return sanitizeMjSubmitModalPromptLine(h).toLowerCase().replace(/\s+/g, ' ').trim()
+}
+
+export function pickMjDescribeSpellSegment(blob: string, hint?: string): string {
+  const segs = splitMjDescribeInlineSegments(blob)
+  if (segs.length <= 1) {
+    return segs[0] || stripMjDescribeLeadImageUrl(String(blob ?? '').trim())
+  }
+  const h = hint ? normalizeMjDescribeSpellHint(hint) : ''
+  if (h) {
+    let best = segs[0]
+    let bestScore = -1
+    for (const seg of segs) {
+      const n = normalizeMjDescribeSpellHint(seg)
+      if (!n) continue
+      let score = 0
+      if (n === h) score = 10000
+      else if (n.startsWith(h) || h.startsWith(n)) score = 5000 + Math.min(n.length, h.length)
+      else if (n.includes(h) || h.includes(n)) score = 3000 + Math.min(n.length, h.length)
+      else {
+        const words = h.split(/\s+/).filter(w => w.length > 3)
+        score = words.filter(w => n.includes(w)).length * 50
+      }
+      if (score > bestScore) {
+        bestScore = score
+        best = seg
+      }
+    }
+    if (bestScore > 0) return best
+  }
+  return segs[0]
+}
+
+export function sanitizeMjSubmitModalPromptLine(raw: string): string {
+  let s = String(raw ?? '')
+    .replace(/[\uFEFF\u200B-\u200D\u2060]/g, '')
+    .trim()
+  if (!s) return s
+  s = s.split(/\r?\n/)[0]?.trim() ?? s
+  for (let i = 0; i < 16; i++) {
+    const before = s
+    s = s.replace(/^\s*[\u2460-\u2468]\s*/u, '')
+    s = s.replace(/^\s*\d(?:\uFE0F\u20E3|\uFE0F?\u20E3)\s*/u, '')
+    s = s.replace(/^\s*\d{1,2}[.\u3002\uff0e\uff09\):：、]\s*/u, '').trim()
+    s = s.replace(/^\s*\d{1,2}[.\u3002\uff0e](?=\S)/u, '').trim()
+    s = s.replace(/^\s*[1-4]\s+/, '').trim()
+    if (s === before) break
+  }
+  return s.replace(/\s+/g, ' ').trim()
+}
+
+/** submit/modal：Describe 多咒语录并取单条 → 剥序号 → 逗号 shield（与后端 `prepareMjSubmitModalPromptLine` 对齐） */
+export function prepareMjSubmitModalPromptLine(
+  raw: string,
+  hint?: string,
+  opts?: { keepMjFlags?: boolean },
+): string {
+  let blob = String(raw ?? '')
+    .replace(/[\uFEFF\u200B-\u200D\u2060]/g, '')
+    .trim()
+  if (!blob) return blob
+  blob = stripMjDescribeLeadImageUrl(blob)
+  const picked =
+    hasMjDescribeMultiSpellMarkers(blob) || splitMjDescribeInlineSegments(blob).length > 1
+      ? pickMjDescribeSpellSegment(blob, hint)
+      : blob.split(/\r?\n/)[0]?.trim() || blob
+  const cleaned = sanitizeMjSubmitModalPromptLine(picked)
+  let out = shieldMjModalAsciiCommasOutsideMjFlags(cleaned)
+  if (!opts?.keepMjFlags && !/\s--zoom\s/i.test(out)) {
+    out = stripMjModalPromptMjFlags(out)
+  }
+  return out
+}
+
+/** 去掉 prompt 中首个 MJ 参数段；Custom Zoom 须保留 `--zoom` 时不要调用 */
+export function stripMjModalPromptMjFlags(line: string): string {
+  const s = String(line ?? '').trim()
+  if (!s) return s
+  const m = /\s--(?=[a-zA-Z])/i.exec(s)
+  if (!m) return s.replace(/\s+/g, ' ').trim()
+  return s.slice(0, m.index).replace(/\s+/g, ' ').trim()
+}
+
+/**
  * Custom Zoom 提交 modal：与后端 `mj-outpaint-cz.stripMjModelVersionFlags` 一致。
  * 含 --zoom 的 prompt 若再带 --v/--niji 等，部分上游会在执行期报 invalid_parameter，故先剥离。
  */
@@ -409,4 +532,17 @@ export function stripMjModalPromptModelVersionFlags(line: string): string {
     .replace(/(^|\s)--style\s+raw\b/gi, '$1')
     .replace(/\s{2,}/g, ' ')
     .trim()
+}
+
+/**
+ * 与后端 `shieldMjModalAsciiCommasOutsideMjFlags` 一致：部分聚合按英文逗号拆段误把词当非法参数。
+ */
+export function shieldMjModalAsciiCommasOutsideMjFlags(line: string): string {
+  const s = String(line ?? '')
+  if (!s) return s
+  const re = /\s--(?=[a-zA-Z])/i
+  const m = re.exec(s)
+  if (!m) return s.replace(/,/g, '\uFF0C')
+  const head = s.slice(0, m.index).replace(/,/g, '\uFF0C')
+  return head + s.slice(m.index)
 }
