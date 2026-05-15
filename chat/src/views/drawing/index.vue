@@ -207,6 +207,29 @@ watch(mjFollowUpLayout, v => {
     /* ignore */
   }
 })
+
+/** Midjourney「下拉选择」模式：自定义浮层（对齐任务卡横向图标 + 算力提示） */
+const mjFuDropOpenKey = ref<string | null>(null)
+
+watch(mjFuDropOpenKey, (key, _prev, onCleanup) => {
+  if (!key) return
+  const onDown = (ev: PointerEvent) => {
+    const node = ev.target as HTMLElement | null
+    const anchor = node?.closest?.('[data-drop-anchor]') as HTMLElement | null
+    if (anchor?.getAttribute('data-drop-anchor') === key) return
+    mjFuDropOpenKey.value = null
+  }
+  const onKey = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') mjFuDropOpenKey.value = null
+  }
+  window.addEventListener('pointerdown', onDown, true)
+  window.addEventListener('keydown', onKey, true)
+  onCleanup(() => {
+    window.removeEventListener('pointerdown', onDown, true)
+    window.removeEventListener('keydown', onKey, true)
+  })
+})
+
 const persistMjJobsReady = ref(false)
 
 const aspectKeyToSuffix: Record<string, string> = {
@@ -1401,7 +1424,10 @@ function startPollTask(taskId: string, job: MjJobItem) {
       } else if (outcome.phase === 'done_ok') {
         const rows = extractMjDescribeChoiceRows(task, { promptLabel: live.promptLabel })
         if (rows.length && !describeResultModalAutoOpened.value[live.localId]) {
-          describeResultModalAutoOpened.value = { ...describeResultModalAutoOpened.value, [live.localId]: true }
+          describeResultModalAutoOpened.value = {
+            ...describeResultModalAutoOpened.value,
+            [live.localId]: true,
+          }
           describeResultJob.value = live
           describeResultRows.value = rows
           void nextTick(() => {
@@ -2505,26 +2531,6 @@ function mjFollowUpOptionValue(btn: MjFollowBtn): string {
   return `__mj_nocid:${encodeURIComponent(lab || 'x')}`
 }
 
-function mjResolveButtonByFollowUpValue(
-  task: Record<string, unknown> | undefined,
-  v: string
-): MjFollowBtn | undefined {
-  if (!task || !v) return undefined
-  if (v.startsWith('__mj_describe_btn:')) {
-    const lab = v.slice('__mj_describe_btn:'.length)
-    return mjButtons(task).find(b => String(b.label || '').trim() === lab)
-  }
-  if (v.startsWith('__mj_nocid:')) {
-    try {
-      const lab = decodeURIComponent(v.slice('__mj_nocid:'.length))
-      return mjButtons(task).find(b => String(b.label || '').trim() === lab)
-    } catch {
-      return undefined
-    }
-  }
-  return mjButtons(task).find(b => String(b.customId || '').trim() === v)
-}
-
 /** U1–U4 / V1–V4 与四宫格对应（Midjourney 约定） */
 function mjUvQuadrantLabel(label: string): string {
   const m = /^[UV]([1-4])$/i.exec(String(label).trim())
@@ -2558,6 +2564,137 @@ function mjButtonSegmentGroups(
   return out
 }
 
+type MjFuBarMenuId = 'upscale' | 'vary' | 'pan' | 'expand' | 'rest'
+
+function mjFuPanSortKey(btn: MjFollowBtn): number {
+  const h = mjMiscButtonHintKey(btn)
+  const m: Record<string, number> = {
+    'drawing.mjHintPanLeft': 1,
+    'drawing.mjHintPanRight': 2,
+    'drawing.mjHintPanUp': 3,
+    'drawing.mjHintPanDown': 4,
+  }
+  return h ? (m[h] ?? 99) : 99
+}
+
+function mjFuExpandSortKey(btn: MjFollowBtn): number {
+  const h = mjMiscButtonHintKey(btn)
+  const m: Record<string, number> = {
+    'drawing.mjHintZoomOut15x': 10,
+    'drawing.mjHintZoomOut2x': 20,
+    'drawing.mjHintZoomOutGeneric': 35,
+    'drawing.mjHintCustomZoom': 40,
+    'drawing.mjHintVaryStrongFollowup': 50,
+    'drawing.mjHintVarySubtleFollowup': 60,
+    'drawing.mjHintVaryRegion': 70,
+  }
+  return h ? (m[h] ?? 80) : 80
+}
+
+/**
+ * 下拉模式菜单拆分：与参考 UI 一致——放大（U + 精细放大）、微调（V）、平移、扩图变幻（变焦 + 变体/局部）、其它。
+ */
+function mjFuBarMenus(job: MjJobItem): Array<{ id: MjFuBarMenuId; items: MjFollowBtn[] }> {
+  const task = job.task
+  const segs = mjButtonSegmentGroups(task)
+  const refine: MjFollowBtn[] = []
+  const pan: MjFollowBtn[] = []
+  const zoom: MjFollowBtn[] = []
+  const varied: MjFollowBtn[] = []
+  const rest: MjFollowBtn[] = []
+  for (const seg of segs) {
+    if (seg.type !== 'misc') continue
+    for (const bucket of groupMjMiscButtons(seg.items)) {
+      if (bucket.group === 'refineUpscale') refine.push(...bucket.items)
+      else if (bucket.group === 'pan') pan.push(...bucket.items)
+      else if (bucket.group === 'zoomOut') zoom.push(...bucket.items)
+      else if (bucket.group === 'varyEdit') varied.push(...bucket.items)
+      else rest.push(...bucket.items)
+    }
+  }
+  pan.sort((a, b) => mjFuPanSortKey(a) - mjFuPanSortKey(b))
+  const expand = [...zoom, ...varied].sort((a, b) => mjFuExpandSortKey(a) - mjFuExpandSortKey(b))
+
+  const menus: Array<{ id: MjFuBarMenuId; items: MjFollowBtn[] }> = []
+  const upscaleSeg = segs.find(s => s.type === 'upscale')
+  const upscaleItems = [...(upscaleSeg?.items || []), ...refine]
+  if (upscaleItems.length) menus.push({ id: 'upscale', items: upscaleItems })
+
+  const varySeg = segs.find(s => s.type === 'variation')
+  if (varySeg?.items?.length) menus.push({ id: 'vary', items: varySeg.items })
+
+  if (pan.length) menus.push({ id: 'pan', items: pan })
+  if (expand.length) menus.push({ id: 'expand', items: expand })
+  if (rest.length) menus.push({ id: 'rest', items: rest })
+
+  return menus
+}
+
+function mjFuDropKey(job: MjJobItem, menuId: MjFuBarMenuId): string {
+  return `${job.localId}__${menuId}`
+}
+
+function toggleMjFuDrop(job: MjJobItem, menuId: MjFuBarMenuId) {
+  const k = mjFuDropKey(job, menuId)
+  mjFuDropOpenKey.value = mjFuDropOpenKey.value === k ? null : k
+}
+
+function mjFuTriggerTitle(menuId: MjFuBarMenuId): string {
+  if (menuId === 'upscale') return t('drawing.mjFuTriggerUpscale')
+  if (menuId === 'vary') return t('drawing.mjFuTriggerVary')
+  if (menuId === 'pan') return t('drawing.mjFuTriggerPan')
+  if (menuId === 'expand') return t('drawing.mjFuTriggerExpand')
+  return t('drawing.mjFuTriggerMore')
+}
+
+function mjFuCostLine(job: MjJobItem): string {
+  const n = job.deductCharged
+  if (n == null || !Number.isFinite(Number(n))) return ''
+  return t('drawing.mjFuCostWrap', { n: Math.round(Number(n)) })
+}
+
+function mjFuRowLabel(job: MjJobItem, btn: MjFollowBtn, menuId: MjFuBarMenuId): string {
+  const L = String(btn.label || '').trim()
+  if ((menuId === 'upscale' || menuId === 'vary') && /^[UV][1-4]$/i.test(L)) {
+    const q = mjUvQuadrantLabel(L)
+    if (q) return q
+  }
+  if (menuId === 'pan') {
+    const h = mjMiscButtonHintKey(btn)
+    const m: Record<string, string> = {
+      'drawing.mjHintPanLeft': 'drawing.mjPanShortLeft',
+      'drawing.mjHintPanRight': 'drawing.mjPanShortRight',
+      'drawing.mjHintPanUp': 'drawing.mjPanShortUp',
+      'drawing.mjHintPanDown': 'drawing.mjPanShortDown',
+    }
+    if (h && m[h]) return t(m[h])
+  }
+  if (menuId === 'upscale') {
+    const h = mjMiscButtonHintKey(btn)
+    if (h === 'drawing.mjHintUpscaleSubtle') return t('drawing.mjDropLabelSubtleUpscale2x')
+    if (h === 'drawing.mjHintUpscaleCreative') return t('drawing.mjDropLabelCreativeUpscale2x')
+  }
+  if (menuId === 'expand' || menuId === 'rest') {
+    const h = mjMiscButtonHintKey(btn)
+    const em: Record<string, string> = {
+      'drawing.mjHintZoomOut15x': 'drawing.mjDropZoom15',
+      'drawing.mjHintZoomOut2x': 'drawing.mjDropZoom2',
+      'drawing.mjHintZoomOutGeneric': 'drawing.mjDropZoomGeneric',
+      'drawing.mjHintCustomZoom': 'drawing.mjDropCustomZoom',
+      'drawing.mjHintVaryStrongFollowup': 'drawing.mjDropVaryStrong',
+      'drawing.mjHintVarySubtleFollowup': 'drawing.mjDropVarySubtle',
+      'drawing.mjHintVaryRegion': 'drawing.mjDropVaryRegion',
+      'drawing.mjHintUpscaleSubtle': 'drawing.mjDropLabelSubtleUpscale2x',
+      'drawing.mjHintUpscaleCreative': 'drawing.mjDropLabelCreativeUpscale2x',
+    }
+    if (h && em[h]) return t(em[h])
+  }
+  const row = mjDescribeSpellRowForCard(job, btn)
+  const base = mjMiscBtnDisplayPrimary(btn)
+  if (row) return `${base} · ${t('drawing.mjDescribeSpellTag', { n: row.index })}`
+  return mjMiscOptionLabel(btn)
+}
+
 /** 刷新 / Reroll 类按钮（与 U/V 编号按钮区分） */
 function mjButtonIsRegenerate(btn: MjFollowBtn): boolean {
   const L = String(btn.label || '').trim()
@@ -2569,21 +2706,6 @@ function mjButtonIsRegenerate(btn: MjFollowBtn): boolean {
   if (refreshRe.test(em)) return true
   if (!em && refreshRe.test(L)) return true
   return false
-}
-
-function onMjFollowUpSelect(ev: Event, taskId: string) {
-  const el = ev.target as HTMLSelectElement
-  const v = el.value
-  if (!v) return
-  const src = mjJobs.value.find(j => String(j.taskId) === taskId)
-  const btn = src?.task ? mjResolveButtonByFollowUpValue(src.task, v) : undefined
-  if (src && btn && handleMjDescribeFollowUpClick(src, btn)) {
-    el.value = ''
-    return
-  }
-  const cid = btn ? String(btn.customId || '').trim() : v
-  void onMjButtonClick(taskId, cid || v, src, btn)
-  el.value = ''
 }
 
 function mjMiscHintText(btn: MjFollowBtn): string {
@@ -2751,7 +2873,9 @@ const varyRegionFallbackPrompt = computed(() => {
   const hint = mjJobImaginePromptLabel(job) || job?.promptLabel?.trim() || ''
   const fromLabel = hint.length >= 12 ? prepareMjSubmitModalPromptLine(hint) : ''
   if (fromLabel) return fromLabel
-  return mjTaskPromptForModal(snap ?? undefined, hint) || mjTaskPromptForModal(job?.task, hint) || ''
+  return (
+    mjTaskPromptForModal(snap ?? undefined, hint) || mjTaskPromptForModal(job?.task, hint) || ''
+  )
 })
 
 watch(varyRegionOpen, v => {
@@ -2892,30 +3016,14 @@ function handleMjMiscButtonClick(job: MjJobItem, btn: MjFollowBtn) {
   void onMjButtonClick(String(job.taskId), btn.customId, job, btn)
 }
 
-function onMjMiscDropdownChange(ev: Event, job: MjJobItem) {
-  const el = ev.target as HTMLSelectElement
-  const raw = el.value
-  if (!raw) return
-  el.value = ''
-  const btn = mjResolveButtonByFollowUpValue(job.task, raw)
-  const customId = btn ? String(btn.customId || '').trim() : raw
-  const block =
-    (btn ? mjMiscButtonPolicyBlockReason(btn) : null) ??
-    mjMiscPolicyBlockFromProbeText(String(customId || ''))
-  if (block) {
-    openMjMiscPolicyModal(block)
+function onMjFuBarItemClick(job: MjJobItem, btn: MjFollowBtn) {
+  mjFuDropOpenKey.value = null
+  const L = String(btn.label || '').trim()
+  if (/^[UV][1-4]$/i.test(L)) {
+    onMjUvOrDescribeFollowClick(job, btn)
     return
   }
-  if (btn && handleMjDescribeFollowUpClick(job, btn)) return
-  if (btn && mjButtonIsVaryRegion(btn)) {
-    void beginVaryRegionFlow(job, customId || raw, 'vary-region')
-    return
-  }
-  if (btn && mjButtonIsCustomZoom(btn)) {
-    void beginVaryRegionFlow(job, customId || raw, 'custom-zoom')
-    return
-  }
-  void onMjButtonClick(String(job.taskId), customId || raw, job, btn)
+  handleMjMiscButtonClick(job, btn)
 }
 
 async function onMjVaryRegionSubmitted(res: unknown) {
@@ -3123,7 +3231,10 @@ function mjDescribeRowsForJob(job: MjJobItem): MjDescribeChoiceRow[] {
   return extractMjDescribeChoiceRows(job.task, { promptLabel: job.promptLabel })
 }
 
-function mjDescribeSpellRowForCard(job: MjJobItem, btn: MjFollowBtn): MjDescribeChoiceRow | undefined {
+function mjDescribeSpellRowForCard(
+  job: MjJobItem,
+  btn: MjFollowBtn
+): MjDescribeChoiceRow | undefined {
   return findMjDescribeChoiceRowForButton(job.task, btn, { promptLabel: job.promptLabel })
 }
 
@@ -4190,7 +4301,8 @@ function handleDescribeResultRowCopyPrompt(text: string) {
                                                 : 'text-left'
                                             "
                                           >
-                                            <template v-if="btn.emoji">{{ btn.emoji }}&nbsp;</template
+                                            <template v-if="btn.emoji"
+                                              >{{ btn.emoji }}&nbsp;</template
                                             >{{ mjMiscBtnDisplayPrimary(btn) }}
                                             <template v-if="mjDescribeSpellRowForCard(job, btn)">
                                               <span
@@ -4224,82 +4336,149 @@ function handleDescribeResultRowCopyPrompt(text: string) {
                           </template>
 
                           <template v-else>
-                            <div
-                              v-for="(seg, si) in mjButtonSegmentGroups(job.task)"
-                              :key="`drop-${si}`"
-                              class="mb-2 last:mb-0"
-                            >
-                              <template v-if="seg.type === 'upscale'">
-                                <label
-                                  class="mb-1 block text-[10px] font-semibold uppercase tracking-[0.08em] text-sky-800 dark:text-sky-400/95"
-                                  >{{ t('drawing.mjUpscaleSection') }}</label
+                            <div class="flex flex-wrap items-stretch gap-2">
+                              <div
+                                v-for="menu in mjFuBarMenus(job)"
+                                :key="`${job.localId}-fu-${menu.id}`"
+                                class="relative shrink-0"
+                                :data-drop-anchor="mjFuDropKey(job, menu.id)"
+                              >
+                                <button
+                                  type="button"
+                                  class="inline-flex h-8 min-w-0 max-w-[9.5rem] items-center gap-1 rounded-md border px-2 text-[11px] font-medium transition-colors"
+                                  :class="
+                                    mjFuDropOpenKey === mjFuDropKey(job, menu.id)
+                                      ? 'border-sky-400/90 bg-sky-950/35 text-sky-200 shadow-[0_0_0_1px_rgba(56,189,248,0.25)]'
+                                      : 'border-[var(--border-default)] bg-[var(--drawing-field)]/90 text-[var(--text-primary)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-elevated)]'
+                                  "
+                                  :aria-expanded="mjFuDropOpenKey === mjFuDropKey(job, menu.id)"
+                                  aria-haspopup="menu"
+                                  @click.stop="toggleMjFuDrop(job, menu.id)"
                                 >
-                                <select
-                                  class="select select-bordered select-sm w-full border-[var(--border-default)] bg-[var(--drawing-field)] text-xs text-[var(--text-primary)]"
-                                  @change="onMjFollowUpSelect($event, String(job.taskId))"
-                                >
-                                  <option value="">{{ t('drawing.mjFollowUpPlaceholder') }}</option>
-                                  <option
-                                    v-for="(btn, bi) in seg.items"
-                                    :key="`${si}-${bi}`"
-                                    :value="mjFollowUpOptionValue(btn)"
+                                  <span
+                                    class="inline-flex h-4 w-4 shrink-0 items-center justify-center text-current opacity-90"
+                                    aria-hidden="true"
                                   >
-                                    {{ btn.label
-                                    }}<template v-if="mjUvQuadrantLabel(btn.label)"
-                                      >&nbsp;· {{ mjUvQuadrantLabel(btn.label) }}</template
+                                    <!-- 放大 -->
+                                    <svg
+                                      v-if="menu.id === 'upscale'"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      stroke-width="2"
+                                      class="h-4 w-4"
                                     >
-                                  </option>
-                                </select>
-                              </template>
-                              <template v-else-if="seg.type === 'variation'">
-                                <label
-                                  class="mb-1 block text-[10px] font-semibold uppercase tracking-[0.08em] text-violet-800 dark:text-violet-400/95"
-                                  >{{ t('drawing.mjVariationSection') }}</label
-                                >
-                                <select
-                                  class="select select-bordered select-sm w-full border-[var(--border-default)] bg-[var(--drawing-field)] text-xs text-[var(--text-primary)]"
-                                  @change="onMjFollowUpSelect($event, String(job.taskId))"
-                                >
-                                  <option value="">{{ t('drawing.mjFollowUpPlaceholder') }}</option>
-                                  <option
-                                    v-for="(btn, bi) in seg.items"
-                                    :key="`${si}-${bi}`"
-                                    :value="mjFollowUpOptionValue(btn)"
-                                  >
-                                    {{ btn.label
-                                    }}<template v-if="mjUvQuadrantLabel(btn.label)"
-                                      >&nbsp;· {{ mjUvQuadrantLabel(btn.label) }}</template
+                                      <path
+                                        stroke-linecap="round"
+                                        d="M11 19a8 8 0 100-16 8 8 0 000 16zm8-2l4 4"
+                                      />
+                                      <path stroke-linecap="round" d="M11 11h2v2" />
+                                    </svg>
+                                    <!-- 微调 / 扩图变幻：魔棒感 -->
+                                    <svg
+                                      v-else-if="menu.id === 'vary' || menu.id === 'expand'"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      stroke-width="2"
+                                      class="h-4 w-4"
                                     >
-                                  </option>
-                                </select>
-                              </template>
-                              <template v-else>
-                                <label
-                                  class="mb-1 block text-[10px] font-semibold uppercase tracking-[0.08em] text-neutral-700 dark:text-[var(--text-muted)]/95"
-                                  >{{ t('drawing.mjMiscSection') }}</label
-                                >
-                                <select
-                                  class="select select-bordered select-sm w-full border-[var(--border-default)] bg-[var(--drawing-field)] text-xs text-[var(--text-primary)]"
-                                  @change="onMjMiscDropdownChange($event, job)"
-                                >
-                                  <option value="">{{ t('drawing.mjFollowUpPlaceholder') }}</option>
-                                  <template
-                                    v-for="bucket in groupMjMiscButtons(seg.items)"
-                                    :key="`${si}-${bucket.group}`"
+                                      <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        d="M4 20l4.5-12L16 4l4 4-4 7.5L4 20z"
+                                      />
+                                      <path stroke-linecap="round" d="M9.5 9.5L14 14" />
+                                    </svg>
+                                    <!-- 平移 -->
+                                    <svg
+                                      v-else-if="menu.id === 'pan'"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      stroke-width="2"
+                                      class="h-4 w-4"
+                                    >
+                                      <path stroke-linecap="round" d="M12 5v14M5 12h14" />
+                                      <path
+                                        stroke-linecap="round"
+                                        d="M7 9L5 12l2 3M17 9l2 3-2 3M9 7l3-2 3 2M9 17l3 2 3-2"
+                                      />
+                                    </svg>
+                                    <!-- 其它 -->
+                                    <svg
+                                      v-else
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      stroke-width="2"
+                                      class="h-4 w-4"
+                                    >
+                                      <circle
+                                        cx="5"
+                                        cy="12"
+                                        r="1.5"
+                                        fill="currentColor"
+                                        stroke="none"
+                                      />
+                                      <circle
+                                        cx="12"
+                                        cy="12"
+                                        r="1.5"
+                                        fill="currentColor"
+                                        stroke="none"
+                                      />
+                                      <circle
+                                        cx="19"
+                                        cy="12"
+                                        r="1.5"
+                                        fill="currentColor"
+                                        stroke="none"
+                                      />
+                                    </svg>
+                                  </span>
+                                  <span class="min-w-0 truncate">{{
+                                    mjFuTriggerTitle(menu.id)
+                                  }}</span>
+                                  <svg
+                                    class="h-3 w-3 shrink-0 opacity-70"
+                                    viewBox="0 0 20 20"
+                                    fill="currentColor"
+                                    aria-hidden="true"
                                   >
-                                    <optgroup :label="t(mjMiscGroupTitleKey(bucket.group))">
-                                      <option
-                                        v-for="(btn, bi) in bucket.items"
-                                        :key="`${si}-${bucket.group}-${bi}`"
-                                        :value="mjFollowUpOptionValue(btn)"
-                                        :title="mjMiscBtnTooltip(btn)"
-                                      >
-                                        {{ mjMiscOptionLabelForJob(job, btn) }}
-                                      </option>
-                                    </optgroup>
-                                  </template>
-                                </select>
-                              </template>
+                                    <path
+                                      fill-rule="evenodd"
+                                      d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                                      clip-rule="evenodd"
+                                    />
+                                  </svg>
+                                </button>
+                                <div
+                                  v-show="mjFuDropOpenKey === mjFuDropKey(job, menu.id)"
+                                  class="absolute left-0 top-[calc(100%+4px)] z-[80] min-w-[220px] overflow-hidden rounded-md border border-[var(--border-default)] bg-[var(--drawing-card)] py-1 shadow-xl ring-1 ring-black/15 dark:ring-white/10"
+                                  role="menu"
+                                  @click.stop
+                                >
+                                  <button
+                                    v-for="(btn, bi) in menu.items"
+                                    :key="`${menu.id}-${bi}-${mjFollowUpOptionValue(btn)}`"
+                                    type="button"
+                                    role="menuitem"
+                                    class="flex w-full items-center gap-2 px-3 py-2.5 text-left text-[12px] leading-snug text-[var(--text-primary)] hover:bg-[var(--surface-muted)] active:bg-[var(--surface-muted)]"
+                                    :title="mjMiscBtnTooltip(btn)"
+                                    @click.stop="onMjFuBarItemClick(job, btn)"
+                                  >
+                                    <span class="min-w-0 flex-1 truncate">{{
+                                      mjFuRowLabel(job, btn, menu.id)
+                                    }}</span>
+                                    <span
+                                      v-if="mjFuCostLine(job)"
+                                      class="shrink-0 whitespace-nowrap text-[11px] text-[var(--text-muted)] tabular-nums"
+                                      >{{ mjFuCostLine(job) }}</span
+                                    >
+                                  </button>
+                                </div>
+                              </div>
                             </div>
                           </template>
                         </div>
