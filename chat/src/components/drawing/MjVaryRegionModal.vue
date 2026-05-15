@@ -15,7 +15,10 @@ import {
   parseMjSubmitBody,
   mjTranslateKnownDrawingError,
 } from '@/utils/mjApiParse'
-import { stripMjModalPromptModelVersionFlags } from '@/utils/mjFollowUpUi'
+import {
+  prepareMjSubmitModalPromptLine,
+  stripMjModalPromptModelVersionFlags,
+} from '@/utils/mjFollowUpUi'
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 
 const props = defineProps<{
@@ -26,6 +29,8 @@ const props = defineProps<{
   mjMode: MjSpeedMode
   /** 无输入时合并进 prompt；若合并后仍为空则 **不传 prompt 字段**（上游沿用原任务，避免 prompt:"" 被判无效） */
   fallbackPrompt?: string
+  /** 任务卡 promptLabel：用于从 Describe 四条合并文本中匹配用户所选单条咒语 */
+  promptHint?: string
   /** custom-zoom：仅编辑提示词/--zoom 等提交 modal，无需蒙版 */
   variant?: 'vary-region' | 'custom-zoom'
 }>()
@@ -88,6 +93,8 @@ type Tool = 'rect' | 'ellipse' | 'polygon'
 
 const tool = ref<Tool>('rect')
 const promptLocal = ref('')
+/** 用户是否改过局部重绘提示框（未改则不传 prompt，由上游沿用原咒语） */
+const promptUserEdited = ref(false)
 const blobUrl = ref('')
 const imgLoading = ref(false)
 const imgLoadErr = ref('')
@@ -339,6 +346,7 @@ watch(
   () => props.open,
   v => {
     if (v) {
+      promptUserEdited.value = false
       promptLocal.value = props.fallbackPrompt?.trim() || ''
       if (props.variant === 'custom-zoom') {
         const fromFb = parseZoomFromPromptText(props.fallbackPrompt?.trim() || '')
@@ -626,14 +634,24 @@ async function submitModal() {
   try {
     const userP = promptLocal.value.trim()
     const fb = props.fallbackPrompt?.trim() || ''
-    let promptOut = (mergeVaryRegionModalPrompt(userP, fb) || fb).trim()
+    let promptOut = ''
     if (zoom) {
+      promptOut = (mergeVaryRegionModalPrompt(userP, fb) || fb).trim()
       promptOut = stripMjModalPromptModelVersionFlags(applyCustomZoomToPrompt(promptOut))
+      if (promptOut) {
+        promptOut = prepareMjSubmitModalPromptLine(promptOut, props.promptHint?.trim(), {
+          keepMjFlags: true,
+        })
+      }
+    } else if (promptUserEdited.value && userP) {
+      /** 仅提交用户手写补充，勿合并 task 上可能污染的 Describe 多咒语文本 */
+      promptOut = prepareMjSubmitModalPromptLine(userP, props.promptHint?.trim())
     }
     const r = await submitMjModal({
       model: props.modelKey,
       mjMode: props.mjMode,
       taskId: props.taskId,
+      ...(props.promptHint?.trim() ? { promptHint: props.promptHint.trim() } : {}),
       ...(promptOut ? { prompt: promptOut } : {}),
       ...(mask ? { maskBase64: mask } : {}),
     })
@@ -869,6 +887,7 @@ async function submitModal() {
                     ? t('drawing.mjCustomZoomPromptPlaceholder')
                     : t('drawing.mjVaryRegionPromptPlaceholder')
                 "
+                @input="promptUserEdited = true"
               />
 
               <div
