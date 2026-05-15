@@ -12500,6 +12500,10 @@ function mjBlendUseDiscordUploadFirst(proxyUrl) {
         return true;
     return (0, mj_proxy_host_markers_1.proxyUrlMatchesMjHostMarkers)(proxyUrl);
 }
+function mjDescribeUseDiscordLinkFirst() {
+    const v = process.env.MJ_DESCRIBE_FORCE_BASE64?.trim().toLowerCase();
+    return v !== '1' && v !== 'true' && v !== 'on' && v !== 'yes';
+}
 function resolveMjBlendBotType(bodyBot, proxyUrl) {
     if (process.env.MJ_BLEND_OMIT_BOT_TYPE === '1')
         return undefined;
@@ -12573,7 +12577,7 @@ function resolveMjRefCdnUploadStrategy(refStorage) {
     const env = process.env.MJ_REF_CDN_STRATEGY?.trim().toLowerCase();
     if (env === 'self' || env === 'upstream' || env === 'prefer_self')
         return env;
-    return 'prefer_self';
+    return 'upstream';
 }
 function mjRefImageBufferAndMimeFromSubmitString(item) {
     const t = item.trim();
@@ -12604,7 +12608,7 @@ function assertHttpsUrlForMjRef(url) {
     if (/^http:\/\//i.test(u)) {
         return `https://${u.slice(7)}`;
     }
-    throw new common_1.BadRequestException('本站生成的图链须为公网 https（请在后台将「站点地址」配为 https，或改用环境变量 MJ_REF_CDN_STRATEGY=upstream 仅走上游图床）');
+    throw new common_1.BadRequestException('本站生成的图链须为公网 https（请在后台将「站点地址」配为 https，或改用 MJ_REF_CDN_STRATEGY=upstream 仅走上游 Discord 图床）');
 }
 let DrawingMjController = DrawingMjController_1 = class DrawingMjController {
     drawingMjService;
@@ -12860,13 +12864,33 @@ let DrawingMjController = DrawingMjController_1 = class DrawingMjController {
         if (!base64) {
             throw new common_1.BadRequestException('Describe 需要有效的图片 base64（解析后为空）');
         }
-        return this.withBalance(req, row, mode, { mult: 1 }, () => this.drawingMjService.requestUpstream(row, mode, '/submit/describe', {
-            data: {
+        const nh = body.notifyHook != null ? String(body.notifyHook).trim() : '';
+        const st = body.state != null ? String(body.state).trim() : '';
+        return this.withBalance(req, row, mode, { mult: 1 }, async () => {
+            if (!mjDescribeUseDiscordLinkFirst()) {
+                return this.drawingMjService.requestUpstream(row, mode, '/submit/describe', {
+                    data: {
+                        base64,
+                        ...(nh ? { notifyHook: nh } : {}),
+                        ...(st ? { state: st } : {}),
+                    },
+                });
+            }
+            const urls = await this.drawingMjService.uploadDiscordImagesToCdnHttpsUrls(row, mode, [
                 base64,
-                notifyHook: body.notifyHook,
-                state: body.state,
-            },
-        }));
+            ]);
+            const link = String(urls[0] ?? '').trim();
+            if (!/^https:\/\//i.test(link)) {
+                throw new common_1.BadRequestException(`upload-discord-images 返回的 Describe 图链非 https：${link.slice(0, 120)}`);
+            }
+            return this.drawingMjService.requestUpstream(row, mode, '/submit/describe', {
+                data: {
+                    link,
+                    ...(nh ? { notifyHook: nh } : {}),
+                    ...(st ? { state: st } : {}),
+                },
+            });
+        });
     }
     async modal(req, body) {
         const row = await this.drawingMjService.resolveMjModel(body.model);
@@ -12889,6 +12913,22 @@ let DrawingMjController = DrawingMjController_1 = class DrawingMjController {
         let effectivePrompt = promptStr;
         if (mask && !effectivePrompt && process.env.MJ_MODAL_EMPTY_PROMPT_FALLBACK?.trim()) {
             effectivePrompt = process.env.MJ_MODAL_EMPTY_PROMPT_FALLBACK.trim();
+        }
+        if (effectivePrompt) {
+            const hint = body.promptHint != null && String(body.promptHint).trim() !== ''
+                ? String(body.promptHint).trim()
+                : undefined;
+            effectivePrompt = (0, mj_outpaint_cz_1.prepareMjSubmitModalPromptLine)(effectivePrompt, hint);
+        }
+        if (mask && effectivePrompt) {
+            const residual = (0, mj_outpaint_cz_1.hasMjDescribeMultiSpellMarkers)(effectivePrompt) ||
+                (0, mj_outpaint_cz_1.splitMjDescribeInlineSegments)(effectivePrompt).length > 1 ||
+                (0, mj_outpaint_cz_1.hasMjDescribeMultiSpellMarkers)(promptStr) ||
+                (0, mj_outpaint_cz_1.splitMjDescribeInlineSegments)(promptStr).length > 1;
+            if (residual) {
+                this.logger.log(`[MJ modal] mask present: omit prompt (describe multi-spell residual) taskId.len=${taskId.length}`);
+                effectivePrompt = '';
+            }
         }
         if (effectivePrompt && /\s--zoom\s/i.test(effectivePrompt)) {
             effectivePrompt = (0, mj_outpaint_cz_1.stripMjModelVersionFlags)(effectivePrompt);
@@ -13018,7 +13058,7 @@ __decorate([
 __decorate([
     (0, common_1.Post)('upload/ref-cdn-url'),
     (0, swagger_1.ApiOperation)({
-        summary: '上传参考图并返回 https 直链（--cref/--sref/--oref）。未配置 MJ_REF_CDN_STRATEGY 时默认 prefer_self：先试本站存储（本地/COS/OSS 等），失败再回退上游 upload-discord-images；亦可设 upstream|self 强制策略',
+        summary: '上传参考图并返回 https 直链（--cref/--sref/--oref）。未配置 MJ_REF_CDN_STRATEGY 时默认 upstream：仅走上游 upload-discord-images（Discord CDN）；亦可设 self|prefer_self；请求体 refStorage 可单次覆盖',
     }),
     __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Body)()),
@@ -13100,7 +13140,9 @@ __decorate([
 ], DrawingMjController.prototype, "blend", null);
 __decorate([
     (0, common_1.Post)('submit/describe'),
-    (0, swagger_1.ApiOperation)({ summary: 'MJ Describe 图生文' }),
+    (0, swagger_1.ApiOperation)({
+        summary: 'MJ Describe 图生文。默认先上游 upload-discord-images 再传 link 提交 describe（与 OpenAPI 推荐一致）；设 MJ_DESCRIBE_FORCE_BASE64=1 则仍直传 base64',
+    }),
     __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -13183,7 +13225,15 @@ exports.unwrapMjTaskFromFetchData = unwrapMjTaskFromFetchData;
 exports.isPresetOutpaintCustomId = isPresetOutpaintCustomId;
 exports.outpaintTargetZoomNumber = outpaintTargetZoomNumber;
 exports.mjTaskButtonCustomZoomCustomId = mjTaskButtonCustomZoomCustomId;
+exports.stripMjDescribeLeadImageUrl = stripMjDescribeLeadImageUrl;
+exports.hasMjDescribeMultiSpellMarkers = hasMjDescribeMultiSpellMarkers;
+exports.splitMjDescribeInlineSegments = splitMjDescribeInlineSegments;
+exports.pickMjDescribeSpellSegment = pickMjDescribeSpellSegment;
+exports.sanitizeMjSubmitModalPromptLine = sanitizeMjSubmitModalPromptLine;
+exports.prepareMjSubmitModalPromptLine = prepareMjSubmitModalPromptLine;
+exports.stripMjModalPromptMjFlags = stripMjModalPromptMjFlags;
 exports.stripMjModelVersionFlags = stripMjModelVersionFlags;
+exports.shieldMjModalAsciiCommasOutsideMjFlags = shieldMjModalAsciiCommasOutsideMjFlags;
 exports.buildCustomZoomModalPromptFromTask = buildCustomZoomModalPromptFromTask;
 exports.presetOutpaintCustomZoomEnabledForProxy = presetOutpaintCustomZoomEnabledForProxy;
 const mj_proxy_host_markers_1 = __webpack_require__(177);
@@ -13267,6 +13317,122 @@ function stripMjZoomParam(line) {
         .replace(/\s+/g, ' ')
         .trim();
 }
+function stripMjDescribeLeadImageUrl(s) {
+    const t = String(s ?? '').trim();
+    const m = /^(https?:\/\/\S+)\s+(.+)$/i.exec(t);
+    if (m && m[2].trim().length > 8)
+        return m[2].trim();
+    return t;
+}
+const MJ_DESCRIBE_SEG_SPLIT = /(?:^|[\r\n]+|\s)(?:(?:[1-4](?:\uFE0F\u20E3|\uFE0F?\u20E3))|(?:[①②③④])|[1-4]\s*[.\u3002\uff0e\uff09\):：、])\s*/gu;
+function hasMjDescribeMultiSpellMarkers(s) {
+    const raw = String(s ?? '');
+    const re = new RegExp(MJ_DESCRIBE_SEG_SPLIT.source, 'gu');
+    let n = 0;
+    while (re.exec(raw)) {
+        n++;
+        if (n >= 2)
+            return true;
+    }
+    return false;
+}
+function splitMjDescribeInlineSegments(blob) {
+    const raw = String(blob ?? '')
+        .replace(/[\uFEFF\u200B-\u200D\u2060]/g, '')
+        .trim();
+    if (!raw)
+        return [];
+    const parts = raw.split(MJ_DESCRIBE_SEG_SPLIT);
+    const out = parts
+        .map(p => stripMjDescribeLeadImageUrl(p.replace(/\s+/g, ' ').trim()))
+        .filter(p => p.length > 8);
+    if (out.length)
+        return out;
+    const one = stripMjDescribeLeadImageUrl(raw.replace(/\s+/g, ' ').trim());
+    return one ? [one] : [];
+}
+function normalizeMjDescribeSpellHint(h) {
+    return sanitizeMjSubmitModalPromptLine(h).toLowerCase().replace(/\s+/g, ' ').trim();
+}
+function pickMjDescribeSpellSegment(blob, hint) {
+    const segs = splitMjDescribeInlineSegments(blob);
+    if (segs.length <= 1) {
+        return segs[0] || stripMjDescribeLeadImageUrl(String(blob ?? '').trim());
+    }
+    const h = hint ? normalizeMjDescribeSpellHint(hint) : '';
+    if (h) {
+        let best = segs[0];
+        let bestScore = -1;
+        for (const seg of segs) {
+            const n = normalizeMjDescribeSpellHint(seg);
+            if (!n)
+                continue;
+            let score = 0;
+            if (n === h)
+                score = 10000;
+            else if (n.startsWith(h) || h.startsWith(n))
+                score = 5000 + Math.min(n.length, h.length);
+            else if (n.includes(h) || h.includes(n))
+                score = 3000 + Math.min(n.length, h.length);
+            else {
+                const words = h.split(/\s+/).filter(w => w.length > 3);
+                score = words.filter(w => n.includes(w)).length * 50;
+            }
+            if (score > bestScore) {
+                bestScore = score;
+                best = seg;
+            }
+        }
+        if (bestScore > 0)
+            return best;
+    }
+    return segs[0];
+}
+function sanitizeMjSubmitModalPromptLine(raw) {
+    let s = String(raw ?? '')
+        .replace(/[\uFEFF\u200B-\u200D\u2060]/g, '')
+        .trim();
+    if (!s)
+        return s;
+    s = s.split(/\r?\n/)[0]?.trim() ?? s;
+    for (let i = 0; i < 16; i++) {
+        const before = s;
+        s = s.replace(/^\s*[\u2460-\u2468]\s*/u, '');
+        s = s.replace(/^\s*\d(?:\uFE0F\u20E3|\uFE0F?\u20E3)\s*/u, '');
+        s = s.replace(/^\s*\d{1,2}[.\u3002\uff0e\uff09\):：、]\s*/u, '').trim();
+        s = s.replace(/^\s*\d{1,2}[.\u3002\uff0e](?=\S)/u, '').trim();
+        s = s.replace(/^\s*[1-4]\s+/, '').trim();
+        if (s === before)
+            break;
+    }
+    return s.replace(/\s+/g, ' ').trim();
+}
+function prepareMjSubmitModalPromptLine(raw, hint, opts) {
+    let blob = String(raw ?? '')
+        .replace(/[\uFEFF\u200B-\u200D\u2060]/g, '')
+        .trim();
+    if (!blob)
+        return blob;
+    blob = stripMjDescribeLeadImageUrl(blob);
+    const picked = hasMjDescribeMultiSpellMarkers(blob) || splitMjDescribeInlineSegments(blob).length > 1
+        ? pickMjDescribeSpellSegment(blob, hint)
+        : blob.split(/\r?\n/)[0]?.trim() || blob;
+    const cleaned = sanitizeMjSubmitModalPromptLine(picked);
+    let out = shieldMjModalAsciiCommasOutsideMjFlags(cleaned);
+    if (!opts?.keepMjFlags && !/\s--zoom\s/i.test(out)) {
+        out = stripMjModalPromptMjFlags(out);
+    }
+    return out;
+}
+function stripMjModalPromptMjFlags(line) {
+    const s = String(line ?? '').trim();
+    if (!s)
+        return s;
+    const m = /\s--(?=[a-zA-Z])/i.exec(s);
+    if (!m)
+        return s.replace(/\s+/g, ' ').trim();
+    return s.slice(0, m.index).replace(/\s+/g, ' ').trim();
+}
 function stripMjModelVersionFlags(line) {
     return line
         .replace(/(^|\s)--v\s+\d+\b/gi, '$1')
@@ -13276,6 +13442,17 @@ function stripMjModelVersionFlags(line) {
         .replace(/(^|\s)--draft\b/gi, '$1')
         .replace(/\s+/g, ' ')
         .trim();
+}
+function shieldMjModalAsciiCommasOutsideMjFlags(line) {
+    const s = String(line ?? '');
+    if (!s)
+        return s;
+    const re = /\s--(?=[a-zA-Z])/i;
+    const m = re.exec(s);
+    if (!m)
+        return s.replace(/,/g, '\uFF0C');
+    const head = s.slice(0, m.index).replace(/,/g, '\uFF0C');
+    return head + s.slice(m.index);
 }
 function firstPromptLine(s) {
     const line = s.split(/\r?\n/)[0]?.trim() ?? '';
@@ -13335,7 +13512,8 @@ function buildCustomZoomModalPromptFromTask(task, zoomNum, env = process.env) {
         let line = stripMjZoomParam(cleanedBase).trim();
         if (!line)
             line = 'image';
-        return `${line} --zoom ${zoomNum}`.replace(/\s+/g, ' ').trim();
+        const out = `${line} --zoom ${zoomNum}`.replace(/\s+/g, ' ').trim();
+        return shieldMjModalAsciiCommasOutsideMjFlags(out);
     }
     let cleaned = stripMjZoomParam(cleanedBase);
     const cut = cleaned.search(/\s--/);
@@ -13346,7 +13524,8 @@ function buildCustomZoomModalPromptFromTask(task, zoomNum, env = process.env) {
     if (!arPart && appendArIfMissing) {
         arPart = ` --ar ${defaultAr}`;
     }
-    return `${bodyPart}${arPart} --zoom ${zoomNum}`.replace(/\s+/g, ' ').trim();
+    const out = `${bodyPart}${arPart} --zoom ${zoomNum}`.replace(/\s+/g, ' ').trim();
+    return shieldMjModalAsciiCommasOutsideMjFlags(out);
 }
 function presetOutpaintCustomZoomEnabledForProxy(proxyUrl, env = process.env) {
     const v = env.MJ_OUTPAINT_PRESET_USE_CUSTOM_ZOOM?.trim().toLowerCase();
