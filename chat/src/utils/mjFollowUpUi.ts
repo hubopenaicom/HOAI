@@ -487,7 +487,7 @@ export function sanitizeMjSubmitModalPromptLine(raw: string): string {
 export function prepareMjSubmitModalPromptLine(
   raw: string,
   hint?: string,
-  opts?: { keepMjFlags?: boolean },
+  opts?: { keepMjFlags?: boolean }
 ): string {
   let blob = String(raw ?? '')
     .replace(/[\uFEFF\u200B-\u200D\u2060]/g, '')
