@@ -22,7 +22,13 @@ import { Repository } from 'typeorm';
 import { UserEntity } from '../user/user.entity';
 import { DrawingMjJobEntity } from './drawing-mj-job.entity';
 import { CreateDrawingMjJobDto, DrawingMjJobService } from './drawing-mj-job.service';
-import { isPresetOutpaintCustomId, stripMjModelVersionFlags } from './mj-outpaint-cz';
+import {
+  hasMjDescribeMultiSpellMarkers,
+  isPresetOutpaintCustomId,
+  prepareMjSubmitModalPromptLine,
+  splitMjDescribeInlineSegments,
+  stripMjModelVersionFlags,
+} from './mj-outpaint-cz';
 import { proxyUrlMatchesMjHostMarkers } from './mj-proxy-host-markers';
 import { UploadService } from '../upload/upload.service';
 import { DrawingMjService, MjSpeedMode } from './drawing-mj.service';
@@ -145,6 +151,12 @@ function mjBlendUseDiscordUploadFirst(proxyUrl: string | undefined | null): bool
   return proxyUrlMatchesMjHostMarkers(proxyUrl);
 }
 
+/** Describe：默认先 `upload-discord-images` 再用 `link` 调 `/submit/describe`（OpenAPI 与 base64 二选一）。`MJ_DESCRIBE_FORCE_BASE64=1` 则仍直传 base64。 */
+function mjDescribeUseDiscordLinkFirst(): boolean {
+  const v = process.env.MJ_DESCRIBE_FORCE_BASE64?.trim().toLowerCase();
+  return v !== '1' && v !== 'true' && v !== 'on' && v !== 'yes';
+}
+
 /**
  * Blend 的 `botType`：全局可 `MJ_BLEND_OMIT_BOT_TYPE=1` 省略。
  * 当 proxyUrl 命中 `MJ_PROXY_HOST_MARKERS` 时，部分上游会因默认 `MID_JOURNEY` 与图链组合报 invalid_parameter，故**默认不传** botType；
@@ -224,9 +236,9 @@ function mjModalMaskPayloadIsPng(mask: string): boolean {
 
 /**
  * `--cref` / `--sref` / `--oref` 所需图链来源（与 {@link DrawingMjController.uploadRefCdnUrl} 一致）。
- * - `upstream`：仅调用上游 `submit/upload-discord-images`（Discord CDN）。
+ * - `upstream`：仅调用上游 `submit/upload-discord-images`（Discord CDN 官方链，MJ 文档推荐，垫图出错率更低）。
  * - `self`：仅写入本站已启用的存储（UploadService：本地需 siteUrl 或 PUBLIC_SITE_URL 等为公网 https；COS/OSS/S3 等）。
- * - `prefer_self`：先试本站，失败再回退上游（未配置 `MJ_REF_CDN_STRATEGY` 时服务端默认即为此策略，适配「仅开本地存储」）。
+ * - `prefer_self`：先试本站，失败再回退上游（仅开本地存储、希望先落盘再试 MJ 时可设 `MJ_REF_CDN_STRATEGY=prefer_self`）。
  * 环境变量 `MJ_REF_CDN_STRATEGY` 可设上述三值；请求体 `refStorage` 非空时优先生效。
  */
 function resolveMjRefCdnUploadStrategy(refStorage?: string): 'upstream' | 'self' | 'prefer_self' {
@@ -235,10 +247,10 @@ function resolveMjRefCdnUploadStrategy(refStorage?: string): 'upstream' | 'self'
   const env = process.env.MJ_REF_CDN_STRATEGY?.trim().toLowerCase();
   if (env === 'self' || env === 'upstream' || env === 'prefer_self') return env;
   /**
-   * 未配置环境变量时：默认「先试本站存储（后台开启的本地 / COS / OSS 等），失败再回退上游 Discord 图床」。
-   * 仅开本地存储、未设 MJ_REF_CDN_STRATEGY 时，若默认 upstream 则永远不会写入 public/file，前端会一直停留在 blob 预览。
+   * 未配置环境变量时：默认仅走上游 `upload-discord-images`（Discord CDN），与 OpenAPI 文档「先上传再垫图」一致。
+   * 若需先试本站存储再回退 Discord，请设 `MJ_REF_CDN_STRATEGY=prefer_self`。
    */
-  return 'prefer_self';
+  return 'upstream';
 }
 
 /** 将 submit 用的 base64 项（裸 base64 或 data URL）解码为 Buffer，并给出 image/* MIME（供扩展名与 Content-Type） */
@@ -273,7 +285,7 @@ function assertHttpsUrlForMjRef(url: string): string {
     return `https://${u.slice(7)}`;
   }
   throw new BadRequestException(
-    '本站生成的图链须为公网 https（请在后台将「站点地址」配为 https，或改用环境变量 MJ_REF_CDN_STRATEGY=upstream 仅走上游图床）',
+    '本站生成的图链须为公网 https（请在后台将「站点地址」配为 https，或改用 MJ_REF_CDN_STRATEGY=upstream 仅走上游 Discord 图床）',
   );
 }
 
@@ -325,7 +337,7 @@ export class DrawingMjController {
   @Post('upload/ref-cdn-url')
   @ApiOperation({
     summary:
-      '上传参考图并返回 https 直链（--cref/--sref/--oref）。未配置 MJ_REF_CDN_STRATEGY 时默认 prefer_self：先试本站存储（本地/COS/OSS 等），失败再回退上游 upload-discord-images；亦可设 upstream|self 强制策略',
+      '上传参考图并返回 https 直链（--cref/--sref/--oref）。未配置 MJ_REF_CDN_STRATEGY 时默认 upstream：仅走上游 upload-discord-images（Discord CDN）；亦可设 self|prefer_self；请求体 refStorage 可单次覆盖',
   })
   async uploadRefCdnUrl(
     @Req() req: Request,
@@ -685,7 +697,10 @@ export class DrawingMjController {
   }
 
   @Post('submit/describe')
-  @ApiOperation({ summary: 'MJ Describe 图生文' })
+  @ApiOperation({
+    summary:
+      'MJ Describe 图生文。默认先上游 upload-discord-images 再传 link 提交 describe（与 OpenAPI 推荐一致）；设 MJ_DESCRIBE_FORCE_BASE64=1 则仍直传 base64',
+  })
   async describe(
     @Req() req: Request,
     @Body()
@@ -704,15 +719,35 @@ export class DrawingMjController {
     if (!base64) {
       throw new BadRequestException('Describe 需要有效的图片 base64（解析后为空）');
     }
-    return this.withBalance(req, row, mode, { mult: 1 }, () =>
-      this.drawingMjService.requestUpstream(row, mode, '/submit/describe', {
+    const nh = body.notifyHook != null ? String(body.notifyHook).trim() : '';
+    const st = body.state != null ? String(body.state).trim() : '';
+    return this.withBalance(req, row, mode, { mult: 1 }, async () => {
+      if (!mjDescribeUseDiscordLinkFirst()) {
+        return this.drawingMjService.requestUpstream(row, mode, '/submit/describe', {
+          data: {
+            base64,
+            ...(nh ? { notifyHook: nh } : {}),
+            ...(st ? { state: st } : {}),
+          },
+        });
+      }
+      const urls = await this.drawingMjService.uploadDiscordImagesToCdnHttpsUrls(row, mode, [
+        base64,
+      ]);
+      const link = String(urls[0] ?? '').trim();
+      if (!/^https:\/\//i.test(link)) {
+        throw new BadRequestException(
+          `upload-discord-images 返回的 Describe 图链非 https：${link.slice(0, 120)}`,
+        );
+      }
+      return this.drawingMjService.requestUpstream(row, mode, '/submit/describe', {
         data: {
-          base64,
-          notifyHook: body.notifyHook,
-          state: body.state,
+          link,
+          ...(nh ? { notifyHook: nh } : {}),
+          ...(st ? { state: st } : {}),
         },
-      }),
-    );
+      });
+    });
   }
 
   @Post('submit/modal')
@@ -725,6 +760,8 @@ export class DrawingMjController {
       mjMode?: MjSpeedMode;
       taskId: string;
       prompt?: string;
+      /** 可选：与任务卡 promptLabel 一致，供 Describe 多咒语录并取单条 */
+      promptHint?: string;
       maskBase64?: string;
       /** DMX 等：true 时返回原始图链 */
       noStorage?: boolean;
@@ -762,6 +799,29 @@ export class DrawingMjController {
     let effectivePrompt = promptStr;
     if (mask && !effectivePrompt && process.env.MJ_MODAL_EMPTY_PROMPT_FALLBACK?.trim()) {
       effectivePrompt = process.env.MJ_MODAL_EMPTY_PROMPT_FALLBACK.trim();
+    }
+    if (effectivePrompt) {
+      const hint =
+        body.promptHint != null && String(body.promptHint).trim() !== ''
+          ? String(body.promptHint).trim()
+          : undefined;
+      effectivePrompt = prepareMjSubmitModalPromptLine(effectivePrompt, hint);
+    }
+    /**
+     * 有蒙版时若仍像 Describe 多咒语文本，不传 prompt（上游沿用原 imagine 咒语），避免执行期 invalid_parameter。
+     */
+    if (mask && effectivePrompt) {
+      const residual =
+        hasMjDescribeMultiSpellMarkers(effectivePrompt) ||
+        splitMjDescribeInlineSegments(effectivePrompt).length > 1 ||
+        hasMjDescribeMultiSpellMarkers(promptStr) ||
+        splitMjDescribeInlineSegments(promptStr).length > 1;
+      if (residual) {
+        this.logger.log(
+          `[MJ modal] mask present: omit prompt (describe multi-spell residual) taskId.len=${taskId.length}`,
+        );
+        effectivePrompt = '';
+      }
     }
     /** Custom Zoom 的 modal prompt 常含 `--zoom`；同条里再带 `--v` 等时部分上游会失败（invalid_parameter） */
     if (effectivePrompt && /\s--zoom\s/i.test(effectivePrompt)) {
