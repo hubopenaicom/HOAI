@@ -62,6 +62,7 @@ import {
   normalizeMjSubmitCode,
   parseMjSubmitBody,
   parseMjTaskBody,
+  pickMjDescribeModalHeroImageUrl,
   mjTaskFailureHintKey,
   mjTaskFailureHintKeyFromTask,
   mjKnownDrawingErrorI18nKey,
@@ -76,6 +77,12 @@ import {
   mjVersionSupportsSref,
   mjVersionSupportsSvValue,
 } from '@/utils/mjParamVersionSupport'
+import {
+  extractMjDescribeChoiceRows,
+  findMjDescribeChoiceRowForButton,
+  isMjDescribeResultJob,
+  type MjDescribeChoiceRow,
+} from '@/utils/mjDescribeChoices'
 import {
   guessMjImagineChargeMultiplier,
   mjEstimatedDeductTotal,
@@ -92,6 +99,7 @@ import {
   mjMiscPolicyBlockFromProbeText,
   mjMiscGroupIntroKey,
   mjMiscGroupTitleKey,
+  prepareMjSubmitModalPromptLine,
   type MjFollowBtn,
   type MjMiscGroup,
 } from '@/utils/mjFollowUpUi'
@@ -158,6 +166,10 @@ interface MjJobItem {
   deductTypeSnapshot?: number
   /** 客户端排队/绘制耗时起点（毫秒时间戳） */
   queuedAtMs?: number
+  /**
+   * Describe 提交时用户所选本地预览（data URL）；仅内存用于弹窗，不落库、不入 localStorage 全量快照。
+   */
+  describeInputPreviewDataUrl?: string
 }
 
 const MJ_TYPE = 3
@@ -570,7 +582,11 @@ function mjJobChargeMetaLine(job: MjJobItem): string {
 
 function persistMjJobsToStorage() {
   try {
-    const jobs = mjJobs.value.slice(0, MAX_MJ_JOBS_STORED)
+    const jobs = mjJobs.value.slice(0, MAX_MJ_JOBS_STORED).map(j => {
+      if (!j.describeInputPreviewDataUrl) return j
+      const { describeInputPreviewDataUrl: _omit, ...rest } = j
+      return rest as MjJobItem
+    })
     localStorage.setItem(
       mjJobsStorageKey(),
       JSON.stringify({ v: MJ_JOBS_STORAGE_VER, savedAt: Date.now(), jobs })
@@ -1382,6 +1398,16 @@ function startPollTask(taskId: string, job: MjJobItem) {
         const hintKey = mjTaskFailureHintKeyFromTask(task) ?? mjTaskFailureHintKey(raw)
         const queueKey = mjKnownDrawingErrorI18nKey(raw)
         live.error = hintKey ? t(hintKey) : queueKey ? t(queueKey) : raw
+      } else if (outcome.phase === 'done_ok') {
+        const rows = extractMjDescribeChoiceRows(task, { promptLabel: live.promptLabel })
+        if (rows.length && !describeResultModalAutoOpened.value[live.localId]) {
+          describeResultModalAutoOpened.value = { ...describeResultModalAutoOpened.value, [live.localId]: true }
+          describeResultJob.value = live
+          describeResultRows.value = rows
+          void nextTick(() => {
+            describeResultModalOpen.value = true
+          })
+        }
       }
       await authStore.getUserBalance()
     } catch {
@@ -1509,6 +1535,7 @@ async function handleMjDescribe() {
     loading: true,
     mjStyleSnapshot: mjStyle.value,
     queuedAtMs: Date.now(),
+    describeInputPreviewDataUrl: describeBase64.value,
   }
   attachMjJobModelMeta(job, m)
   mjJobs.value.unshift(job)
@@ -2467,6 +2494,37 @@ const mjButtons = (task: Record<string, unknown> | undefined) => {
   return out
 }
 
+/**
+ * 下拉 `<option>` 的 value 必须唯一；Describe 的 1–4 按钮常无 customId，不能全部用空串。
+ */
+function mjFollowUpOptionValue(btn: MjFollowBtn): string {
+  const c = String(btn.customId || '').trim()
+  if (c) return c
+  const lab = String(btn.label || '').trim()
+  if (/^[1-4]$/.test(lab) || /^U[1-4]$/i.test(lab)) return `__mj_describe_btn:${lab}`
+  return `__mj_nocid:${encodeURIComponent(lab || 'x')}`
+}
+
+function mjResolveButtonByFollowUpValue(
+  task: Record<string, unknown> | undefined,
+  v: string
+): MjFollowBtn | undefined {
+  if (!task || !v) return undefined
+  if (v.startsWith('__mj_describe_btn:')) {
+    const lab = v.slice('__mj_describe_btn:'.length)
+    return mjButtons(task).find(b => String(b.label || '').trim() === lab)
+  }
+  if (v.startsWith('__mj_nocid:')) {
+    try {
+      const lab = decodeURIComponent(v.slice('__mj_nocid:'.length))
+      return mjButtons(task).find(b => String(b.label || '').trim() === lab)
+    } catch {
+      return undefined
+    }
+  }
+  return mjButtons(task).find(b => String(b.customId || '').trim() === v)
+}
+
 /** U1–U4 / V1–V4 与四宫格对应（Midjourney 约定） */
 function mjUvQuadrantLabel(label: string): string {
   const m = /^[UV]([1-4])$/i.exec(String(label).trim())
@@ -2518,8 +2576,13 @@ function onMjFollowUpSelect(ev: Event, taskId: string) {
   const v = el.value
   if (!v) return
   const src = mjJobs.value.find(j => String(j.taskId) === taskId)
-  const btn = src?.task ? mjButtons(src.task).find(b => b.customId === v) : undefined
-  void onMjButtonClick(taskId, v, src, btn)
+  const btn = src?.task ? mjResolveButtonByFollowUpValue(src.task, v) : undefined
+  if (src && btn && handleMjDescribeFollowUpClick(src, btn)) {
+    el.value = ''
+    return
+  }
+  const cid = btn ? String(btn.customId || '').trim() : v
+  void onMjButtonClick(taskId, cid || v, src, btn)
   el.value = ''
 }
 
@@ -2562,6 +2625,13 @@ function mjMiscOptionLabel(btn: MjFollowBtn): string {
   return `${btn.emoji ? `${btn.emoji} ` : ''}${text}`
 }
 
+function mjMiscOptionLabelForJob(job: MjJobItem, btn: MjFollowBtn): string {
+  const base = mjMiscOptionLabel(btn)
+  const row = mjDescribeSpellRowForCard(job, btn)
+  if (!row) return base
+  return `${base} · ${t('drawing.mjDescribeSpellTag', { n: row.index })}`
+}
+
 function mjMiscBtnTooltip(btn: MjFollowBtn): string {
   const hint = mjMiscHintText(btn)
   const raw = String(btn.label || '').trim()
@@ -2588,6 +2658,13 @@ const varyRegionModalTaskId = ref('')
 /** 窗口阶段拉取到的 MODAL 任务快照：imageUrl 与蒙版坐标系一致，避免用父任务缩略图导致尺寸不符 */
 const varyRegionModalTaskSnap = ref<Record<string, unknown> | null>(null)
 const varyRegionActionBusy = ref(false)
+
+/** Describe 完成：上图下列四条咒语；单条「生成」走 submit/action（单 customId），不合并四条 */
+const describeResultModalOpen = ref(false)
+const describeResultJob = ref<MjJobItem | null>(null)
+const describeResultRows = ref<MjDescribeChoiceRow[]>([])
+/** 每个 localId 仅自动弹出一次，避免轮询重复打开 */
+const describeResultModalAutoOpened = ref<Record<number, boolean>>({})
 
 const mjMiscPolicyModalOpen = ref(false)
 const mjMiscPolicyModalKind = ref<'animate' | 'utility' | null>(null)
@@ -2618,6 +2695,15 @@ watch(mjMiscPolicyModalOpen, (open, _prev, onCleanup) => {
   onCleanup(() => document.removeEventListener('keydown', onKey))
 })
 
+watch(describeResultModalOpen, (open, _prev, onCleanup) => {
+  if (!open) return
+  const onKey = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') closeDescribeResultModal()
+  }
+  document.addEventListener('keydown', onKey)
+  onCleanup(() => document.removeEventListener('keydown', onKey))
+})
+
 const varyRegionImageUrl = computed(() => {
   const snap = varyRegionModalTaskSnap.value
   const fromModal = snap ? collectMjImageUrls(snap)[0] : ''
@@ -2627,35 +2713,45 @@ const varyRegionImageUrl = computed(() => {
   return collectMjImageUrls(j.task)[0] || ''
 })
 
-/** 任务上的提示词：填入局部重绘框作默认文案；用户清空且不提交 prompt 时由上游沿用原任务（见 modal 文档） */
-function mjTaskPromptForModal(task: Record<string, unknown> | undefined): string {
+/** 任务完整提示词 blob（含 Describe 四条合并文本），供 modal 拆分单条 */
+function mjTaskPromptBlobForModal(task: Record<string, unknown> | undefined): string {
   if (!task) return ''
   const pr = task.properties as Record<string, unknown> | undefined
-  const pick = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : '')
-  const firstLine = (s: string) => {
-    const line = s.split(/\r?\n/)[0]?.trim() ?? ''
-    return line.replace(/^\/(?:imagine|describe|shorten)\s+/i, '').trim() || line
-  }
-  const tryPick = (v: unknown) => {
-    const s = pick(v)
-    return s ? firstLine(s) : ''
-  }
+  const pick = (v: unknown) => (typeof v === 'string' && v.trim().length > 12 ? v.trim() : '')
   return (
-    tryPick(task.promptEn) ||
-    tryPick(task.prompt) ||
-    tryPick(pr?.finalPrompt) ||
-    tryPick(pr?.promptEn) ||
-    tryPick(pr?.prompt) ||
-    tryPick(task.description) ||
+    pick(task.promptEn) ||
+    pick(task.prompt) ||
+    pick(pr?.finalPrompt) ||
+    pick(pr?.promptEn) ||
+    pick(pr?.prompt) ||
+    pick(task.description) ||
     ''
   )
 }
 
-/** MODAL 任务上的文案优先（与弹窗任务 id 一致），否则父任务 */
+/** 任务上的提示词：Describe 多咒语录并取单条后填入局部重绘框 */
+function mjTaskPromptForModal(task: Record<string, unknown> | undefined, hint?: string): string {
+  const blob = mjTaskPromptBlobForModal(task)
+  if (!blob) return ''
+  return prepareMjSubmitModalPromptLine(blob, hint)
+}
+
+/** 任务卡上的用户咒语（文生图 promptLabel），优先于上游可能含四条 Describe 的 blob */
+function mjJobImaginePromptLabel(job: MjJobItem | null | undefined): string {
+  const label = job?.promptLabel?.trim() || ''
+  if (label.length < 8) return ''
+  if (label === 'Describe' || /^Describe\b/i.test(label)) return ''
+  return label
+}
+
+/** MODAL 任务上的文案优先（与弹窗任务 id 一致），否则父任务；hint 用任务卡 promptLabel 对齐所选咒语 */
 const varyRegionFallbackPrompt = computed(() => {
   const job = varyRegionJob.value
   const snap = varyRegionModalTaskSnap.value
-  return mjTaskPromptForModal(snap ?? undefined) || mjTaskPromptForModal(job?.task) || ''
+  const hint = mjJobImaginePromptLabel(job) || job?.promptLabel?.trim() || ''
+  const fromLabel = hint.length >= 12 ? prepareMjSubmitModalPromptLine(hint) : ''
+  if (fromLabel) return fromLabel
+  return mjTaskPromptForModal(snap ?? undefined, hint) || mjTaskPromptForModal(job?.task, hint) || ''
 })
 
 watch(varyRegionOpen, v => {
@@ -2784,6 +2880,7 @@ function handleMjMiscButtonClick(job: MjJobItem, btn: MjFollowBtn) {
     openMjMiscPolicyModal(block)
     return
   }
+  if (handleMjDescribeFollowUpClick(job, btn)) return
   if (mjButtonIsVaryRegion(btn)) {
     void beginVaryRegionFlow(job, btn.customId, 'vary-region')
     return
@@ -2797,10 +2894,11 @@ function handleMjMiscButtonClick(job: MjJobItem, btn: MjFollowBtn) {
 
 function onMjMiscDropdownChange(ev: Event, job: MjJobItem) {
   const el = ev.target as HTMLSelectElement
-  const customId = el.value
-  if (!customId) return
+  const raw = el.value
+  if (!raw) return
   el.value = ''
-  const btn = mjButtons(job.task).find(b => b.customId === customId)
+  const btn = mjResolveButtonByFollowUpValue(job.task, raw)
+  const customId = btn ? String(btn.customId || '').trim() : raw
   const block =
     (btn ? mjMiscButtonPolicyBlockReason(btn) : null) ??
     mjMiscPolicyBlockFromProbeText(String(customId || ''))
@@ -2808,15 +2906,16 @@ function onMjMiscDropdownChange(ev: Event, job: MjJobItem) {
     openMjMiscPolicyModal(block)
     return
   }
+  if (btn && handleMjDescribeFollowUpClick(job, btn)) return
   if (btn && mjButtonIsVaryRegion(btn)) {
-    void beginVaryRegionFlow(job, customId, 'vary-region')
+    void beginVaryRegionFlow(job, customId || raw, 'vary-region')
     return
   }
   if (btn && mjButtonIsCustomZoom(btn)) {
-    void beginVaryRegionFlow(job, customId, 'custom-zoom')
+    void beginVaryRegionFlow(job, customId || raw, 'custom-zoom')
     return
   }
-  void onMjButtonClick(String(job.taskId), customId, job, btn)
+  void onMjButtonClick(String(job.taskId), customId || raw, job, btn)
 }
 
 async function onMjVaryRegionSubmitted(res: unknown) {
@@ -2957,6 +3056,10 @@ function mjJobImageUrls(job: MjJobItem): string[] {
   return collectMjImageUrls(job.task)
 }
 
+function mjDescribeModalHeroSrc(job: MjJobItem): string | undefined {
+  return pickMjDescribeModalHeroImageUrl(job.task)
+}
+
 function mjJobPhaseLabel(job: MjJobItem): string {
   if (!job.loading) return ''
   if (!job.task) return t('drawing.mjPhaseSubmitting')
@@ -3007,6 +3110,74 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
     captionOriginal: row.prompt?.trim() || '',
     captionTranslated: '',
   })
+}
+
+function closeDescribeResultModal() {
+  describeResultModalOpen.value = false
+  describeResultJob.value = null
+  describeResultRows.value = []
+}
+
+function mjDescribeRowsForJob(job: MjJobItem): MjDescribeChoiceRow[] {
+  if (!job.task || job.loading || job.error) return []
+  return extractMjDescribeChoiceRows(job.task, { promptLabel: job.promptLabel })
+}
+
+function mjDescribeSpellRowForCard(job: MjJobItem, btn: MjFollowBtn): MjDescribeChoiceRow | undefined {
+  return findMjDescribeChoiceRowForButton(job.task, btn, { promptLabel: job.promptLabel })
+}
+
+function openDescribeResultModalForJob(job: MjJobItem) {
+  const rows = mjDescribeRowsForJob(job)
+  if (!rows.length) return
+  describeResultJob.value = job
+  describeResultRows.value = rows
+  describeResultModalOpen.value = true
+}
+
+/** 写入画面描述前：Describe 多咒语录并取单条，剥行首序号，shield 逗号 */
+function stripMjDescribeChoiceForPromptInput(raw: string): string {
+  return prepareMjSubmitModalPromptLine(String(raw || ''))
+}
+
+function applyMjDescribeChoiceToSidebar(row: MjDescribeChoiceRow): boolean {
+  const line = stripMjDescribeChoiceForPromptInput(row.displayPrompt)
+  if (!line || line === '—') {
+    ms.warning(t('drawing.needPrompt'))
+    return false
+  }
+  studioTab.value = 't2i'
+  promptText.value = line
+  return true
+}
+
+/** Describe 任务卡 / 下拉：命中某条候选时只填图像描述，避免误提交四条合并 */
+function handleMjDescribeFollowUpClick(job: MjJobItem, btn: MjFollowBtn): boolean {
+  if (!job.task || !isMjDescribeResultJob(job.task, { promptLabel: job.promptLabel })) return false
+  const row = findMjDescribeChoiceRowForButton(job.task, btn, { promptLabel: job.promptLabel })
+  if (!row) return false
+  if (!applyMjDescribeChoiceToSidebar(row)) return false
+  ms.success(t('drawing.mjDescribeAppliedToPrompt'))
+  return true
+}
+
+function onMjUvOrDescribeFollowClick(job: MjJobItem, btn: MjFollowBtn) {
+  if (handleMjDescribeFollowUpClick(job, btn)) return
+  void onMjButtonClick(String(job.taskId), String(btn.customId || '').trim(), job, btn)
+}
+
+/** 将所选咒语写入侧栏「画面描述 / 图像描述」并切到文生图，由用户自行点生成 */
+function handleDescribeResultApplyPromptToInput(row: MjDescribeChoiceRow) {
+  if (!applyMjDescribeChoiceToSidebar(row)) return
+  closeDescribeResultModal()
+  ms.success(t('drawing.mjDescribeAppliedToPrompt'))
+}
+
+function handleDescribeResultRowCopyPrompt(text: string) {
+  const s = (text || '').trim()
+  if (!s || s === '—') return
+  copyText({ text: s })
+  ms.success(t('drawing.viewerCopied'))
 }
 </script>
 
@@ -3867,6 +4038,18 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                             </div>
                           </div>
                         </template>
+                        <div
+                          v-if="mjDescribeRowsForJob(job).length"
+                          class="mb-2 flex flex-wrap items-center gap-2"
+                        >
+                          <button
+                            type="button"
+                            class="btn btn-xs border-indigo-300 bg-indigo-50 font-medium text-indigo-950 hover:bg-indigo-100 dark:border-indigo-500/40 dark:bg-indigo-950/40 dark:text-indigo-100 dark:hover:bg-indigo-900/55"
+                            @click.stop="openDescribeResultModalForJob(job)"
+                          >
+                            {{ t('drawing.mjDescribeReopenPanel') }}
+                          </button>
+                        </div>
                         <div v-if="mjButtons(job.task).length" class="pb-1">
                           <p
                             v-if="mjHasUvNumberedButtons(job.task)"
@@ -3912,9 +4095,7 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                                           ? `${btn.label} · ${mjUvQuadrantLabel(btn.label)}`
                                           : btn.label || btn.emoji || ''
                                     "
-                                    @click="
-                                      onMjButtonClick(String(job.taskId), btn.customId, job, btn)
-                                    "
+                                    @click="onMjUvOrDescribeFollowClick(job, btn)"
                                   >
                                     <template v-if="mjButtonIsRegenerate(btn)">
                                       <span
@@ -4009,9 +4190,20 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                                                 : 'text-left'
                                             "
                                           >
-                                            <template v-if="btn.emoji"
-                                              >{{ btn.emoji }}&nbsp;</template
+                                            <template v-if="btn.emoji">{{ btn.emoji }}&nbsp;</template
                                             >{{ mjMiscBtnDisplayPrimary(btn) }}
+                                            <template v-if="mjDescribeSpellRowForCard(job, btn)">
+                                              <span
+                                                class="text-[9px] font-semibold text-sky-800 dark:text-sky-400/85"
+                                              >
+                                                ·
+                                                {{
+                                                  t('drawing.mjDescribeSpellTag', {
+                                                    n: mjDescribeSpellRowForCard(job, btn)!.index,
+                                                  })
+                                                }}
+                                              </span>
+                                            </template>
                                           </span>
                                           <span
                                             v-if="mjUvQuadrantLabel(btn.label)"
@@ -4050,7 +4242,7 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                                   <option
                                     v-for="(btn, bi) in seg.items"
                                     :key="`${si}-${bi}`"
-                                    :value="btn.customId"
+                                    :value="mjFollowUpOptionValue(btn)"
                                   >
                                     {{ btn.label
                                     }}<template v-if="mjUvQuadrantLabel(btn.label)"
@@ -4072,7 +4264,7 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                                   <option
                                     v-for="(btn, bi) in seg.items"
                                     :key="`${si}-${bi}`"
-                                    :value="btn.customId"
+                                    :value="mjFollowUpOptionValue(btn)"
                                   >
                                     {{ btn.label
                                     }}<template v-if="mjUvQuadrantLabel(btn.label)"
@@ -4099,10 +4291,10 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                                       <option
                                         v-for="(btn, bi) in bucket.items"
                                         :key="`${si}-${bucket.group}-${bi}`"
-                                        :value="btn.customId"
+                                        :value="mjFollowUpOptionValue(btn)"
                                         :title="mjMiscBtnTooltip(btn)"
                                       >
-                                        {{ mjMiscOptionLabel(btn) }}
+                                        {{ mjMiscOptionLabelForJob(job, btn) }}
                                       </option>
                                     </optgroup>
                                   </template>
@@ -4123,6 +4315,7 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                 :model-key="varyRegionJob?.modelKey ?? selectedModelKey ?? ''"
                 :mj-mode="varyRegionJob ? mjModeForFollowUp(varyRegionJob) : mjMode"
                 :fallback-prompt="varyRegionFallbackPrompt"
+                :prompt-hint="varyRegionJob?.promptLabel?.trim() || ''"
                 :variant="mjModalFollowVariant"
                 @submitted="onMjVaryRegionSubmitted"
               />
@@ -4155,6 +4348,108 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                     >
                       {{ t('drawing.mjMiscPolicyGotIt') }}
                     </button>
+                  </div>
+                </div>
+              </Teleport>
+              <Teleport to="body">
+                <div
+                  v-if="describeResultModalOpen"
+                  class="fixed inset-0 z-[10061] flex items-center justify-center bg-black/60 px-3 py-6"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="mj-describe-result-title"
+                  @click.self="closeDescribeResultModal"
+                >
+                  <div
+                    class="flex max-h-[min(92vh,880px)] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--drawing-card)] shadow-2xl"
+                    @click.stop
+                  >
+                    <div
+                      class="flex shrink-0 items-start justify-between gap-3 border-b border-[var(--border-default)] px-4 py-3"
+                    >
+                      <div class="min-w-0">
+                        <h3
+                          id="mj-describe-result-title"
+                          class="text-base font-semibold text-[var(--text-primary)]"
+                        >
+                          {{ t('drawing.mjDescribeResultTitle') }}
+                        </h3>
+                        <p class="mt-1 text-xs leading-relaxed text-[var(--text-muted)]">
+                          {{ t('drawing.mjDescribeResultSubtitle') }}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        class="btn btn-ghost btn-sm shrink-0 text-[var(--text-secondary)]"
+                        @click="closeDescribeResultModal"
+                      >
+                        {{ t('drawing.mjDescribeModalClose') }}
+                      </button>
+                    </div>
+                    <div class="min-h-0 flex-1 overflow-y-auto custom-scrollbar">
+                      <div
+                        v-if="
+                          describeResultJob &&
+                          (describeResultJob.describeInputPreviewDataUrl ||
+                            mjDescribeModalHeroSrc(describeResultJob))
+                        "
+                        class="border-b border-[var(--border-default)] bg-[var(--drawing-card-media)] p-3"
+                      >
+                        <div
+                          class="mx-auto flex h-[min(40vh,320px)] w-full max-w-lg shrink-0 items-center justify-center overflow-hidden rounded-lg border border-[var(--border-default)] bg-black/20"
+                        >
+                          <MjTaskImage
+                            :key="`describe-modal-${describeResultJob.localId}-${
+                              describeResultJob.describeInputPreviewDataUrl ||
+                              mjDescribeModalHeroSrc(describeResultJob) ||
+                              ''
+                            }`"
+                            :src="
+                              (describeResultJob.describeInputPreviewDataUrl ||
+                                mjDescribeModalHeroSrc(describeResultJob))!
+                            "
+                            bounded
+                            class="h-full w-full min-h-0"
+                          />
+                        </div>
+                      </div>
+                      <ul class="divide-y divide-[var(--border-default)] px-3 py-2">
+                        <li
+                          v-for="row in describeResultRows"
+                          :key="`${row.customId}-${row.index}`"
+                          class="flex flex-col gap-2 py-3 sm:flex-row sm:items-stretch sm:gap-3"
+                        >
+                          <div
+                            class="flex shrink-0 items-center justify-center rounded-lg bg-[var(--drawing-panel)] px-2 py-1 text-center text-[11px] font-bold text-[var(--text-secondary)] sm:w-14 sm:flex-col sm:py-2"
+                          >
+                            {{ t('drawing.mjDescribeChoiceLabel', { n: row.index }) }}
+                          </div>
+                          <div class="min-w-0 flex-1 space-y-2">
+                            <p
+                              class="whitespace-pre-wrap break-words text-xs leading-relaxed text-[var(--text-primary)]"
+                            >
+                              {{ row.displayPrompt }}
+                            </p>
+                            <div class="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                class="btn btn-sm border-0 bg-sky-600 px-3 text-white hover:bg-sky-500"
+                                @click="handleDescribeResultApplyPromptToInput(row)"
+                              >
+                                {{ t('drawing.mjDescribeGenerateWith') }}
+                              </button>
+                              <button
+                                type="button"
+                                class="btn btn-ghost btn-sm border border-[var(--border-default)] text-[var(--text-primary)]"
+                                @click="handleDescribeResultRowCopyPrompt(row.displayPrompt)"
+                              >
+                                {{ t('drawing.mjDescribeCopyPrompt') }}
+                              </button>
+                            </div>
+                          </div>
+                        </li>
+                      </ul>
+                    </div>
                   </div>
                 </div>
               </Teleport>
