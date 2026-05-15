@@ -3676,14 +3676,14 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                       >
                         <span
                           v-if="job.loading"
-                          class="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-100 px-2.5 py-1 pl-2 text-[11px] font-semibold tracking-wide text-amber-950 shadow-sm dark:border-amber-400/30 dark:bg-gradient-to-r dark:from-amber-500/[0.14] dark:to-orange-600/[0.08] dark:text-amber-100 dark:shadow-[0_0_20px_rgba(245,158,11,0.12),inset_0_1px_0_rgba(255,255,255,0.06)]"
+                          class="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-100 px-2.5 py-1 pl-2 text-[11px] font-semibold tracking-wide text-amber-950 shadow-sm dark:border-amber-700/80 dark:bg-amber-950 dark:text-amber-100 dark:shadow-none"
                         >
                           <span class="relative flex h-2 w-2 shrink-0" aria-hidden="true">
                             <span
-                              class="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-35"
+                              class="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-35 dark:bg-amber-500 dark:opacity-40"
                             />
                             <span
-                              class="relative inline-flex h-2 w-2 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.9)]"
+                              class="relative inline-flex h-2 w-2 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(251,191,36,0.9)] dark:bg-amber-400 dark:shadow-[0_0_6px_rgba(251,191,36,0.55)]"
                             />
                           </span>
                           {{ t('drawing.mjStatusRunning') }}
@@ -3709,10 +3709,10 @@ function openStreamResultImagePreview(url: string, row: ResultItem, ix: number) 
                         </span>
                         <span
                           v-else
-                          class="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-900 shadow-sm dark:border-emerald-400/35 dark:bg-gradient-to-r dark:from-emerald-500/[0.16] dark:to-teal-600/[0.1] dark:text-emerald-50 dark:shadow-[0_0_18px_rgba(16,185,129,0.14),inset_0_1px_0_rgba(255,255,255,0.08)]"
+                          class="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-900 shadow-sm dark:border-emerald-700/80 dark:bg-emerald-950 dark:text-emerald-100 dark:shadow-none"
                         >
                           <svg
-                            class="h-3.5 w-3.5 shrink-0 text-emerald-700 dark:text-emerald-400"
+                            class="h-3.5 w-3.5 shrink-0 text-emerald-700 dark:text-emerald-300"
                             xmlns="http://www.w3.org/2000/svg"
                             viewBox="0 0 20 20"
                             fill="currentColor"
