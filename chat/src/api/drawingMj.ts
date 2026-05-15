@@ -36,7 +36,7 @@ export async function uploadMjRefCdnUrl(data: {
   model: string
   mjMode?: MjSpeedMode
   base64: string
-  /** 可选：self | upstream | prefer_self，覆盖服务端参考图存储策略 */
+  /** 可选：self | upstream | prefer_self，覆盖服务端参考图存储策略（服务端未配置 MJ_REF_CDN_STRATEGY 时默认 upstream：Discord 图床） */
   refStorage?: 'self' | 'upstream' | 'prefer_self'
 }): Promise<{ url: string; refSource?: 'self' | 'upstream' }> {
   let body: unknown
@@ -195,6 +195,8 @@ export function submitMjModal<T = MjSubmitResult>(data: {
   mjMode?: MjSpeedMode
   taskId: string
   prompt?: string
+  /** 与任务卡 promptLabel 一致，供后端 Describe 多咒语录并取单条 */
+  promptHint?: string
   maskBase64?: string
   /** 部分上游（如 DMX）：true 返回原始图链 */
   noStorage?: boolean
