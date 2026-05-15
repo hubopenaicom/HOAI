@@ -27,10 +27,13 @@ export function unwrapMjTaskFromFetchData(data: unknown): Record<string, unknown
   return {};
 }
 
-/** 官方预设 Zoom Out 1.5x / 2x 按钮 */
+/** 官方预设 Zoom Out 1.5x / 2x 按钮（及少数网关省略 MJ:: 前缀的等价写法） */
 export function isPresetOutpaintCustomId(customId: string): boolean {
   const s = String(customId || '');
-  return /MJ::Outpaint::(?:50|75)::/i.test(s) || /^Outpaint::(?:50|75)::/i.test(s);
+  if (/MJ::Outpaint::(?:50|75)::/i.test(s) || /^Outpaint::(?:50|75)::/i.test(s)) return true;
+  // 如 MJ::JOB::Outpaint::50::…、::Outpaint::75:: 等变体
+  if (/Outpaint::(?:50|75)(::|$)/i.test(s) && !/custom[_\s:-]*zoom|CUSTOM_ZOOM/i.test(s)) return true;
+  return false;
 }
 
 export function outpaintTargetZoomNumber(outpaintCustomId: string): string {
@@ -187,13 +190,24 @@ export function buildCustomZoomModalPromptFromTask(
 }
 
 /**
- * 预设 Outpaint 是否改走 Custom Zoom 链。
- * 未设置 `MJ_OUTPAINT_PRESET_USE_CUSTOM_ZOOM` 时，若 `MJ_PROXY_HOST_MARKERS` 命中 `proxyUrl` 则启用；
- * 设为 1/true/on 全局开启，0/false/off 关闭。
+ * 预设 Outpaint 是否改走 Custom Zoom 链（与手动点 Custom Zoom 相同的两步 OpenAPI）。
+ * - 显式 `MJ_OUTPAINT_PRESET_USE_CUSTOM_ZOOM=0/false/off/no`：关闭，仍直连预设 Outpaint 按钮。
+ * - 显式 `1/true/on/...`：开启。
+ * - **未配置或为空**：默认开启。多数聚合上直连 Outpaint 易在执行期 invalid_parameter，而 CZ 链稳定；
+ *   若你的上游仅支持直连，请设 `MJ_OUTPAINT_PRESET_USE_CUSTOM_ZOOM=0`。
+ * - `MJ_PROXY_HOST_MARKERS` 仅作历史兼容：未单独配置本变量且希望「仅部分域名开启」时，可设
+ *   `MJ_OUTPAINT_PRESET_USE_CUSTOM_ZOOM=markers`，此时仅当 proxyUrl 命中标记子串时为 true。
  */
-export function presetOutpaintCustomZoomEnabledForProxy(proxyUrl: string): boolean {
-  const v = process.env.MJ_OUTPAINT_PRESET_USE_CUSTOM_ZOOM?.trim().toLowerCase();
+export function presetOutpaintCustomZoomEnabledForProxy(
+  proxyUrl: string,
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  const v = env.MJ_OUTPAINT_PRESET_USE_CUSTOM_ZOOM?.trim().toLowerCase();
   if (v === '0' || v === 'false' || v === 'off' || v === 'no') return false;
   if (v === '1' || v === 'true' || v === 'yes' || v === 'on' || v === 'all') return true;
-  return proxyUrlMatchesMjHostMarkers(proxyUrl);
+  if (v === 'markers' || v === 'marker' || v === 'host' || v === 'hosts') {
+    return proxyUrlMatchesMjHostMarkers(proxyUrl, env);
+  }
+  // 未设置或非 markers 模式：默认走 CZ 链
+  return true;
 }
