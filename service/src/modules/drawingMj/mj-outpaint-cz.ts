@@ -32,7 +32,8 @@ export function isPresetOutpaintCustomId(customId: string): boolean {
   const s = String(customId || '');
   if (/MJ::Outpaint::(?:50|75)::/i.test(s) || /^Outpaint::(?:50|75)::/i.test(s)) return true;
   // 如 MJ::JOB::Outpaint::50::…、::Outpaint::75:: 等变体
-  if (/Outpaint::(?:50|75)(::|$)/i.test(s) && !/custom[_\s:-]*zoom|CUSTOM_ZOOM/i.test(s)) return true;
+  if (/Outpaint::(?:50|75)(::|$)/i.test(s) && !/custom[_\s:-]*zoom|CUSTOM_ZOOM/i.test(s))
+    return true;
   return false;
 }
 
