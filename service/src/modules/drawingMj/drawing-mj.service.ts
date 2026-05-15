@@ -518,9 +518,10 @@ export class DrawingMjService {
     const code = Number(envl.code);
     const modalTaskId = envl.result != null ? String(envl.result).trim() : '';
 
-    if (code !== 21 || !modalTaskId) {
+    // 与前端 beginVaryRegionFlow 一致：部分聚合用 22 表示「窗口等待」而非 21
+    if (!modalTaskId || (code !== 21 && code !== 22)) {
       Logger.log(
-        `[MJ] Outpaint→CZ: open modal code=${code} (expected 21), return upstream response`,
+        `[MJ] Outpaint→CZ: open modal code=${code} (expected 21 or 22), return upstream response`,
         'DrawingMjService',
       );
       return step1;
