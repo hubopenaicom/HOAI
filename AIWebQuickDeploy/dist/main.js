@@ -13209,7 +13209,11 @@ function unwrapMjTaskFromFetchData(data) {
 }
 function isPresetOutpaintCustomId(customId) {
     const s = String(customId || '');
-    return /MJ::Outpaint::(?:50|75)::/i.test(s) || /^Outpaint::(?:50|75)::/i.test(s);
+    if (/MJ::Outpaint::(?:50|75)::/i.test(s) || /^Outpaint::(?:50|75)::/i.test(s))
+        return true;
+    if (/Outpaint::(?:50|75)(::|$)/i.test(s) && !/custom[_\s:-]*zoom|CUSTOM_ZOOM/i.test(s))
+        return true;
+    return false;
 }
 function outpaintTargetZoomNumber(outpaintCustomId) {
     if (/Outpaint::75/i.test(outpaintCustomId))
@@ -13344,13 +13348,16 @@ function buildCustomZoomModalPromptFromTask(task, zoomNum, env = process.env) {
     }
     return `${bodyPart}${arPart} --zoom ${zoomNum}`.replace(/\s+/g, ' ').trim();
 }
-function presetOutpaintCustomZoomEnabledForProxy(proxyUrl) {
-    const v = process.env.MJ_OUTPAINT_PRESET_USE_CUSTOM_ZOOM?.trim().toLowerCase();
+function presetOutpaintCustomZoomEnabledForProxy(proxyUrl, env = process.env) {
+    const v = env.MJ_OUTPAINT_PRESET_USE_CUSTOM_ZOOM?.trim().toLowerCase();
     if (v === '0' || v === 'false' || v === 'off' || v === 'no')
         return false;
     if (v === '1' || v === 'true' || v === 'yes' || v === 'on' || v === 'all')
         return true;
-    return (0, mj_proxy_host_markers_1.proxyUrlMatchesMjHostMarkers)(proxyUrl);
+    if (v === 'markers' || v === 'marker' || v === 'host' || v === 'hosts') {
+        return (0, mj_proxy_host_markers_1.proxyUrlMatchesMjHostMarkers)(proxyUrl, env);
+    }
+    return true;
 }
 
 
@@ -13815,8 +13822,8 @@ let DrawingMjService = class DrawingMjService {
         const envl = (0, mj_outpaint_cz_1.unwrapMjSubmitEnvelope)(step1.data);
         const code = Number(envl.code);
         const modalTaskId = envl.result != null ? String(envl.result).trim() : '';
-        if (code !== 21 || !modalTaskId) {
-            common_1.Logger.log(`[MJ] Outpaint→CZ: open modal code=${code} (expected 21), return upstream response`, 'DrawingMjService');
+        if (!modalTaskId || (code !== 21 && code !== 22)) {
+            common_1.Logger.log(`[MJ] Outpaint→CZ: open modal code=${code} (expected 21 or 22), return upstream response`, 'DrawingMjService');
             return step1;
         }
         const delayRaw = parseInt(String(process.env.MJ_OUTPAINT_CZ_MODAL_DELAY_MS || '').trim(), 10);
