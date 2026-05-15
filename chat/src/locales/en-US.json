@@ -27,7 +27,6 @@
     "failed": "Failed",
     "verify": "Verify",
     "unauthorizedTips": "Unauthorized, please verify first.",
-
     "confirm": "Confirm",
     "cancel": "Cancel"
   },
@@ -333,6 +332,25 @@
     "mjFollowUpLayoutTiled": "Expanded",
     "mjFollowUpLayoutDropdown": "Dropdown",
     "mjFollowUpPlaceholder": "Choose…",
+    "mjFuTriggerUpscale": "Upscale",
+    "mjFuTriggerVary": "Vary",
+    "mjFuTriggerPan": "Pan",
+    "mjFuTriggerExpand": "Zoom & vary",
+    "mjFuTriggerMore": "More",
+    "mjFuCostWrap": "(⚡{n} credits)",
+    "mjPanShortLeft": "Left",
+    "mjPanShortRight": "Right",
+    "mjPanShortUp": "Up",
+    "mjPanShortDown": "Down",
+    "mjDropLabelSubtleUpscale2x": "Subtle upscale 2×",
+    "mjDropLabelCreativeUpscale2x": "Creative upscale 2×",
+    "mjDropZoom15": "Zoom out 1.5×",
+    "mjDropZoom2": "Zoom out 2×",
+    "mjDropZoomGeneric": "Zoom out",
+    "mjDropCustomZoom": "Custom zoom",
+    "mjDropVaryStrong": "Strong vary",
+    "mjDropVarySubtle": "Subtle vary",
+    "mjDropVaryRegion": "Vary region",
     "mjRegenerate": "Regenerate",
     "mjUvGridLegend": "Grid: 1 top-left · 2 top-right · 3 bottom-left · 4 bottom-right",
     "mjQuadTL": "Top-left",
@@ -425,7 +443,6 @@
     "clearHistoryConfirm": "Are you sure to clear chat history?",
     "preview": "Preview",
     "showRawText": "Show as raw text",
-
     "size": "Size:",
     "generatedContentDisclaimer": "AI can make mistakes. Consider checking important information. All rights reserved ©",
     "square1": "Square [1:1]",
@@ -739,7 +756,6 @@
     "avatarPlaceholder": "Please enter your avatar URL",
     "usernamePlaceholder": "Edit your username",
     "signaturePlaceholder": "Edit your signature",
-
     "passwordManagement": "Password Management",
     "inviteBenefits": "Invite for Benefits",
     "clickToLogin": "Log In",
@@ -867,9 +883,7 @@
     "registrationSuccess": "Account registration successful, start your experience!",
     "loginSuccess": "Account login successful, start your experience!",
     "registerTitle": "Register",
-
     "enterContact": "Please provide your ",
-
     "enterCode": "Please enter the verification code",
     "sendVerificationCode": "Send Verification Code",
     "optionalInvitationCode": "Invitation Code [Optional]",
@@ -958,9 +972,7 @@
     "optionalRemark": "If there are any special circumstances, please remark!",
     "withdrawalSuccess": "Withdrawal application successful, please wait for approval!",
     "withdrawalApplicationForm": "Withdrawal Application Form",
-
     "contactInformation": "Contact Information",
-
     "withdrawalRemark": "Withdrawal Remark",
     "enterWithdrawalRemark": "Please enter your withdrawal remarks",
     "applyWithdrawal": "Apply for Withdrawal"
