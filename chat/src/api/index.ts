@@ -156,6 +156,16 @@ export function fetchUpdatePasswordAPI<T>(data: { password?: string }): Promise<
   return post<T>({ url: '/auth/updatePassword', data }) as Promise<T>
 }
 
+/** 发送邮箱绑定验证码（需登录 JWT） */
+export function fetchSendBindEmailCodeAPI<T>(data: { email: string }): Promise<T> {
+  return post<T>({ url: '/auth/sendBindEmailCode', data }) as Promise<T>
+}
+
+/** 提交验证码完成邮箱绑定（需登录） */
+export function fetchVerifyBindEmailAPI<T>(data: { email: string; code: string }): Promise<T> {
+  return post<T>({ url: '/auth/verifyBindEmail', data }) as Promise<T>
+}
+
 /* 获取图片验证码 */
 export function fetchCaptchaImg<T>(data: { color: string }): Promise<T> {
   return post<T>({ url: '/auth/captcha', data }) as Promise<T>
