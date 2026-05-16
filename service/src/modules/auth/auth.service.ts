@@ -1,4 +1,5 @@
 import { UserStatusEnum, UserStatusErrMsg } from '@/common/constants/user.constant';
+import { UserSecurityAction } from '@/common/constants/userSecurityAction.constant';
 import { createRandomCode, createRandomUid, getClientIp } from '@/common/utils';
 import { GlobalConfigService } from '@/modules/globalConfig/globalConfig.service';
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
@@ -12,6 +13,7 @@ import { ConfigEntity } from '../globalConfig/config.entity';
 import { MailerService } from '../mailer/mailer.service';
 import { RedisCacheService } from '../redisCache/redisCache.service';
 import { UserService } from '../user/user.service';
+import { UserSecurityLogService } from '../user/userSecurityLog.service';
 import { UserBalanceService } from '../userBalance/userBalance.service';
 import { UserEntity } from './../user/user.entity';
 import { VerificationService } from './../verification/verification.service';
@@ -33,6 +35,7 @@ export class AuthService {
     private readonly userBalanceService: UserBalanceService,
     private readonly redisCacheService: RedisCacheService,
     private readonly globalConfigService: GlobalConfigService, // private readonly userEntity: Repository<UserEntity>
+    private readonly userSecurityLogService: UserSecurityLogService,
   ) {}
 
   async onModuleInit() {
@@ -487,5 +490,140 @@ export class AuthService {
       Logger.error('验证过程出现错误', error);
       throw new HttpException('身份验证错误，请检查相关信息', HttpStatus.BAD_REQUEST);
     }
+  }
+
+  async sendBindEmailCode(req: Request, body: { email: string }) {
+    const { id, role } = req.user as { id: number; role?: string };
+    if (role === 'visitor') {
+      throw new HttpException('游客无法绑定邮箱', HttpStatus.BAD_REQUEST);
+    }
+    const email = String(body.email || '')
+      .trim()
+      .toLowerCase();
+    if (!/\S+@\S+\.\S+/.test(email)) {
+      throw new HttpException('请填写有效的邮箱地址', HttpStatus.BAD_REQUEST);
+    }
+    if (email.length > 64) {
+      throw new HttpException('邮箱长度不能超过64个字符', HttpStatus.BAD_REQUEST);
+    }
+
+    const user = await this.userService.getUserById(id);
+    if (!user) {
+      throw new HttpException('用户不存在', HttpStatus.BAD_REQUEST);
+    }
+    const current = String(user.email || '')
+      .trim()
+      .toLowerCase();
+    if (current === email) {
+      throw new HttpException('新邮箱与当前账号邮箱相同，无需更换', HttpStatus.BAD_REQUEST);
+    }
+
+    const taken = await this.userService.getUserByContact({ email });
+    if (taken && taken.id !== id) {
+      throw new HttpException('该邮箱已被其他账号使用', HttpStatus.BAD_REQUEST);
+    }
+
+    const nameSpace = this.globalConfigService.getNamespace();
+    const key = `${nameSpace}:BIND_EMAIL_CODE:${email}`;
+
+    const ttl = await this.redisCacheService.ttl(key);
+    if (ttl && ttl > 0) {
+      throw new HttpException(`${ttl}秒内不得重复发送验证码`, HttpStatus.TOO_MANY_REQUESTS);
+    }
+
+    const code = createRandomCode();
+    try {
+      await this.mailerService.sendMail({
+        to: email,
+        context: { code: String(code) },
+      });
+    } catch (error) {
+      Logger.error(`绑定邮箱：邮件发送失败: ${error?.message}`, 'authService');
+      throw new HttpException('验证码发送失败，请稍后重试', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+    await this.redisCacheService.set({ key, val: String(code) }, 10 * 60);
+    Logger.log(`绑定邮箱：已发送验证码 | 用户 ${id} | 邮箱 ${email}`, 'authService');
+    return '验证码已发送至邮箱，请查收（约10分钟内有效）';
+  }
+
+  async verifyBindEmail(req: Request, body: { email: string; code: string }) {
+    const { id, role } = req.user as { id: number; role?: string };
+    if (role === 'visitor') {
+      throw new HttpException('游客无法绑定邮箱', HttpStatus.BAD_REQUEST);
+    }
+    const uid = Number(id);
+    const email = String(body.email || '')
+      .trim()
+      .toLowerCase();
+    const code = String(body.code || '').trim();
+    if (!email || !code) {
+      throw new HttpException('请填写邮箱与验证码', HttpStatus.BAD_REQUEST);
+    }
+
+    const nameSpace = this.globalConfigService.getNamespace();
+    const key = `${nameSpace}:BIND_EMAIL_CODE:${email}`;
+    const redisCode = await this.redisCacheService.get({ key });
+    if (!redisCode) {
+      throw new HttpException('验证码已过期，请重新获取', HttpStatus.BAD_REQUEST);
+    }
+    if (String(redisCode) !== code) {
+      throw new HttpException('验证码错误，请重新输入', HttpStatus.BAD_REQUEST);
+    }
+
+    const taken = await this.userService.getUserByContact({ email });
+    if (taken && Number(taken.id) !== uid) {
+      throw new HttpException('该邮箱已被其他账号使用', HttpStatus.BAD_REQUEST);
+    }
+
+    const userBefore = await this.userService.getUserById(uid);
+    if (!userBefore) {
+      throw new HttpException('用户不存在', HttpStatus.BAD_REQUEST);
+    }
+    const oldEmailRaw = String(userBefore.email || '').trim();
+    const wasPlaceholder = this.isPlaceholderEmailAudit(oldEmailRaw);
+
+    await this.userService.bindUserEmail(uid, email);
+
+    try {
+      await this.userSecurityLogService.append({
+        userId: uid,
+        action: wasPlaceholder ? UserSecurityAction.EMAIL_BIND : UserSecurityAction.EMAIL_REBIND,
+        meta: {
+          oldEmailMasked: this.maskEmailAudit(oldEmailRaw),
+          newEmailMasked: this.maskEmailAudit(email),
+        },
+        ip: getClientIp(req),
+      });
+    } catch (e) {
+      Logger.error(`用户安全审计日志写入失败: ${e?.message}`, 'authService');
+    }
+
+    await this.redisCacheService.clearAllUserTokens(uid);
+    await this.redisCacheService.del({ key });
+    Logger.log(`绑定邮箱：成功并已注销全部登录态 | 用户 ${uid} | 新邮箱 ${email}`, 'authService');
+
+    return {
+      message: '邮箱绑定成功，请使用新邮箱重新登录',
+      forceRelogin: true,
+    };
+  }
+
+  private maskEmailAudit(raw: string): string {
+    const em = String(raw || '').trim();
+    const at = em.indexOf('@');
+    if (at <= 0) return em ? '***' : '';
+    const u = em.slice(0, at);
+    const d = em.slice(at + 1);
+    if (u.length <= 2) return `${u[0] || '*'}***@${d}`;
+    return `${u.slice(0, 2)}***${u.slice(-1)}@${d}`;
+  }
+
+  private isPlaceholderEmailAudit(raw: string): boolean {
+    const e = String(raw || '')
+      .trim()
+      .toLowerCase();
+    if (!e || !e.includes('@')) return true;
+    const suffixes = ['@aiweb.com', '@cooper.com', '@default.com', '@visitor.com'];
+    return suffixes.some(s => e.endsWith(s));
   }
 }
