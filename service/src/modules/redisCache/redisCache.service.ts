@@ -80,6 +80,14 @@ export class RedisCacheService {
     });
   }
 
+  /**
+   * 清空某用户 Redis 中记录的全部 JWT（用于换绑邮箱等需强制重新登录的场景）
+   */
+  async clearAllUserTokens(userId: number | string): Promise<void> {
+    const uid = String(userId);
+    await this.redisClient.del(`tokens:${uid}`);
+  }
+
   // /* 检测token是否有效 */
   // async checkTokenAuth(token, req) {
   //   const { id: userId, role } = req.user;
