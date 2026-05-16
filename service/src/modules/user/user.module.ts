@@ -18,6 +18,8 @@ import { VerificationService } from './../verification/verification.service';
 import { UserController } from './user.controller';
 import { UserEntity } from './user.entity';
 import { UserService } from './user.service';
+import { UserSecurityLogEntity } from './userSecurityLog.entity';
+import { UserSecurityLogService } from './userSecurityLog.service';
 
 @Global()
 @Module({
@@ -35,16 +37,18 @@ import { UserService } from './user.service';
       ChatGroupEntity,
       AppEntity,
       AppCatsEntity,
+      UserSecurityLogEntity,
     ]),
   ],
   controllers: [UserController],
   providers: [
     UserService,
+    UserSecurityLogService,
     VerificationService,
     UserBalanceService,
     RedisCacheService,
     MailerService,
   ],
-  exports: [UserService],
+  exports: [UserService, UserSecurityLogService],
 })
 export class UserModule {}
