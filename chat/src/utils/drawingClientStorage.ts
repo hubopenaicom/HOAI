@@ -9,7 +9,11 @@ export const STORAGE_KEY_PREV_CHAT_BEFORE_DRAWING = 'hoai_prev_chat_group_before
 /** 绘画会话绑定的对话组 id（避免重复新建对话） */
 export const STORAGE_KEY_DRAWING_BIND_GROUP = 'hoai_drawing_bind_group'
 
+/** 上次在绘画页选中的模型 model 字段（刷新后恢复 MJ / 通用绘画布局，避免闪屏） */
+export const STORAGE_KEY_DRAWING_SELECTED_MODEL = 'hoai_drawing_selected_model'
+
 const DRAWING_LOCAL_FIXED_KEYS = [
+  'hoai_drawing_selected_model',
   'hoai_drawing_mj_custom_params_only',
   'hoai_drawing_mj_realistic_version',
   'hoai_drawing_mj_niji_version',
