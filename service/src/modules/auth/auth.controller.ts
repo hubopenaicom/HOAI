@@ -5,6 +5,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { UserLoginDto } from './dto/authLogin.dto';
+import { SendBindEmailCodeDto, VerifyBindEmailDto } from './dto/bindEmail.dto';
 import { UpdatePassByOtherDto } from './dto/updatePassByOther.dto';
 import { UpdatePasswordDto } from './dto/updatePassword.dto';
 
@@ -76,5 +77,21 @@ export class AuthController {
   @ApiBearerAuth()
   async verifyPhoneIdentity(@Req() req: Request, @Body() body: any) {
     return this.authService.verifyPhoneIdentity(req, body);
+  }
+
+  @Post('sendBindEmailCode')
+  @ApiOperation({ summary: '发送邮箱绑定验证码（需登录）' })
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  async sendBindEmailCode(@Req() req: Request, @Body() body: SendBindEmailCodeDto) {
+    return this.authService.sendBindEmailCode(req, body);
+  }
+
+  @Post('verifyBindEmail')
+  @ApiOperation({ summary: '校验验证码并完成邮箱绑定（需登录）' })
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  async verifyBindEmail(@Req() req: Request, @Body() body: VerifyBindEmailDto) {
+    return this.authService.verifyBindEmail(req, body);
   }
 }
