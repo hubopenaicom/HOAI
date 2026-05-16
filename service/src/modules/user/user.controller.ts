@@ -5,16 +5,21 @@ import { Body, Controller, Get, Post, Query, Req, UseGuards } from '@nestjs/comm
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { QueryAllUserDto } from './dto/queryAllUser.dto';
+import { QuerySecurityLogDto } from './dto/querySecurityLog.dto';
 import { ResetUserPassDto } from './dto/resetUserPass.dto';
 import { UpdateUserDto } from './dto/updateUser.dto';
 import { UpdateUserStatusDto } from './dto/updateUserStatus.dto';
 import { UserRechargeDto } from './dto/userRecharge.dto';
 import { UserService } from './user.service';
+import { UserSecurityLogService } from './userSecurityLog.service';
 
 @Controller('user')
 @ApiTags('user')
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly userSecurityLogService: UserSecurityLogService,
+  ) {}
 
   @Post('update')
   @ApiOperation({ summary: '更新用户信息' })
@@ -38,6 +43,24 @@ export class UserController {
   @ApiBearerAuth()
   async queryAll(@Query() query: QueryAllUserDto, @Req() req: Request) {
     return await this.userService.queryAll(query, req);
+  }
+
+  @Get('securityLogs')
+  @ApiOperation({ summary: '用户安全审计日志（如邮箱绑定）' })
+  @UseGuards(AdminAuthGuard)
+  @ApiBearerAuth()
+  async querySecurityLogs(@Query() query: QuerySecurityLogDto) {
+    const rawUid = query.userId as unknown;
+    const userId =
+      rawUid === undefined || rawUid === null || rawUid === ''
+        ? undefined
+        : Number(rawUid);
+    return await this.userSecurityLogService.queryAdmin({
+      page: Number(query.page) || 1,
+      size: Number(query.size) || 15,
+      userId: Number.isFinite(userId) ? userId : undefined,
+      action: query.action,
+    });
   }
 
   // @Get('queryOne')
