@@ -723,6 +723,32 @@ export class UserService {
     return;
   }
 
+  /**
+   * 登录用户绑定/更换为真实邮箱（需已通过邮件验证码校验）
+   * @param userId 当前用户 id
+   * @param newEmail 新邮箱（已 trim + 小写）
+   */
+  async bindUserEmail(userId: number, newEmail: string): Promise<void> {
+    const email = String(newEmail || '')
+      .trim()
+      .toLowerCase();
+    if (!email) {
+      throw new HttpException('邮箱不能为空', HttpStatus.BAD_REQUEST);
+    }
+    const user = await this.userEntity.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new HttpException('用户不存在', HttpStatus.BAD_REQUEST);
+    }
+    const existing = await this.userEntity.findOne({ where: { email } });
+    if (existing && existing.id !== userId) {
+      throw new HttpException('该邮箱已被其他账号使用', HttpStatus.BAD_REQUEST);
+    }
+    const r = await this.userEntity.update({ id: userId }, { email });
+    if (!r.affected) {
+      throw new HttpException('保存失败，请稍后重试', HttpStatus.BAD_REQUEST);
+    }
+  }
+
   /* 更新用户手机号，用户名，密码 */
   async updateUserPhone(userId: number, phone: string, username: string, password: string) {
     const user = await this.userEntity.findOne({ where: { id: userId } });
