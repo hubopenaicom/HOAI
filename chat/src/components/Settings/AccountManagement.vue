@@ -1,5 +1,12 @@
 <script setup lang="ts">
-import { fetchSendSms, fetchUpdateInfoAPI, fetchUpdatePasswordAPI } from '@/api'
+import {
+  fetchSendBindEmailCodeAPI,
+  fetchSendSms,
+  fetchUpdateInfoAPI,
+  fetchVerifyBindEmailAPI,
+  fetchUpdatePasswordAPI,
+} from '@/api'
+import { uploadFile } from '@/api/upload'
 import type { ResData } from '@/api/types'
 import {
   fetchBindWxBySceneStrAPI,
@@ -13,9 +20,10 @@ import { useBasicLayout } from '@/hooks/useBasicLayout'
 import { useAuthStore, useGlobalStoreWithOut } from '@/store'
 import { DIALOG_TABS } from '@/store/modules/global'
 import { message } from '@/utils/message'
-import { ArrowLeft, Edit, IdCard, Lock, Phone, User, Wechat } from '@icon-park/vue-next'
+import { ArrowLeft, Edit, IdCard, Lock, Mail, Phone, Wechat } from '@icon-park/vue-next'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import SliderCaptcha from '../Login/SliderCaptcha.vue'
+import UserAvatarCropDialog from './UserAvatarCropDialog.vue'
 
 interface Props {
   visible: boolean
@@ -198,7 +206,82 @@ async function getInfo() {
   }
 }
 
-const avatar = computed(() => userInfo.value.avatar || defaultAvatar)
+/** 展示用头像（无自定义时使用站点默认图） */
+const displayAvatar = computed(() => {
+  const a = userInfo.value.avatar?.trim()
+  return a || defaultAvatar
+})
+
+const avatarFileInputRef = ref<HTMLInputElement | null>(null)
+const showAvatarCropDialog = ref(false)
+const pendingAvatarFile = ref<File | null>(null)
+const avatarUploading = ref(false)
+
+function triggerAvatarFileSelect() {
+  if (!checkLoginStatus()) return
+  avatarFileInputRef.value?.click()
+}
+
+function validateAvatarBeforeCrop(file: File): boolean {
+  const okTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
+  const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'))
+  const okExt = ['.png', '.jpg', '.jpeg', '.gif', '.webp'].includes(ext)
+  if (!okTypes.includes(file.type) && !okExt) {
+    ms.error('仅支持 PNG、JPEG、GIF、WebP 格式')
+    return false
+  }
+  if (file.size > 3 * 1024 * 1024) {
+    ms.error('图片大小不能超过 3MB')
+    return false
+  }
+  return true
+}
+
+function onAvatarFileInputChange(ev: Event) {
+  const input = ev.target as HTMLInputElement
+  const file = input.files?.[0] ?? null
+  input.value = ''
+  if (!file) return
+  if (!validateAvatarBeforeCrop(file)) return
+  pendingAvatarFile.value = file
+  showAvatarCropDialog.value = true
+}
+
+function pickUploadUrl(res: unknown): string {
+  const body = res as { data?: unknown }
+  const d = body?.data
+  if (typeof d === 'string' && d.trim()) return d.trim()
+  return ''
+}
+
+async function onAvatarCroppedSave(file: File) {
+  if (!checkLoginStatus()) return
+  avatarUploading.value = true
+  try {
+    const uploadRes = await uploadFile(file, 'userFiles/avatar')
+    const url = pickUploadUrl(uploadRes)
+    if (!url) {
+      ms.error('上传成功但未获取到图片地址，请检查后台存储配置')
+      return
+    }
+    const res: ResData = await fetchUpdateInfoAPI({ avatar: url })
+    if (!res.success) {
+      ms.error(res.message || '头像保存失败')
+      return
+    }
+    ms.success('头像已更新')
+    await authStore.getUserInfo()
+  } catch {
+    ms.error('头像上传失败，请稍后重试')
+  } finally {
+    avatarUploading.value = false
+    pendingAvatarFile.value = null
+  }
+}
+watch(showAvatarCropDialog, v => {
+  if (!v) pendingAvatarFile.value = null
+})
+
 const email = computed(() => userInfo.value.email || '')
 const nickname = computed(() => userInfo.value.nickname || '')
 const phone = computed(() => userInfo.value.phone || '')
@@ -268,6 +351,16 @@ const phoneForm = ref({
   code: '',
 })
 
+/** 邮箱绑定表单 */
+const emailForm = ref({
+  email: '',
+  code: '',
+})
+const emailSendLoading = ref(false)
+const emailCodeCountdown = ref(0)
+const emailCountdownTimer = ref<number | null>(null)
+const isShowEmailVerify = ref(false)
+
 // 验证相关
 const agreedToUserAgreement = ref(true) // 是否同意用户协议
 const sendCodeLoading = ref(false)
@@ -289,7 +382,129 @@ const isWxBound = computed(() => {
 })
 
 // 当前显示视图控制
-const activeView = ref('main') // 'main', 'phone', 'identity', 'wx', 'password', 'wxMigration'
+const activeView = ref('main') // 'main', 'phone', 'email', 'identity', 'wx', 'password', 'wxMigration'
+
+watch(activeView, v => {
+  if (v !== 'main' && showAvatarCropDialog.value) {
+    showAvatarCropDialog.value = false
+    pendingAvatarFile.value = null
+  }
+})
+
+function stopEmailCountdown() {
+  if (emailCountdownTimer.value !== null) {
+    clearInterval(emailCountdownTimer.value)
+    emailCountdownTimer.value = null
+  }
+  emailCodeCountdown.value = 0
+}
+
+function startEmailCountdown() {
+  stopEmailCountdown()
+  emailCodeCountdown.value = 60
+  emailCountdownTimer.value = window.setInterval(() => {
+    emailCodeCountdown.value--
+    if (emailCodeCountdown.value <= 0) {
+      stopEmailCountdown()
+    }
+  }, 1000)
+}
+
+function showEmailBindView() {
+  if (!checkLoginStatus()) return
+  emailForm.value = { email: '', code: '' }
+  stopEmailCountdown()
+  activeView.value = 'email'
+}
+
+async function sendEmailBindCode() {
+  const raw = emailForm.value.email.trim()
+  if (!raw) {
+    return ms.error('请输入邮箱地址')
+  }
+  if (!/\S+@\S+\.\S+/.test(raw)) {
+    return ms.error('邮箱格式不正确')
+  }
+  if (emailCodeCountdown.value > 0) return
+
+  try {
+    emailSendLoading.value = true
+    const res = (await fetchSendBindEmailCodeAPI({
+      email: raw.toLowerCase(),
+    })) as ResData
+    if (res.success) {
+      ms.success((typeof res.data === 'string' && res.data) || res.message || '验证码已发送')
+      startEmailCountdown()
+    } else {
+      ms.error(res.message || '发送失败')
+    }
+  } catch {
+    ms.error('发送验证码失败，请稍后重试')
+  } finally {
+    emailSendLoading.value = false
+  }
+}
+
+function handleEmailSubmit() {
+  if (agreedToUserAgreement.value === false && globalConfig.value.isAutoOpenAgreement === '1') {
+    return ms.error(`请阅读并同意《${globalConfig.value.agreementTitle}》`)
+  }
+  const raw = emailForm.value.email.trim()
+  if (!raw || !emailForm.value.code.trim()) {
+    return ms.error('请填写邮箱与验证码')
+  }
+  if (!/\S+@\S+\.\S+/.test(raw)) {
+    return ms.error('邮箱格式不正确')
+  }
+  if (!/^\d{6}$/.test(emailForm.value.code.trim())) {
+    return ms.error('请输入6位数字验证码')
+  }
+  isShowEmailVerify.value = true
+}
+
+async function onEmailBindCaptchaSuccess() {
+  isShowEmailVerify.value = false
+  try {
+    loading.value = true
+    const res = (await fetchVerifyBindEmailAPI({
+      email: emailForm.value.email.trim().toLowerCase(),
+      code: emailForm.value.code.trim(),
+    })) as ResData
+    if (res.success) {
+      const payload = res.data
+      const forceRelogin =
+        payload != null &&
+        typeof payload === 'object' &&
+        (payload as { forceRelogin?: boolean }).forceRelogin === true
+      const tip =
+        typeof payload === 'string'
+          ? payload
+          : (payload as { message?: string })?.message || '邮箱绑定成功'
+
+      emailForm.value = { email: '', code: '' }
+      stopEmailCountdown()
+      backToMainView()
+
+      if (forceRelogin) {
+        ms.success(tip)
+        authStore.removeToken()
+        authStore.$patch({ userInfo: {}, userBalance: {} })
+        useGlobalStore.updateSettingsDialog(false)
+        authStore.setLoginDialog(true)
+      } else {
+        ms.success(tip)
+        await getInfo()
+      }
+    } else {
+      ms.error(res.message || '绑定失败')
+    }
+  } catch (error) {
+    console.error('邮箱绑定失败:', error)
+    ms.error('绑定失败，请稍后重试')
+  } finally {
+    loading.value = false
+  }
+}
 
 // 切换到绑定手机界面
 function showPhoneBindView() {
@@ -320,6 +535,10 @@ function backToMainView() {
   // 如果是从微信绑定界面返回，立即清理微信绑定相关资源
   if (activeView.value === 'wx') {
     cleanupWxBind()
+  }
+  if (activeView.value === 'email') {
+    stopEmailCountdown()
+    isShowEmailVerify.value = false
   }
   activeView.value = 'main'
 }
@@ -594,6 +813,8 @@ onBeforeUnmount(() => {
   // 关闭任何打开的验证对话框
   isShowIdVerify.value = false
   isShowPhoneVerify.value = false
+  isShowEmailVerify.value = false
+  stopEmailCountdown()
 
   // 重置编辑状态
   isEditingInfo.value = false
@@ -613,6 +834,9 @@ function resetUiState() {
   showVerificationSection.value = false
   showPasswordForm.value = false
   showWxBindSection.value = false
+  stopEmailCountdown()
+  isShowEmailVerify.value = false
+  emailForm.value = { email: '', code: '' }
   activeView.value = 'main' // 重置为主视图
 }
 
@@ -661,12 +885,40 @@ function maskPhone(phone: string): string {
   return phone.replace(/(\d{3})\d*(\d{4})/, '$1****$2')
 }
 
+/** 占位邮箱：与个人信息区「邮箱」展示逻辑一致 */
+const PLACEHOLDER_EMAIL_SUFFIXES = ['@aiweb.com', '@cooper.com', '@default.com', '@visitor.com']
+
+function isRealUserEmail(em: string): boolean {
+  const e = (em || '').trim().toLowerCase()
+  if (!e || !e.includes('@')) return false
+  return !PLACEHOLDER_EMAIL_SUFFIXES.some(s => e.endsWith(s))
+}
+
+function maskEmail(em: string): string {
+  const raw = (em || '').trim()
+  const at = raw.indexOf('@')
+  if (at <= 0) return raw
+  const u = raw.slice(0, at)
+  const d = raw.slice(at + 1)
+  if (u.length <= 2) return `${u[0] || '*'}***@${d}`
+  return `${u.slice(0, 2)}***${u.slice(-1)}@${d}`
+}
+
 // 视图控制
 
 // 手机绑定信息
 const phoneBindInfo = reactive({
   status: computed(() => (phone.value ? 'bound' : 'unbound')),
   phone: computed(() => maskPhone(phone.value)),
+})
+
+const emailBindInfo = computed(() => {
+  const raw = (userInfo.value.email || '').trim()
+  const bound = isRealUserEmail(raw)
+  return {
+    status: bound ? 'bound' : 'unbound',
+    display: bound ? maskEmail(raw) : '',
+  }
 })
 
 // 实名认证状态
@@ -692,15 +944,36 @@ const identityStatus = computed(() => (realName.value ? 'verified' : 'unverified
           个人信息
         </div>
 
-        <!-- 头像展示 -->
-        <div class="flex items-center">
-          <div class="w-20 text-gray-500 dark:text-gray-400">头像</div>
-          <!-- <div>
-            <img :src="avatar" alt="头像" class="w-20 h-20 rounded-full cursor-pointer" />
-          </div> -->
-          <div class="avatar avatar-lg avatar-bordered avatar-primary">
-            <img v-if="avatar" :src="avatar" class="w-full h-full object-cover" alt="用户头像" />
-            <User v-if="!avatar" theme="outline" size="20" class="text-white" aria-hidden="true" />
+        <!-- 头像：上传 + 裁剪 -->
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-start">
+          <div class="w-20 shrink-0 pt-1 text-gray-500 dark:text-gray-400">头像</div>
+          <div class="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center">
+            <div class="avatar avatar-lg avatar-bordered avatar-primary shrink-0">
+              <img :src="displayAvatar" class="h-full w-full object-cover" alt="用户头像" />
+            </div>
+            <div class="flex min-w-0 flex-1 flex-col gap-2">
+              <div class="flex flex-wrap items-center gap-2">
+                <input
+                  ref="avatarFileInputRef"
+                  type="file"
+                  class="hidden"
+                  accept="image/png,image/jpeg,image/gif,image/webp,.png,.jpg,.jpeg,.gif,.webp"
+                  @change="onAvatarFileInputChange"
+                />
+                <button
+                  type="button"
+                  class="btn btn-primary btn-sm"
+                  :disabled="avatarUploading || loading"
+                  @click="triggerAvatarFileSelect"
+                >
+                  {{ avatarUploading ? '处理中…' : '上传 / 更换头像' }}
+                </button>
+              </div>
+              <p class="text-xs leading-relaxed text-gray-500 dark:text-gray-400">
+                支持 PNG、JPEG、GIF、WebP，单张不超过
+                3MB。选择后可在圆圈内拖拽平移、用滑块缩放，再保存为正方形头像。
+              </p>
+            </div>
           </div>
         </div>
 
@@ -777,6 +1050,25 @@ const identityStatus = computed(() => (realName.value ? 'verified' : 'unverified
               绑定
             </button>
             <span v-else class="text-green-600 text-sm">已绑定</span>
+          </div>
+
+          <!-- 邮箱绑定（需开启邮箱登录 / 发信能力由后台配置） -->
+          <div v-if="emailLoginStatus" class="flex items-center justify-between">
+            <div class="flex items-center">
+              <div>
+                <div class="text-gray-900 dark:text-gray-200 flex items-center">
+                  邮箱绑定
+                  <Mail theme="outline" size="16" class="text-gray-500 ml-1" />
+                </div>
+                <div class="text-xs text-gray-500">
+                  {{ emailBindInfo.status === 'bound' ? '已绑定' : '未绑定真实邮箱' }}
+                  {{ emailBindInfo.display }}
+                </div>
+              </div>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" @click="showEmailBindView">
+              {{ emailBindInfo.status === 'bound' ? '换绑' : '绑定' }}
+            </button>
           </div>
 
           <!-- 微信绑定 -->
@@ -981,6 +1273,94 @@ const identityStatus = computed(() => (realName.value ? 'verified' : 'unverified
       </div>
     </div>
 
+    <!-- 邮箱绑定视图 -->
+    <div
+      v-else-if="activeView === 'email'"
+      class="max-h-[70vh] overflow-y-auto custom-scrollbar p-2"
+    >
+      <div
+        class="p-4 bg-white dark:bg-gray-700 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 mb-4"
+      >
+        <div class="flex items-center mb-4 pb-2 border-b border-gray-200 dark:border-gray-700">
+          <button
+            type="button"
+            class="text-gray-500 hover:text-gray-700 mr-2"
+            @click="backToMainView"
+          >
+            <ArrowLeft size="18" />
+          </button>
+          <div class="text-base font-semibold text-gray-900 dark:text-gray-100">绑定邮箱</div>
+        </div>
+
+        <p class="mb-4 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+          将用于找回密码、接收通知等。需能接收邮件；验证码约 10
+          分钟内有效。若已绑定真实邮箱，可在此更换为新邮箱。
+        </p>
+
+        <div class="space-y-4">
+          <div>
+            <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+              邮箱地址
+            </label>
+            <input
+              v-model="emailForm.email"
+              type="email"
+              autocomplete="email"
+              class="input input-md w-full"
+              placeholder="请输入要绑定的邮箱"
+            />
+          </div>
+          <div class="flex space-x-2">
+            <div class="flex-1">
+              <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                验证码
+              </label>
+              <input
+                v-model="emailForm.code"
+                inputmode="numeric"
+                maxlength="6"
+                class="input input-md w-full"
+                placeholder="6位数字验证码"
+              />
+            </div>
+            <div class="flex items-end">
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm w-full whitespace-nowrap"
+                :disabled="emailSendLoading || emailCodeCountdown > 0"
+                @click="sendEmailBindCode"
+              >
+                {{ emailCodeCountdown > 0 ? `${emailCodeCountdown}s 后重发` : '获取验证码' }}
+              </button>
+            </div>
+          </div>
+
+          <div v-if="globalConfig.isAutoOpenAgreement === '1'" class="flex items-center">
+            <input
+              v-model="agreedToUserAgreement"
+              type="checkbox"
+              class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-600"
+            />
+            <p class="ml-1 text-center text-sm text-gray-500 dark:text-gray-400">
+              已阅读并同意
+              <a
+                href="#"
+                class="font-semibold leading-6 text-primary-600 hover:text-primary-500 dark:text-primary-500 dark:hover:text-primary-600"
+                @click="handleAgreementClick"
+                >《{{ globalConfig.agreementTitle }}》</a
+              >
+            </p>
+          </div>
+
+          <div>
+            <button type="button" class="btn btn-primary btn-md w-full" @click="handleEmailSubmit">
+              提交绑定
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 实名认证视图 -->
     <div
       v-else-if="activeView === 'identity'"
@@ -1118,6 +1498,12 @@ const identityStatus = computed(() => (realName.value ? 'verified' : 'unverified
     </div>
   </div>
 
+  <UserAvatarCropDialog
+    v-model:open="showAvatarCropDialog"
+    :image-file="pendingAvatarFile"
+    @confirm="onAvatarCroppedSave"
+  />
+
   <!-- 身份认证滑块验证 -->
   <SliderCaptcha
     :show="isShowIdVerify"
@@ -1130,6 +1516,13 @@ const identityStatus = computed(() => (realName.value ? 'verified' : 'unverified
     :show="isShowPhoneVerify"
     @success="onPhoneSuccess"
     @close="isShowPhoneVerify = false"
+  />
+
+  <!-- 邮箱绑定滑块验证 -->
+  <SliderCaptcha
+    :show="isShowEmailVerify"
+    @success="onEmailBindCaptchaSuccess"
+    @close="isShowEmailVerify = false"
   />
 </template>
 
