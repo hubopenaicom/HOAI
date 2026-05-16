@@ -41,7 +41,10 @@ import { t } from '@/locales'
 import { useAppStore, useAuthStore, useChatStore, useGlobalStoreWithOut } from '@/store'
 import { copyText } from '@/utils/format'
 import { message } from '@/utils/message'
-import { STORAGE_KEY_DRAWING_BIND_GROUP } from '@/utils/drawingClientStorage'
+import {
+  STORAGE_KEY_DRAWING_BIND_GROUP,
+  STORAGE_KEY_DRAWING_SELECTED_MODEL,
+} from '@/utils/drawingClientStorage'
 import {
   mjDrawingRefCrefKey,
   mjDrawingRefOrefKey,
@@ -421,14 +424,40 @@ const collapsed = computed(() => appStore.siderCollapsed)
 const isLogin = computed(() => authStore.isLogin)
 const isStreamIn = computed(() => chatStore.isStreamIn !== undefined && chatStore.isStreamIn)
 
+function loadDrawingSelectedModelKey(): string {
+  try {
+    return localStorage.getItem(STORAGE_KEY_DRAWING_SELECTED_MODEL) || ''
+  } catch {
+    return ''
+  }
+}
+
+function persistDrawingSelectedModelKey(model: string) {
+  if (!model) return
+  try {
+    localStorage.setItem(STORAGE_KEY_DRAWING_SELECTED_MODEL, model)
+  } catch {
+    /* ignore */
+  }
+}
+
+function resolveDrawingModelKey(list: DrawingModel[], preferred: string): string {
+  const key = preferred.trim()
+  if (key && list.some(x => x.model === key)) return key
+  return list[0]?.model ?? ''
+}
+
 const drawingModels = ref<DrawingModel[]>([])
-const selectedModelKey = ref('')
+/** 同步恢复上次模型，避免刷新后 isMjModel 误判为通用绘画页 */
+const selectedModelKey = ref(loadDrawingSelectedModelKey())
 const promptText = ref('')
 const extraSize = ref('1024x1024')
 const results = ref<ResultItem[]>([])
 const drawingSessionGroupId = ref<number | null>(null)
 const controller = ref<AbortController | null>(null)
-const modelsLoading = ref(false)
+const modelsLoading = ref(true)
+/** 首次拉取绘画模型列表完成前不渲染 MJ / 通用主区，防止闪一下「AI 绘画」简版页 */
+const modelsBootstrapped = ref(false)
 
 const mjMode = ref<MjSpeedMode>('fast')
 const studioTab = ref<StudioTab>('t2i')
@@ -1278,14 +1307,22 @@ async function loadDrawingModels() {
     }
     if (res.success && res.data?.list?.length) {
       drawingModels.value = res.data.list
-      if (!selectedModelKey.value) selectedModelKey.value = res.data.list[0].model
+      const nextKey = resolveDrawingModelKey(
+        res.data.list,
+        selectedModelKey.value || loadDrawingSelectedModelKey()
+      )
+      selectedModelKey.value = nextKey
+      if (nextKey) persistDrawingSelectedModelKey(nextKey)
     } else {
       drawingModels.value = []
+      selectedModelKey.value = ''
     }
   } catch {
     drawingModels.value = []
+    selectedModelKey.value = ''
   } finally {
     modelsLoading.value = false
+    modelsBootstrapped.value = true
   }
 }
 
@@ -2411,6 +2448,10 @@ watch(drawingSessionGroupId, v => {
   }
 })
 
+watch(selectedModelKey, v => {
+  if (v) persistDrawingSelectedModelKey(v)
+})
+
 onMounted(async () => {
   loadMjCustomParamsPref()
   loadMjVersionSeedPrefs()
@@ -3306,7 +3347,16 @@ function handleDescribeResultRowCopyPrompt(text: string) {
             class="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--drawing-main)]"
           >
             <!-- Midjourney：左栏（菜单 + AI 绘画输入）| 中间主区（任务网格占满剩余宽度） -->
-            <div v-if="isMjModel" class="flex min-h-0 flex-1 flex-col lg:flex-row">
+            <div
+              v-if="!modelsBootstrapped"
+              class="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 py-12"
+              role="status"
+              aria-busy="true"
+            >
+              <span class="loading loading-spinner loading-lg text-sky-600" />
+              <p class="text-sm text-[var(--text-muted)]">{{ t('drawing.pageLoading') }}</p>
+            </div>
+            <div v-else-if="isMjModel" class="flex min-h-0 flex-1 flex-col lg:flex-row">
               <!-- 左栏：侧栏单独滚动，底部「生成」固定可见（避免侧栏过长时按钮被顶出视口） -->
               <div
                 class="flex min-h-0 w-full shrink-0 flex-col border-[var(--border-default)] bg-[var(--drawing-sidebar)] lg:h-full lg:max-w-[min(100%,460px)] lg:w-[min(100%,460px)] lg:border-r"
