@@ -46,6 +46,7 @@
     "generating": "Generating…",
     "noModels": "No drawing models available. In admin, set Drawing Type (drawingType) on a model and enable it.",
     "emptyHint": "Results will appear here",
+    "pageLoading": "Loading drawing workspace…",
     "loginRequired": "Please sign in to use drawing.",
     "needPrompt": "Please enter a prompt.",
     "needModel": "Please select a model.",
