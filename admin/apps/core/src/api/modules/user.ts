@@ -27,4 +27,7 @@ export default {
   updateProfile: (data: { nickname?: string; avatar?: string }) => api.post('user/update', data),
 
   queryUserAccountLog: (params: any) => api.get('balance/accountLog', { params }),
+
+  /** 用户安全审计日志（邮箱绑定/换绑等） */
+  querySecurityLogs: (params: any) => api.get('user/securityLogs', { params }),
 };
