@@ -52,9 +52,7 @@ export class UserController {
   async querySecurityLogs(@Query() query: QuerySecurityLogDto) {
     const rawUid = query.userId as unknown;
     const userId =
-      rawUid === undefined || rawUid === null || rawUid === ''
-        ? undefined
-        : Number(rawUid);
+      rawUid === undefined || rawUid === null || rawUid === '' ? undefined : Number(rawUid);
     return await this.userSecurityLogService.queryAdmin({
       page: Number(query.page) || 1,
       size: Number(query.size) || 15,
