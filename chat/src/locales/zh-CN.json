@@ -46,6 +46,7 @@
     "generating": "生成中…",
     "noModels": "暂无可用绘画模型。请在管理后台「模型设置」中为模型设置绘画类型（drawingType）并启用。",
     "emptyHint": "生成结果将显示在这里",
+    "pageLoading": "加载绘画工作台…",
     "loginRequired": "请先登录后再使用绘画功能",
     "needPrompt": "请输入画面描述",
     "needModel": "请选择绘画模型",
