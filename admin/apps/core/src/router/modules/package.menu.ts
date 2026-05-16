@@ -33,6 +33,15 @@ const routes: RouteRecordRaw = {
       },
     },
     {
+      path: 'security-log',
+      name: 'UserSecurityLogMenu',
+      component: () => import('@/views/users/securityLog.vue'),
+      meta: {
+        title: '安全审计日志',
+        icon: 'i-mdi:shield-account-outline',
+      },
+    },
+    {
       path: 'list',
       name: 'packageMenuList',
       component: () => import('@/views/package/package.vue'),
