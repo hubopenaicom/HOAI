@@ -22,6 +22,7 @@ import { PluginEntity } from '../plugin/plugin.entity';
 import { Share } from '../share/share.entity';
 import { SigninEntity } from '../signin/signIn.entity';
 import { UserEntity } from '../user/user.entity';
+import { UserSecurityLogEntity } from '../user/userSecurityLog.entity';
 import { AccountLogEntity } from '../userBalance/accountLog.entity';
 import { BalanceEntity } from '../userBalance/balance.entity';
 import { FingerprintLogEntity } from '../userBalance/fingerprint.entity';
@@ -50,6 +51,7 @@ const dataSourceOptions: DataSourceOptions = {
     ModelsEntity,
     ModelTokenCatalogEntity,
     UserEntity,
+    UserSecurityLogEntity,
     AccountLogEntity,
     FingerprintLogEntity,
     BalanceEntity,
