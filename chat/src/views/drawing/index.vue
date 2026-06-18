@@ -42,6 +42,10 @@ import { useAppStore, useAuthStore, useChatStore, useGlobalStoreWithOut } from '
 import { copyText } from '@/utils/format'
 import { message } from '@/utils/message'
 import {
+  clearRestoreDrawingStudioFlag,
+  loadDrawingStudioSnapshot,
+  saveDrawingStudioSnapshot,
+  shouldRestoreDrawingStudio,
   STORAGE_KEY_DRAWING_BIND_GROUP,
   STORAGE_KEY_DRAWING_SELECTED_MODEL,
 } from '@/utils/drawingClientStorage'
@@ -112,6 +116,7 @@ import Sider from '@/views/chat/components/sider/index.vue'
 import { useChat } from '@/views/chat/hooks/useChat'
 import { watchDebounced } from '@vueuse/core'
 import { computed, nextTick, onMounted, onUnmounted, provide, ref, watch } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
 
 type SpellMode = 'describe' | 'shorten'
 /** 写实 V8：与侧栏 Midjourney 高级参数中的 SD/HD 一致 */
@@ -2452,12 +2457,32 @@ watch(selectedModelKey, v => {
   if (v) persistDrawingSelectedModelKey(v)
 })
 
+onBeforeRouteLeave(to => {
+  if (to.name === 'Music') {
+    saveDrawingStudioSnapshot({
+      selectedModelKey: selectedModelKey.value,
+      studioTab: studioTab.value,
+    })
+  }
+})
+
 onMounted(async () => {
   loadMjCustomParamsPref()
   loadMjVersionSeedPrefs()
   loadMjAdvSlidersPrefs()
   clearMjRefParamsForUnsupportedVersion()
   await loadDrawingModels()
+  if (shouldRestoreDrawingStudio()) {
+    const snap = loadDrawingStudioSnapshot()
+    clearRestoreDrawingStudioFlag()
+    if (snap?.selectedModelKey) {
+      selectedModelKey.value = resolveDrawingModelKey(drawingModels.value, snap.selectedModelKey)
+    }
+    const tab = snap?.studioTab
+    if (tab === 't2i' || tab === 'i2i' || tab === 'blend' || tab === 'spell' || tab === 'edits') {
+      studioTab.value = tab
+    }
+  }
   await chatStore.queryMyGroup()
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY_DRAWING_BIND_GROUP)
