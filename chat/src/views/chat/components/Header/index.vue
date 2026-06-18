@@ -105,11 +105,13 @@ function openSettings(tab?: number) {
 
 const headerTitle = computed(() => {
   if (route.path === '/drawing') return t('nav.drawingPageTitle')
+  if (route.path === '/music') return t('nav.musicPageTitle')
   return activeGroupInfo.value?.title || t('chat.newConversation')
 })
 
 const isChatRoute = computed(() => route.path === '/' || route.name === 'Chat')
 const isDrawingRoute = computed(() => route.path === '/drawing' || route.name === 'Drawing')
+const isMusicRoute = computed(() => route.path === '/music' || route.name === 'Music')
 
 function goChat(close?: () => void) {
   navMenuOpen.value = false
@@ -121,6 +123,12 @@ function goDrawing(close?: () => void) {
   navMenuOpen.value = false
   close?.()
   if (!isDrawingRoute.value) router.push({ name: 'Drawing' })
+}
+
+function goMusic(close?: () => void) {
+  navMenuOpen.value = false
+  close?.()
+  if (!isMusicRoute.value) router.push({ name: 'Music' })
 }
 </script>
 
@@ -202,6 +210,7 @@ function goDrawing(close?: () => void) {
                   :active="isDrawingRoute"
                   @click="goDrawing(close)"
                 />
+                <MenuItem :title="t('nav.music')" :active="isMusicRoute" @click="goMusic(close)" />
               </template>
             </DropdownMenu>
           </div>
