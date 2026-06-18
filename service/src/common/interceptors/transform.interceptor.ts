@@ -30,8 +30,16 @@ export class TransformInterceptor implements NestInterceptor {
         return Result.success(data, message);
       }),
       catchError(error => {
-        const statusCode = error.status || 500;
-        const message = (error.response || 'Internal server error') as string;
+        const statusCode = error.status || error.statusCode || 500;
+        const raw = error?.response;
+        let message = 'Internal server error';
+        if (typeof raw === 'string') message = raw;
+        else if (raw && typeof raw === 'object') {
+          const m = (raw as { message?: string | string[] }).message;
+          message = Array.isArray(m) ? m[0] : m || error?.message || message;
+        } else if (error?.message) {
+          message = String(error.message);
+        }
         return throwError(new HttpException(message, statusCode));
       }),
     );
