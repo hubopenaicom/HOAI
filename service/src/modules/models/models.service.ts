@@ -432,6 +432,33 @@ export class ModelsService {
     }
   }
 
+  /** 音乐独立页：drawingType=6（Suno）或兼容 suno 模型名 */
+  async musicModelsList() {
+    const rows = await this.modelsEntity.find({
+      order: { modelOrder: 'ASC' },
+    });
+    const list = rows
+      .filter(t => {
+        if (!t.status) return false;
+        const dt = Number(t.drawingType);
+        if (dt === 6) return true;
+        const m = String(t.model || '').toLowerCase();
+        const n = String(t.modelName || '').toLowerCase();
+        return m.includes('suno') || n.includes('suno');
+      })
+      .map(t => ({
+        modelName: t.modelName,
+        keyType: t.keyType,
+        model: t.model,
+        deduct: t.deduct,
+        deductType: t.deductType,
+        modelAvatar: t.modelAvatar,
+        modelDescription: t.modelDescription,
+        drawingType: t.drawingType,
+      }));
+    return { list };
+  }
+
   /** 绘画独立页：返回已启用且 drawingType>0 的模型（不含敏感字段） */
   async drawingModelsList() {
     const rows = await this.modelsEntity.find({
