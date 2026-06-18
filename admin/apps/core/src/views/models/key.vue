@@ -1106,6 +1106,9 @@
                 <el-radio :label="4">chat正则提取</el-radio>
                 <el-radio :label="5">豆包</el-radio>
               </div>
+              <div class="radio-row">
+                <el-radio :label="6">Suno 音乐</el-radio>
+              </div>
             </el-radio-group>
             <el-tooltip class="box-item" effect="dark" placement="right">
               <template #content>
