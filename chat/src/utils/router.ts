@@ -1,5 +1,10 @@
 import { useChatStore } from '@/store'
-import { STORAGE_KEY_PREV_CHAT_BEFORE_DRAWING } from '@/utils/drawingClientStorage'
+import {
+  markRestoreDrawingStudio,
+  STORAGE_KEY_PREV_CHAT_BEFORE_DRAWING,
+  clearRestoreDrawingStudioFlag,
+} from '@/utils/drawingClientStorage'
+import { clearRestoreMusicStudioFlag, markRestoreMusicStudio } from '@/utils/musicClientStorage'
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 
 function groupIsDrawingMj(configStr: string | undefined | null): boolean {
@@ -24,6 +29,11 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('@/views/drawing/index.vue'),
   },
   {
+    path: '/music',
+    name: 'Music',
+    component: () => import('@/views/music/index.vue'),
+  },
+  {
     path: '/:catchAll(.*)',
     redirect: '/',
   },
@@ -37,11 +47,21 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
   const chatStore = useChatStore()
   try {
-    if (from.name === 'Chat' && to.name === 'Drawing') {
+    if (from.name === 'Chat' && (to.name === 'Drawing' || to.name === 'Music')) {
       const id = chatStore.active
       if (id) sessionStorage.setItem(STORAGE_KEY_PREV_CHAT_BEFORE_DRAWING, String(Number(id)))
     }
-    if (from.name === 'Drawing' && to.name === 'Chat') {
+    if (from.name === 'Drawing' && to.name === 'Music') {
+      markRestoreMusicStudio()
+    }
+    if (from.name === 'Music' && to.name === 'Drawing') {
+      markRestoreDrawingStudio()
+    }
+    if (to.name === 'Chat') {
+      clearRestoreMusicStudioFlag()
+      clearRestoreDrawingStudioFlag()
+    }
+    if ((from.name === 'Drawing' || from.name === 'Music') && to.name === 'Chat') {
       const raw = sessionStorage.getItem(STORAGE_KEY_PREV_CHAT_BEFORE_DRAWING)
       sessionStorage.removeItem(STORAGE_KEY_PREV_CHAT_BEFORE_DRAWING)
       await chatStore.queryMyGroup()
