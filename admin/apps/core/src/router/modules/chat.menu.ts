@@ -42,6 +42,15 @@ const routes: RouteRecordRaw = {
       },
     },
     {
+      path: 'suno-music',
+      name: 'sunoMusicAdmin',
+      component: () => import('@/views/chat/sunoMusic.vue'),
+      meta: {
+        title: '音乐管理',
+        icon: 'i-mdi:music-note-outline',
+      },
+    },
+    {
       path: 'auto-reply',
       name: 'ReplyMenuList',
       component: () => import('@/views/sensitive/autpReply.vue'),
