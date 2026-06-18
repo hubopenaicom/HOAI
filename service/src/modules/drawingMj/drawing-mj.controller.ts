@@ -328,7 +328,7 @@ export class DrawingMjController {
     }
     const out = await this.drawingMjService.proxyFetchImage(url.trim());
     const safeName = out.filename.replace(/[^\w.\-()+[\]]/g, '_') || 'image.png';
-    return new StreamableFile(out.buffer, {
+    return new StreamableFile(new Uint8Array(out.buffer), {
       type: out.contentType,
       disposition: `attachment; filename="${safeName}"`,
     });
