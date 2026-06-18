@@ -243,6 +243,70 @@ async function ensureModelsTokenPricingColumns(conn: mysql.Connection) {
   }
 }
 
+/** suno_music_job 表（生产 synchronize=false） */
+async function ensureSunoMusicJobTable(conn: mysql.Connection) {
+  const db = process.env.DB_DATABASE;
+  const [tables] = (await conn.execute(
+    `SELECT COUNT(*) as c FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'suno_music_job'`,
+    [db],
+  )) as [RowDataPacket[], unknown];
+  if (Number(tables[0]?.c) > 0) return;
+  await conn.execute(`
+    CREATE TABLE \`suno_music_job\` (
+      \`id\` int NOT NULL AUTO_INCREMENT,
+      \`createdAt\` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+      \`updatedAt\` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+      \`userId\` int NOT NULL COMMENT '用户ID',
+      \`clientKey\` varchar(32) DEFAULT NULL COMMENT '客户端 localId',
+      \`clipId\` varchar(64) DEFAULT NULL COMMENT 'Suno clip_id',
+      \`modelKey\` varchar(191) NOT NULL COMMENT '模型 model 字段',
+      \`sceneLabel\` varchar(48) DEFAULT NULL COMMENT '场景标签',
+      \`promptLabel\` text NOT NULL COMMENT '标题或摘要',
+      \`status\` varchar(32) NOT NULL DEFAULT 'submitted' COMMENT '任务状态',
+      \`loading\` tinyint NOT NULL DEFAULT 1 COMMENT '是否进行中',
+      \`error\` text COMMENT '失败原因',
+      \`clipJson\` longtext COMMENT 'feed 片段 JSON',
+      \`deductCharged\` int DEFAULT NULL COMMENT '扣费积分',
+      \`chargeMult\` smallint DEFAULT NULL COMMENT '扣费倍数',
+      \`deductTypeSnapshot\` tinyint DEFAULT NULL COMMENT '扣费类型快照',
+      \`deletedAt\` datetime(6) DEFAULT NULL COMMENT '删除时间',
+      PRIMARY KEY (\`id\`),
+      KEY \`IDX_suno_music_job_user_id\` (\`userId\`,\`id\`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Suno 音乐任务';
+  `);
+  Logger.log('已创建表 suno_music_job', 'Database');
+}
+
+/** SunoMusicJobEntity 继承 BaseEntity 软删除，须与 drawing_mj_job 一致含 deletedAt */
+async function ensureSunoMusicJobDeletedAtColumn(conn: mysql.Connection) {
+  const db = process.env.DB_DATABASE;
+  const [colRows] = (await conn.execute(
+    `SELECT COUNT(*) as c FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'suno_music_job' AND COLUMN_NAME = 'deletedAt'`,
+    [db],
+  )) as [RowDataPacket[], unknown];
+  if (Number(colRows[0]?.c) === 0) {
+    await conn.execute(
+      `ALTER TABLE \`suno_music_job\` ADD COLUMN \`deletedAt\` datetime(6) DEFAULT NULL COMMENT '删除时间'`,
+    );
+    Logger.log('suno_music_job 表已添加列 deletedAt', 'Database');
+  }
+}
+
+async function ensureUserMusicJobsSyncSeq(conn: mysql.Connection) {
+  const db = process.env.DB_DATABASE;
+  const table = 'users';
+  const [colRows] = (await conn.execute(
+    `SELECT COUNT(*) as c FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'music_jobs_sync_seq'`,
+    [db, table],
+  )) as [RowDataPacket[], unknown];
+  if (Number(colRows[0]?.c) === 0) {
+    await conn.execute(
+      `ALTER TABLE \`${table}\` ADD COLUMN \`music_jobs_sync_seq\` int unsigned NOT NULL DEFAULT 0 COMMENT 'Suno 音乐任务列表同步序号'`,
+    );
+    Logger.log('users 表已添加列 music_jobs_sync_seq', 'Database');
+  }
+}
+
 /** drawing_mj_job：后续任务指向父任务（生产 synchronize=false 时由迁移添加） */
 async function ensureDrawingMjJobParentColumns(conn: mysql.Connection) {
   const db = process.env.DB_DATABASE;
@@ -365,6 +429,22 @@ async function runAllMigrations() {
       await ensureDrawingMjJobParentColumns(conn);
     } catch (error) {
       Logger.log(`drawing_mj_job 父任务列迁移跳过: ${error.message}`, 'Database');
+    }
+
+    try {
+      await ensureSunoMusicJobTable(conn);
+    } catch (error) {
+      Logger.log(`suno_music_job 表迁移跳过: ${error.message}`, 'Database');
+    }
+    try {
+      await ensureSunoMusicJobDeletedAtColumn(conn);
+    } catch (error) {
+      Logger.log(`suno_music_job.deletedAt 迁移跳过: ${error.message}`, 'Database');
+    }
+    try {
+      await ensureUserMusicJobsSyncSeq(conn);
+    } catch (error) {
+      Logger.log(`users.music_jobs_sync_seq 迁移跳过: ${error.message}`, 'Database');
     }
   } finally {
     await conn.end();
