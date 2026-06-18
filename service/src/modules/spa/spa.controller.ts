@@ -36,6 +36,19 @@ export class SpaController {
       return next();
     }
 
+    // 深度路由（/music、/drawing）下 index.html 使用相对资源路径 ./js/…，
+    // 浏览器会请求 /music/js/… — 将此类请求映射到 public/chat 根目录静态文件
+    const spaDeepPrefixes = ['/music', '/drawing'];
+    for (const prefix of spaDeepPrefixes) {
+      if (req.path.startsWith(`${prefix}/`)) {
+        const stripped = req.path.slice(prefix.length) || '/';
+        const assetPath = join(this.publicPath, stripped);
+        if (fs.existsSync(assetPath) && !fs.statSync(assetPath).isDirectory()) {
+          return res.sendFile(assetPath);
+        }
+      }
+    }
+
     // 检查是否为静态资源请求（如js、css等文件）
     const filePath = join(this.publicPath, req.path);
     if (fs.existsSync(filePath) && !fs.statSync(filePath).isDirectory()) {
