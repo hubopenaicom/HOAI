@@ -13,6 +13,7 @@ import { AutoReplyModule } from './modules/autoReply/autoReply.module';
 import { BadWordsModule } from './modules/badWords/badWords.module';
 import { ChatModule } from './modules/chat/chat.module';
 import { DrawingMjModule } from './modules/drawingMj/drawing-mj.module';
+import { SunoMusicModule } from './modules/sunoMusic/suno-music.module';
 import { ChatGroupModule } from './modules/chatGroup/chatGroup.module';
 import { ChatLogModule } from './modules/chatLog/chatLog.module';
 import { CramiModule } from './modules/crami/crami.module';
@@ -78,6 +79,7 @@ import { VerificationModule } from './modules/verification/verification.module';
     VerificationModule,
     ChatModule,
     DrawingMjModule,
+    SunoMusicModule,
     ApplicationModule,
     CramiModule,
     UserBalanceModule,
