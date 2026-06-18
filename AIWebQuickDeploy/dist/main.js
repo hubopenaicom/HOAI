@@ -85,8 +85,18 @@ let TransformInterceptor = class TransformInterceptor {
             const message = response.status < 400 ? null : response.statusText;
             return result_1.Result.success(data, message);
         }), (0, rxjs_1.catchError)(error => {
-            const statusCode = error.status || 500;
-            const message = (error.response || 'Internal server error');
+            const statusCode = error.status || error.statusCode || 500;
+            const raw = error?.response;
+            let message = 'Internal server error';
+            if (typeof raw === 'string')
+                message = raw;
+            else if (raw && typeof raw === 'object') {
+                const m = raw.message;
+                message = Array.isArray(m) ? m[0] : m || error?.message || message;
+            }
+            else if (error?.message) {
+                message = String(error.message);
+            }
             return (0, rxjs_1.throwError)(new common_1.HttpException(message, statusCode));
         }));
     }
@@ -438,26 +448,27 @@ const autoReply_module_1 = __webpack_require__(139);
 const badWords_module_1 = __webpack_require__(147);
 const chat_module_1 = __webpack_require__(157);
 const drawing_mj_module_1 = __webpack_require__(174);
-const chatGroup_module_1 = __webpack_require__(190);
-const chatLog_module_1 = __webpack_require__(195);
-const crami_module_1 = __webpack_require__(206);
-const database_module_1 = __webpack_require__(218);
-const globalConfig_module_1 = __webpack_require__(224);
-const models_module_1 = __webpack_require__(228);
-const official_module_1 = __webpack_require__(240);
-const order_module_1 = __webpack_require__(245);
-const pay_module_1 = __webpack_require__(252);
-const plugin_module_1 = __webpack_require__(254);
+const suno_music_module_1 = __webpack_require__(190);
+const chatGroup_module_1 = __webpack_require__(204);
+const chatLog_module_1 = __webpack_require__(209);
+const crami_module_1 = __webpack_require__(220);
+const database_module_1 = __webpack_require__(232);
+const globalConfig_module_1 = __webpack_require__(238);
+const models_module_1 = __webpack_require__(242);
+const official_module_1 = __webpack_require__(254);
+const order_module_1 = __webpack_require__(259);
+const pay_module_1 = __webpack_require__(266);
+const plugin_module_1 = __webpack_require__(268);
 const redisCache_module_1 = __webpack_require__(27);
-const share_module_1 = __webpack_require__(257);
-const signin_module_1 = __webpack_require__(260);
-const spa_module_1 = __webpack_require__(263);
-const statistic_module_1 = __webpack_require__(265);
-const task_module_1 = __webpack_require__(269);
-const upload_module_1 = __webpack_require__(272);
+const share_module_1 = __webpack_require__(271);
+const signin_module_1 = __webpack_require__(274);
+const spa_module_1 = __webpack_require__(277);
+const statistic_module_1 = __webpack_require__(279);
+const task_module_1 = __webpack_require__(283);
+const upload_module_1 = __webpack_require__(286);
 const user_module_1 = __webpack_require__(126);
-const userBalance_module_1 = __webpack_require__(275);
-const verification_module_1 = __webpack_require__(277);
+const userBalance_module_1 = __webpack_require__(288);
+const verification_module_1 = __webpack_require__(290);
 let AppModule = class AppModule {
     configure(consumer) {
         consumer;
@@ -505,6 +516,7 @@ exports.AppModule = AppModule = __decorate([
             verification_module_1.VerificationModule,
             chat_module_1.ChatModule,
             drawing_mj_module_1.DrawingMjModule,
+            suno_music_module_1.SunoMusicModule,
             app_module_1.AppModule,
             crami_module_1.CramiModule,
             userBalance_module_1.UserBalanceModule,
@@ -3845,6 +3857,33 @@ let ModelsService = class ModelsService {
             throw new common_1.HttpException('获取模型详情失败', common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+    async musicModelsList() {
+        const rows = await this.modelsEntity.find({
+            order: { modelOrder: 'ASC' },
+        });
+        const list = rows
+            .filter(t => {
+            if (!t.status)
+                return false;
+            const dt = Number(t.drawingType);
+            if (dt === 6)
+                return true;
+            const m = String(t.model || '').toLowerCase();
+            const n = String(t.modelName || '').toLowerCase();
+            return m.includes('suno') || n.includes('suno');
+        })
+            .map(t => ({
+            modelName: t.modelName,
+            keyType: t.keyType,
+            model: t.model,
+            deduct: t.deduct,
+            deductType: t.deductType,
+            modelAvatar: t.modelAvatar,
+            modelDescription: t.modelDescription,
+            drawingType: t.drawingType,
+        }));
+        return { list };
+    }
     async drawingModelsList() {
         const rows = await this.modelsEntity.find({
             order: { modelOrder: 'ASC' },
@@ -4531,6 +4570,7 @@ let UserEntity = class UserEntity extends baseEntity_1.BaseEntity {
     realName;
     idCard;
     mjJobsSyncSeq;
+    musicJobsSyncSeq;
 };
 exports.UserEntity = UserEntity;
 __decorate([
@@ -4636,6 +4676,10 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'int', unsigned: true, default: 0, name: 'mj_jobs_sync_seq' }),
     __metadata("design:type", Number)
 ], UserEntity.prototype, "mjJobsSyncSeq", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', unsigned: true, default: 0, name: 'music_jobs_sync_seq' }),
+    __metadata("design:type", Number)
+], UserEntity.prototype, "musicJobsSyncSeq", void 0);
 exports.UserEntity = UserEntity = __decorate([
     (0, typeorm_1.Entity)({ name: 'users' })
 ], UserEntity);
@@ -13085,7 +13129,7 @@ let DrawingMjController = DrawingMjController_1 = class DrawingMjController {
         }
         const out = await this.drawingMjService.proxyFetchImage(url.trim());
         const safeName = out.filename.replace(/[^\w.\-()+[\]]/g, '_') || 'image.png';
-        return new common_1.StreamableFile(out.buffer, {
+        return new common_1.StreamableFile(new Uint8Array(out.buffer), {
             type: out.contentType,
             disposition: `attachment; filename="${safeName}"`,
         });
@@ -15951,9 +15995,2065 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.SunoMusicModule = void 0;
+const common_1 = __webpack_require__(2);
+const typeorm_1 = __webpack_require__(34);
+const models_entity_1 = __webpack_require__(80);
+const user_entity_1 = __webpack_require__(85);
+const suno_music_admin_controller_1 = __webpack_require__(191);
+const suno_music_controller_1 = __webpack_require__(196);
+const suno_music_job_entity_1 = __webpack_require__(194);
+const suno_music_job_service_1 = __webpack_require__(193);
+const suno_music_service_1 = __webpack_require__(200);
+const suno_upload_service_1 = __webpack_require__(203);
+let SunoMusicModule = class SunoMusicModule {
+};
+exports.SunoMusicModule = SunoMusicModule;
+exports.SunoMusicModule = SunoMusicModule = __decorate([
+    (0, common_1.Module)({
+        imports: [typeorm_1.TypeOrmModule.forFeature([models_entity_1.ModelsEntity, suno_music_job_entity_1.SunoMusicJobEntity, user_entity_1.UserEntity])],
+        controllers: [suno_music_controller_1.SunoMusicController, suno_music_admin_controller_1.SunoMusicAdminController],
+        providers: [suno_music_service_1.SunoMusicService, suno_music_job_service_1.SunoMusicJobService, suno_upload_service_1.SunoUploadService],
+        exports: [suno_music_service_1.SunoMusicService],
+    })
+], SunoMusicModule);
+
+
+/***/ }),
+/* 191 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a, _b, _c;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.SunoMusicAdminController = void 0;
+const adminAuth_guard_1 = __webpack_require__(88);
+const common_1 = __webpack_require__(2);
+const swagger_1 = __webpack_require__(14);
+const express_1 = __webpack_require__(108);
+const queryAdminSunoMusicJobs_dto_1 = __webpack_require__(192);
+const suno_music_job_service_1 = __webpack_require__(193);
+let SunoMusicAdminController = class SunoMusicAdminController {
+    sunoMusicJobService;
+    constructor(sunoMusicJobService) {
+        this.sunoMusicJobService = sunoMusicJobService;
+    }
+    async adminListJobs(query, req) {
+        return this.sunoMusicJobService.adminQueryJobs(query, req);
+    }
+};
+exports.SunoMusicAdminController = SunoMusicAdminController;
+__decorate([
+    (0, common_1.Get)('jobs'),
+    (0, swagger_1.ApiOperation)({ summary: '后台：分页查询 Suno 音乐任务' }),
+    __param(0, (0, common_1.Query)()),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_b = typeof queryAdminSunoMusicJobs_dto_1.QueryAdminSunoMusicJobsDto !== "undefined" && queryAdminSunoMusicJobs_dto_1.QueryAdminSunoMusicJobsDto) === "function" ? _b : Object, typeof (_c = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _c : Object]),
+    __metadata("design:returntype", Promise)
+], SunoMusicAdminController.prototype, "adminListJobs", null);
+exports.SunoMusicAdminController = SunoMusicAdminController = __decorate([
+    (0, swagger_1.ApiTags)('suno-music-admin'),
+    (0, common_1.Controller)('music/suno/admin'),
+    (0, common_1.UseGuards)(adminAuth_guard_1.AdminAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    __metadata("design:paramtypes", [typeof (_a = typeof suno_music_job_service_1.SunoMusicJobService !== "undefined" && suno_music_job_service_1.SunoMusicJobService) === "function" ? _a : Object])
+], SunoMusicAdminController);
+
+
+/***/ }),
+/* 192 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.QueryAdminSunoMusicJobsDto = void 0;
+const swagger_1 = __webpack_require__(14);
+const class_validator_1 = __webpack_require__(114);
+class QueryAdminSunoMusicJobsDto {
+    page;
+    size;
+    userId;
+    keyword;
+    modelKey;
+    loading;
+    clipId;
+    status;
+}
+exports.QueryAdminSunoMusicJobsDto = QueryAdminSunoMusicJobsDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 1, required: false }),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], QueryAdminSunoMusicJobsDto.prototype, "page", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 20, required: false }),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], QueryAdminSunoMusicJobsDto.prototype, "size", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 1, required: false }),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], QueryAdminSunoMusicJobsDto.prototype, "userId", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '标题 / clip_id 模糊', required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], QueryAdminSunoMusicJobsDto.prototype, "keyword", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], QueryAdminSunoMusicJobsDto.prototype, "modelKey", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '进行中 1/0', required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], QueryAdminSunoMusicJobsDto.prototype, "loading", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: 'clip_id 精确', required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], QueryAdminSunoMusicJobsDto.prototype, "clipId", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '状态 submitted/complete/error', required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], QueryAdminSunoMusicJobsDto.prototype, "status", void 0);
+
+
+/***/ }),
+/* 193 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a, _b;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.SunoMusicJobService = void 0;
+const utils_1 = __webpack_require__(37);
+const common_1 = __webpack_require__(2);
+const typeorm_1 = __webpack_require__(34);
+const typeorm_2 = __webpack_require__(3);
+const user_entity_1 = __webpack_require__(85);
+const suno_music_job_entity_1 = __webpack_require__(194);
+const suno_job_cloud_util_1 = __webpack_require__(195);
+let SunoMusicJobService = class SunoMusicJobService {
+    repo;
+    userRepo;
+    constructor(repo, userRepo) {
+        this.repo = repo;
+        this.userRepo = userRepo;
+    }
+    async listForUser(userId, limit) {
+        const cap = Math.min(Math.max(limit * 4, limit), 400);
+        const rows = await this.repo.find({
+            where: { userId },
+            order: { id: 'DESC' },
+            take: cap,
+        });
+        const seen = new Set();
+        const out = [];
+        for (const r of rows) {
+            const ck = r.clientKey?.trim() || '';
+            const k = ck ? `ck:${ck}` : `id:${r.id}`;
+            if (seen.has(k))
+                continue;
+            seen.add(k);
+            out.push(r);
+            if (out.length >= limit)
+                break;
+        }
+        return out;
+    }
+    async dedupeByClientKey(userId, clientKey, keepId) {
+        const ck = clientKey.trim();
+        if (!ck)
+            return;
+        const rows = await this.repo.find({ where: { userId, clientKey: ck } });
+        const toRemove = rows.filter(r => r.id !== keepId);
+        if (toRemove.length)
+            await this.repo.remove(toRemove);
+    }
+    async upsert(userId, dto) {
+        const ck = dto.clientKey != null ? String(dto.clientKey) : null;
+        let saved;
+        const patch = (row) => {
+            if (dto.clipId !== undefined)
+                row.clipId = dto.clipId ?? null;
+            if (dto.loading !== undefined)
+                row.loading = dto.loading;
+            if (dto.error !== undefined)
+                row.error = dto.error ?? null;
+            if (dto.promptLabel !== undefined)
+                row.promptLabel = dto.promptLabel;
+            if (dto.modelKey !== undefined)
+                row.modelKey = dto.modelKey;
+            if (dto.sceneLabel !== undefined)
+                row.sceneLabel = dto.sceneLabel ?? null;
+            if (dto.status !== undefined)
+                row.status = dto.status ?? 'submitted';
+            if (dto.clip !== undefined) {
+                row.clipJson = dto.clip ? JSON.stringify(dto.clip) : null;
+            }
+            if (dto.deductCharged !== undefined)
+                row.deductCharged = dto.deductCharged;
+            if (dto.chargeMult !== undefined)
+                row.chargeMult = dto.chargeMult;
+            if (dto.deductTypeSnapshot !== undefined)
+                row.deductTypeSnapshot = dto.deductTypeSnapshot;
+        };
+        if (ck) {
+            const existing = await this.repo.findOne({ where: { userId, clientKey: ck } });
+            if (existing) {
+                patch(existing);
+                saved = await this.repo.save(existing);
+            }
+            else {
+                saved = await this.create(userId, dto);
+            }
+            await this.dedupeByClientKey(userId, ck, saved.id);
+            return saved;
+        }
+        return this.create(userId, dto);
+    }
+    async create(userId, dto) {
+        const row = this.repo.create({
+            userId,
+            clientKey: dto.clientKey != null ? String(dto.clientKey) : null,
+            clipId: dto.clipId ?? null,
+            modelKey: dto.modelKey,
+            sceneLabel: dto.sceneLabel ?? null,
+            promptLabel: dto.promptLabel,
+            status: dto.status ?? 'submitted',
+            loading: dto.loading !== false,
+            error: dto.error ?? null,
+            clipJson: dto.clip ? JSON.stringify(dto.clip) : null,
+            deductCharged: dto.deductCharged ?? null,
+            chargeMult: dto.chargeMult ?? null,
+            deductTypeSnapshot: dto.deductTypeSnapshot ?? null,
+        });
+        return this.repo.save(row);
+    }
+    async batchUpsert(userId, jobs) {
+        let n = 0;
+        for (const dto of jobs.slice(0, 80)) {
+            if (dto.clientKey == null || !dto.modelKey?.trim())
+                continue;
+            await this.upsert(userId, dto);
+            n += 1;
+        }
+        return n;
+    }
+    async delete(userId, id) {
+        const row = await this.repo.findOne({ where: { id, userId } });
+        if (!row)
+            throw new common_1.NotFoundException('任务不存在');
+        const ck = row.clientKey?.trim() || '';
+        await this.repo.remove(row);
+        if (ck) {
+            const rest = await this.repo.find({ where: { userId, clientKey: ck } });
+            if (rest.length)
+                await this.repo.remove(rest);
+        }
+    }
+    async adminQueryJobs(params, req) {
+        const page = Math.max(1, Number(params.page) || 1);
+        const size = Math.min(100, Math.max(1, Number(params.size) || 20));
+        const qb = this.repo.createQueryBuilder('j');
+        if (params.userId != null && String(params.userId).trim() !== '') {
+            const uid = Number(params.userId);
+            if (Number.isFinite(uid))
+                qb.andWhere('j.userId = :userId', { userId: uid });
+        }
+        if (params.modelKey?.trim()) {
+            qb.andWhere('j.modelKey = :modelKey', { modelKey: params.modelKey.trim() });
+        }
+        if (params.clipId?.trim()) {
+            qb.andWhere('j.clipId = :clipId', { clipId: params.clipId.trim() });
+        }
+        if (params.status?.trim()) {
+            qb.andWhere('j.status = :status', { status: params.status.trim() });
+        }
+        const loadingRaw = params.loading;
+        if (loadingRaw === '1' || loadingRaw === 'true')
+            qb.andWhere('j.loading = :loading', { loading: true });
+        else if (loadingRaw === '0' || loadingRaw === 'false')
+            qb.andWhere('j.loading = :loading', { loading: false });
+        const kw = params.keyword?.trim() || '';
+        if (kw) {
+            const like = `%${kw}%`;
+            qb.andWhere(new typeorm_2.Brackets(w => {
+                w.where('j.promptLabel LIKE :kw', { kw: like })
+                    .orWhere('j.clipId LIKE :kw', { kw: like })
+                    .orWhere('j.sceneLabel LIKE :kw', { kw: like });
+            }));
+        }
+        qb.orderBy('j.id', 'DESC')
+            .skip((page - 1) * size)
+            .take(size);
+        const [rows, count] = await qb.getManyAndCount();
+        const userIds = [...new Set(rows.map(r => r.userId))];
+        const users = userIds.length > 0
+            ? await this.userRepo.find({
+                where: { id: (0, typeorm_2.In)(userIds) },
+                select: ['id', 'username', 'email', 'nickname'],
+            })
+            : [];
+        const isSuper = req.user?.role === 'super';
+        const mapped = rows.map(item => {
+            let clip;
+            try {
+                if (item.clipJson)
+                    clip = JSON.parse(item.clipJson);
+            }
+            catch {
+                clip = undefined;
+            }
+            const u = users.find(x => x.id === item.userId);
+            let email = u?.email;
+            if (!isSuper && email)
+                email = (0, utils_1.maskEmail)(email);
+            const audioUrl = clip?.audio_url != null
+                ? String(clip.audio_url)
+                : clip?.audioUrl != null
+                    ? String(clip.audioUrl)
+                    : undefined;
+            const imageUrl = clip?.image_url != null
+                ? String(clip.image_url)
+                : clip?.imageUrl != null
+                    ? String(clip.imageUrl)
+                    : undefined;
+            const studio = (0, suno_job_cloud_util_1.extractStudioMetaFromClip)(clip);
+            return {
+                id: item.id,
+                userId: item.userId,
+                username: u?.username,
+                nickname: u?.nickname,
+                email: email ?? `${item.userId}@aiweb.com`,
+                clientKey: item.clientKey,
+                clipId: item.clipId ?? '',
+                modelKey: item.modelKey,
+                sceneLabel: item.sceneLabel ?? undefined,
+                promptLabel: item.promptLabel,
+                status: item.status,
+                loading: !!item.loading,
+                error: item.error ?? undefined,
+                clip,
+                audioUrl,
+                imageUrl,
+                taskId: studio.taskId,
+                isUploadClip: studio.isUploadClip,
+                parentClipId: studio.parentClipId,
+                stemGroupId: studio.stemGroupId,
+                stemKind: studio.stemKind,
+                deductCharged: item.deductCharged,
+                chargeMult: item.chargeMult,
+                createdAt: item.createdAt,
+                updatedAt: item.updatedAt,
+            };
+        });
+        return { rows: mapped, count };
+    }
+};
+exports.SunoMusicJobService = SunoMusicJobService;
+exports.SunoMusicJobService = SunoMusicJobService = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, typeorm_1.InjectRepository)(suno_music_job_entity_1.SunoMusicJobEntity)),
+    __param(1, (0, typeorm_1.InjectRepository)(user_entity_1.UserEntity)),
+    __metadata("design:paramtypes", [typeof (_a = typeof typeorm_2.Repository !== "undefined" && typeorm_2.Repository) === "function" ? _a : Object, typeof (_b = typeof typeorm_2.Repository !== "undefined" && typeorm_2.Repository) === "function" ? _b : Object])
+], SunoMusicJobService);
+
+
+/***/ }),
+/* 194 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.SunoMusicJobEntity = void 0;
+const baseEntity_1 = __webpack_require__(74);
+const typeorm_1 = __webpack_require__(3);
+let SunoMusicJobEntity = class SunoMusicJobEntity extends baseEntity_1.BaseEntity {
+    userId;
+    clientKey;
+    clipId;
+    modelKey;
+    sceneLabel;
+    promptLabel;
+    status;
+    loading;
+    error;
+    clipJson;
+    deductCharged;
+    chargeMult;
+    deductTypeSnapshot;
+};
+exports.SunoMusicJobEntity = SunoMusicJobEntity;
+__decorate([
+    (0, typeorm_1.Column)({ comment: '用户ID' }),
+    __metadata("design:type", Number)
+], SunoMusicJobEntity.prototype, "userId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ length: 32, nullable: true, comment: '客户端 localId' }),
+    __metadata("design:type", String)
+], SunoMusicJobEntity.prototype, "clientKey", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ length: 64, nullable: true, comment: 'Suno clip_id' }),
+    __metadata("design:type", String)
+], SunoMusicJobEntity.prototype, "clipId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ length: 191, comment: '模型 model 字段' }),
+    __metadata("design:type", String)
+], SunoMusicJobEntity.prototype, "modelKey", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ length: 48, nullable: true, comment: '场景标签' }),
+    __metadata("design:type", String)
+], SunoMusicJobEntity.prototype, "sceneLabel", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'text', comment: '标题或摘要' }),
+    __metadata("design:type", String)
+], SunoMusicJobEntity.prototype, "promptLabel", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ length: 32, default: 'submitted', comment: '任务状态' }),
+    __metadata("design:type", String)
+], SunoMusicJobEntity.prototype, "status", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: true, comment: '是否进行中' }),
+    __metadata("design:type", Boolean)
+], SunoMusicJobEntity.prototype, "loading", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'text', nullable: true, comment: '失败原因' }),
+    __metadata("design:type", String)
+], SunoMusicJobEntity.prototype, "error", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'longtext', nullable: true, comment: 'feed 片段 JSON' }),
+    __metadata("design:type", String)
+], SunoMusicJobEntity.prototype, "clipJson", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', nullable: true, comment: '扣费积分' }),
+    __metadata("design:type", Number)
+], SunoMusicJobEntity.prototype, "deductCharged", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'smallint', nullable: true, comment: '扣费倍数' }),
+    __metadata("design:type", Number)
+], SunoMusicJobEntity.prototype, "chargeMult", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'tinyint', nullable: true, comment: '扣费类型快照' }),
+    __metadata("design:type", Number)
+], SunoMusicJobEntity.prototype, "deductTypeSnapshot", void 0);
+exports.SunoMusicJobEntity = SunoMusicJobEntity = __decorate([
+    (0, typeorm_1.Entity)({ name: 'suno_music_job' }),
+    (0, typeorm_1.Index)(['userId', 'id'])
+], SunoMusicJobEntity);
+
+
+/***/ }),
+/* 195 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.extractStudioMetaFromClip = extractStudioMetaFromClip;
+function extractStudioMetaFromClip(clip) {
+    if (!clip || typeof clip !== 'object')
+        return {};
+    const studio = clip.music_studio && typeof clip.music_studio === 'object' && !Array.isArray(clip.music_studio)
+        ? clip.music_studio
+        : {};
+    const taskId = String(studio.taskId ?? clip.task_id ?? '').trim() || undefined;
+    const parentClipId = String(studio.parentClipId ?? clip.parent_clip_id ?? '').trim() || undefined;
+    const stemGroupId = String(studio.stemGroupId ?? clip.stem_group_id ?? '').trim() || undefined;
+    const stemKind = String(studio.stemKind ?? clip.stem_kind ?? '').trim() || undefined;
+    const isUploadClip = Boolean(studio.isUploadClip ?? clip.is_upload);
+    return {
+        taskId,
+        isUploadClip: isUploadClip || undefined,
+        parentClipId,
+        stemGroupId,
+        stemKind,
+    };
+}
+
+
+/***/ }),
+/* 196 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.SunoMusicController = void 0;
+const jwtAuth_guard_1 = __webpack_require__(89);
+const userBalance_service_1 = __webpack_require__(35);
+const common_1 = __webpack_require__(2);
+const platform_express_1 = __webpack_require__(197);
+const swagger_1 = __webpack_require__(14);
+const express_1 = __webpack_require__(108);
+const typeorm_1 = __webpack_require__(34);
+const typeorm_2 = __webpack_require__(3);
+const user_entity_1 = __webpack_require__(85);
+const suno_music_constants_1 = __webpack_require__(198);
+const suno_music_job_service_1 = __webpack_require__(193);
+const suno_response_util_1 = __webpack_require__(199);
+const suno_music_service_1 = __webpack_require__(200);
+const suno_upload_service_1 = __webpack_require__(203);
+let SunoMusicController = class SunoMusicController {
+    sunoMusicService;
+    sunoMusicJobService;
+    sunoUploadService;
+    userBalanceService;
+    userRepo;
+    constructor(sunoMusicService, sunoMusicJobService, sunoUploadService, userBalanceService, userRepo) {
+        this.sunoMusicService = sunoMusicService;
+        this.sunoMusicJobService = sunoMusicJobService;
+        this.sunoUploadService = sunoUploadService;
+        this.userBalanceService = userBalanceService;
+        this.userRepo = userRepo;
+    }
+    async getMusicJobsSyncSeq(userId) {
+        const u = await this.userRepo.findOne({
+            where: { id: userId },
+            select: ['id', 'musicJobsSyncSeq'],
+        });
+        return Number(u?.musicJobsSyncSeq ?? 0);
+    }
+    async bumpMusicJobsSyncSeq(userId) {
+        await this.userRepo.increment({ id: userId }, 'musicJobsSyncSeq', 1);
+        return this.getMusicJobsSyncSeq(userId);
+    }
+    jobEntityToDto(e) {
+        let clip;
+        try {
+            if (e.clipJson)
+                clip = JSON.parse(e.clipJson);
+        }
+        catch {
+            clip = undefined;
+        }
+        const ckRaw = e.clientKey?.trim() || '';
+        const ckNum = ckRaw ? Number(ckRaw) : undefined;
+        return {
+            id: e.id,
+            clientKey: ckRaw && Number.isFinite(ckNum) && String(ckNum) === ckRaw ? ckNum : e.clientKey,
+            clipId: e.clipId ?? '',
+            modelKey: e.modelKey,
+            sceneLabel: e.sceneLabel ?? undefined,
+            promptLabel: e.promptLabel,
+            status: e.status,
+            loading: !!e.loading,
+            error: e.error ?? undefined,
+            clip,
+            deductCharged: e.deductCharged != null ? Number(e.deductCharged) : undefined,
+            chargeMult: e.chargeMult != null ? Number(e.chargeMult) : undefined,
+            deductTypeSnapshot: e.deductTypeSnapshot != null ? Number(e.deductTypeSnapshot) : undefined,
+            createdAt: e.createdAt,
+            updatedAt: e.updatedAt,
+        };
+    }
+    throwUpstreamFailure(status, data) {
+        const msg = this.sunoMusicService.extractErrorMessage(data) ||
+            (status >= 400 ? `上游 HTTP ${status}` : 'Suno 上游返回失败');
+        const httpStatus = status >= 400 && status < 600 ? status : common_1.HttpStatus.BAD_GATEWAY;
+        throw new common_1.HttpException(msg, httpStatus);
+    }
+    async withCharge(req, row, chargeMult, scene, isSuccess, fn, normalize) {
+        const rawMult = Number(chargeMult);
+        const mult = Number.isFinite(rawMult) && rawMult > 0 ? rawMult : 1;
+        const amount = this.sunoMusicService.sunoBaseDeduct(row) * mult;
+        await this.userBalanceService.validateBalance(req, row.deductType, amount);
+        const out = await fn();
+        if (!isSuccess(out.status, out.data)) {
+            this.throwUpstreamFailure(out.status, out.data);
+        }
+        await this.userBalanceService.deductFromBalance(req.user.id, row.deductType, amount, 0, JSON.stringify({ scene, mult }));
+        return normalize ? normalize(out.data) : out.data;
+    }
+    withBalance(req, row, chargeMult, fn) {
+        return this.withCharge(req, row, chargeMult, 'suno_music', (s, d) => this.sunoMusicService.isGenerateSuccess(s, d), fn, d => this.sunoMusicService.normalizeGenerateResponse(d));
+    }
+    assertUpstreamReadOk(status, data) {
+        if (status < 200 || status >= 300) {
+            this.throwUpstreamFailure(status, data);
+        }
+        const err = this.sunoMusicService.extractErrorMessage(data);
+        if (err)
+            throw new common_1.HttpException(err, common_1.HttpStatus.BAD_GATEWAY);
+    }
+    async listJobs(req, limit) {
+        const lim = Math.min(100, Math.max(1, parseInt(String(limit || '80'), 10) || 80));
+        const rows = await this.sunoMusicJobService.listForUser(req.user.id, lim);
+        const syncSeq = await this.getMusicJobsSyncSeq(req.user.id);
+        return { list: rows.map(r => this.jobEntityToDto(r)), syncSeq };
+    }
+    async batchUpsertJobs(req, body) {
+        const jobs = Array.isArray(body?.jobs) ? body.jobs : [];
+        const uid = req.user.id;
+        const serverSeq = await this.getMusicJobsSyncSeq(uid);
+        const clientSeq = body?.baseSyncSeq;
+        if (clientSeq !== undefined && clientSeq !== null && String(clientSeq) !== '') {
+            const c = Number(clientSeq);
+            if (Number.isFinite(c) && c !== serverSeq) {
+                return { synced: 0, stale: true, syncSeq: serverSeq };
+            }
+        }
+        const n = await this.sunoMusicJobService.batchUpsert(uid, jobs);
+        return { synced: n, syncSeq: serverSeq };
+    }
+    async deleteJob(req, id) {
+        const nid = parseInt(String(id || '').trim(), 10);
+        if (!Number.isFinite(nid) || nid < 1) {
+            throw new common_1.BadRequestException('无效的任务 id');
+        }
+        await this.sunoMusicJobService.delete(req.user.id, nid);
+        const syncSeq = await this.bumpMusicJobsSyncSeq(req.user.id);
+        return { ok: true, syncSeq };
+    }
+    async lyricsSubmit(req, body) {
+        const row = await this.sunoMusicService.resolveSunoModel(body.model);
+        const prompt = String(body.prompt || '').trim();
+        if (!prompt)
+            throw new common_1.BadRequestException('缺少歌词提示词 prompt');
+        const path = this.sunoMusicService.lyricsSubmitPath(row);
+        const mult = Number(body.chargeMult) || suno_music_constants_1.SUNO_LYRICS_CHARGE_MULT;
+        return this.withCharge(req, row, mult, 'suno_lyrics', (s, d) => this.sunoMusicService.isLyricsSubmitSuccess(s, d), () => this.sunoMusicService.requestUpstream(row, path, { data: { prompt } }), d => this.sunoMusicService.normalizeLyricsSubmitResponse(d));
+    }
+    async lyricsFetch(taskId, model) {
+        const row = await this.sunoMusicService.resolveSunoModel(model);
+        const tid = String(taskId || '').trim();
+        if (!tid)
+            throw new common_1.BadRequestException('缺少 task_id');
+        const path = this.sunoMusicService.lyricsFetchPath(row, tid);
+        const out = await this.sunoMusicService.requestUpstream(row, path, { method: 'GET' });
+        this.assertUpstreamReadOk(out.status, out.data);
+        return this.sunoMusicService.normalizeLyricsPollResponse(out.data);
+    }
+    async generate(req, body) {
+        const row = await this.sunoMusicService.resolveSunoModel(body.model);
+        let payload = body.payload;
+        if (!payload || typeof payload !== 'object') {
+            throw new common_1.BadRequestException('缺少 payload');
+        }
+        payload = this.sunoMusicService.adaptGeneratePayloadForUpstream(row, payload);
+        let mult = Number(body.chargeMult) || 1;
+        const task = String(payload.task || '').trim();
+        const stemTask = String(payload.stem_task || '').trim();
+        if (task === 'all-stems' || (task === 'gen_stem' && stemTask === 'twelve')) {
+            mult = suno_music_constants_1.SUNO_ALL_STEMS_CHARGE_MULT;
+        }
+        return this.withBalance(req, row, mult, () => this.sunoMusicService.requestUpstream(row, '/suno/generate', { data: payload }));
+    }
+    async feed(clipsIds, model) {
+        const row = await this.sunoMusicService.resolveSunoModel(model);
+        const ids = String(clipsIds || '').trim();
+        if (!ids)
+            throw new common_1.BadRequestException('缺少 clip_id');
+        const flavor = this.sunoMusicService.getApiFlavor(row);
+        const idList = ids
+            .split(',')
+            .map(s => s.trim())
+            .filter(Boolean);
+        if (flavor === 'submit') {
+            const merged = [];
+            for (const tid of idList) {
+                const out = await this.sunoMusicService.requestUpstream(row, `/suno/fetch/${encodeURIComponent(tid)}`, { method: 'GET' });
+                if (out.status >= 400) {
+                    const err = this.sunoMusicService.extractErrorMessage(out.data);
+                    throw new common_1.HttpException(err || `查询任务失败 HTTP ${out.status}`, out.status >= 500 ? common_1.HttpStatus.BAD_GATEWAY : out.status);
+                }
+                try {
+                    const part = (0, suno_response_util_1.extractClipsFromSunoFetchTask)(out.data, tid);
+                    merged.push(...part);
+                }
+                catch (e) {
+                    const msg = e instanceof Error ? e.message : String(e);
+                    throw new common_1.HttpException(msg, common_1.HttpStatus.BAD_GATEWAY);
+                }
+            }
+            return merged;
+        }
+        const out = await this.sunoMusicService.requestUpstream(row, `/suno/feed/${encodeURIComponent(ids)}`, { method: 'GET' });
+        this.assertUpstreamReadOk(out.status, out.data);
+        const body = this.sunoMusicService.unwrapUpstreamBody(out.data);
+        if (Array.isArray(body))
+            return body;
+        if (body && typeof body === 'object') {
+            const o = body;
+            if (Array.isArray(o.clips))
+                return o.clips;
+        }
+        return out.data;
+    }
+    async expandTags(body) {
+        const row = await this.sunoMusicService.resolveSunoModel(body.model);
+        const out = await this.sunoMusicService.requestUpstream(row, '/suno/act/tags', {
+            data: { original_tags: String(body.original_tags || '').trim() },
+        });
+        this.assertUpstreamReadOk(out.status, out.data);
+        return this.sunoMusicService.normalizeTagsResponse(out.data);
+    }
+    async getMidi(clipId, model) {
+        const row = await this.sunoMusicService.resolveSunoModel(model);
+        const id = String(clipId || '').trim();
+        if (!id)
+            throw new common_1.BadRequestException('缺少 clip_id');
+        const out = await this.sunoMusicService.requestUpstream(row, `/suno/act/midi/${encodeURIComponent(id)}`, { method: 'GET' });
+        this.assertUpstreamReadOk(out.status, out.data);
+        return this.sunoMusicService.unwrapUpstreamBody(out.data);
+    }
+    async uploadByUrl(body) {
+        const row = await this.sunoMusicService.resolveSunoModel(body.model);
+        const audioUrl = String(body.url || '').trim();
+        if (!audioUrl)
+            throw new common_1.BadRequestException('缺少 url');
+        const out = await this.sunoMusicService.requestUpstream(row, '/suno/uploads/audio-url', {
+            data: { url: audioUrl },
+        });
+        this.assertUpstreamReadOk(out.status, out.data);
+        return this.sunoMusicService.unwrapUpstreamBody(out.data);
+    }
+    async fetchBatch(body) {
+        const row = await this.sunoMusicService.resolveSunoModel(body.model);
+        const ids = Array.isArray(body.ids) ? body.ids.map(String).filter(Boolean) : [];
+        if (!ids.length)
+            throw new common_1.BadRequestException('缺少 ids');
+        const action = String(body.action || 'MUSIC').trim() || 'MUSIC';
+        const out = await this.sunoMusicService.requestUpstream(row, '/suno/fetch', {
+            data: { ids, action },
+        });
+        this.assertUpstreamReadOk(out.status, out.data);
+        return this.sunoMusicService.unwrapUpstreamBody(out.data);
+    }
+    async getVox(req, clipId, body) {
+        const row = await this.sunoMusicService.resolveSunoModel(body.model);
+        const id = String(clipId || '').trim();
+        if (!id)
+            throw new common_1.BadRequestException('缺少 clip_id');
+        const start = Number(body.vocal_start_s);
+        const end = Number(body.vocal_end_s);
+        if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
+            throw new common_1.BadRequestException('无效的人声时间区间');
+        }
+        return this.withCharge(req, row, Number(body.chargeMult) || 1, 'suno_vox', (s, d) => s >= 200 && s < 300, () => this.sunoMusicService.requestUpstream(row, `/suno/act/vox/${encodeURIComponent(id)}`, {
+            data: { vocal_start_s: start, vocal_end_s: end },
+        }), d => this.sunoMusicService.unwrapUpstreamBody(d));
+    }
+    async upload(req, file, model) {
+        if (!file?.buffer?.length) {
+            throw new common_1.BadRequestException('缺少音频文件');
+        }
+        const row = await this.sunoMusicService.resolveSunoModel(model);
+        return this.sunoUploadService.uploadAudioSmart(row, file, req.user);
+    }
+    async uploadPipeline(file, model) {
+        if (!file?.buffer?.length) {
+            throw new common_1.BadRequestException('缺少音频文件');
+        }
+        const row = await this.sunoMusicService.resolveSunoModel(model);
+        return this.sunoUploadService.uploadViaPipeline(row, file);
+    }
+    async concat(req, body) {
+        const row = await this.sunoMusicService.resolveSunoModel(body.model);
+        const clipId = String(body.clip_id || '').trim();
+        if (!clipId)
+            throw new common_1.BadRequestException('缺少 clip_id');
+        return this.withCharge(req, row, Number(body.chargeMult) || 1, 'suno_concat', (s, d) => this.sunoMusicService.isConcatSuccess(s, d), () => this.sunoMusicService.requestConcat(row, clipId, body.is_infill === true), d => this.sunoMusicService.normalizeGenerateResponse(d));
+    }
+    async personaCreate(req, body) {
+        const row = await this.sunoMusicService.resolveSunoModel(body.model);
+        const root = String(body.root_clip_id || '').trim();
+        if (!root)
+            throw new common_1.BadRequestException('缺少 root_clip_id');
+        const clips = Array.isArray(body.clips) ? body.clips.map(String).filter(Boolean) : [root];
+        return this.withCharge(req, row, Number(body.chargeMult) || 1, 'suno_persona', (s, d) => this.sunoMusicService.isPersonaCreateSuccess(s, d), () => this.sunoMusicService.requestUpstream(row, '/suno/persona/create', {
+            data: {
+                root_clip_id: root,
+                name: String(body.name || '').trim() || 'Persona',
+                description: String(body.description || '').trim(),
+                clips,
+                is_public: body.is_public !== false,
+            },
+        }), d => this.sunoMusicService.normalizePersonaCreateResponse(d));
+    }
+    async getWav(clipId, model) {
+        const row = await this.sunoMusicService.resolveSunoModel(model);
+        const id = String(clipId || '').trim();
+        if (!id)
+            throw new common_1.BadRequestException('缺少 clip_id');
+        const out = await this.sunoMusicService.requestUpstream(row, `/suno/act/wav/${encodeURIComponent(id)}`, { method: 'GET' });
+        this.assertUpstreamReadOk(out.status, out.data);
+        return this.sunoMusicService.unwrapUpstreamBody(out.data);
+    }
+    async getMp4(clipId, model) {
+        const row = await this.sunoMusicService.resolveSunoModel(model);
+        const id = String(clipId || '').trim();
+        if (!id)
+            throw new common_1.BadRequestException('缺少 clip_id');
+        const out = await this.sunoMusicService.requestUpstream(row, `/suno/act/mp4/${encodeURIComponent(id)}`, { method: 'GET' });
+        this.assertUpstreamReadOk(out.status, out.data);
+        return this.sunoMusicService.unwrapUpstreamBody(out.data);
+    }
+    async getTiming(clipId, model) {
+        const row = await this.sunoMusicService.resolveSunoModel(model);
+        const id = String(clipId || '').trim();
+        if (!id)
+            throw new common_1.BadRequestException('缺少 clip_id');
+        const out = await this.sunoMusicService.requestUpstream(row, `/suno/act/timing/${encodeURIComponent(id)}`, { method: 'GET' });
+        this.assertUpstreamReadOk(out.status, out.data);
+        return this.sunoMusicService.unwrapUpstreamBody(out.data);
+    }
+};
+exports.SunoMusicController = SunoMusicController;
+__decorate([
+    (0, common_1.Get)('jobs'),
+    (0, swagger_1.ApiOperation)({ summary: '列举当前账号 Suno 音乐任务' }),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Query)('limit')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_f = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _f : Object, String]),
+    __metadata("design:returntype", Promise)
+], SunoMusicController.prototype, "listJobs", null);
+__decorate([
+    (0, common_1.Post)('jobs/batch-upsert'),
+    (0, swagger_1.ApiOperation)({ summary: '批量同步 Suno 任务快照' }),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_g = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _g : Object, Object]),
+    __metadata("design:returntype", Promise)
+], SunoMusicController.prototype, "batchUpsertJobs", null);
+__decorate([
+    (0, common_1.Delete)('jobs/:id'),
+    (0, swagger_1.ApiOperation)({ summary: '删除 Suno 任务记录' }),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_h = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _h : Object, String]),
+    __metadata("design:returntype", Promise)
+], SunoMusicController.prototype, "deleteJob", null);
+__decorate([
+    (0, common_1.Post)('lyrics/submit'),
+    (0, swagger_1.ApiOperation)({ summary: 'Suno 生成歌词（submit/lyrics 或 generate/lyrics）' }),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_j = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _j : Object, Object]),
+    __metadata("design:returntype", Promise)
+], SunoMusicController.prototype, "lyricsSubmit", null);
+__decorate([
+    (0, common_1.Get)('lyrics/fetch/:taskId'),
+    (0, swagger_1.ApiOperation)({ summary: '轮询歌词任务（fetch 或 lyrics）' }),
+    __param(0, (0, common_1.Param)('taskId')),
+    __param(1, (0, common_1.Query)('model')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], SunoMusicController.prototype, "lyricsFetch", null);
+__decorate([
+    (0, common_1.Post)('generate'),
+    (0, swagger_1.ApiOperation)({ summary: 'Suno 音乐生成（/suno/generate）' }),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_k = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _k : Object, Object]),
+    __metadata("design:returntype", Promise)
+], SunoMusicController.prototype, "generate", null);
+__decorate([
+    (0, common_1.Get)('feed/:clipsIds'),
+    (0, swagger_1.ApiOperation)({ summary: '查询 clip 状态（/suno/feed）' }),
+    __param(0, (0, common_1.Param)('clipsIds')),
+    __param(1, (0, common_1.Query)('model')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], SunoMusicController.prototype, "feed", null);
+__decorate([
+    (0, common_1.Post)('act/tags'),
+    (0, swagger_1.ApiOperation)({ summary: '扩展风格 tags' }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], SunoMusicController.prototype, "expandTags", null);
+__decorate([
+    (0, common_1.Get)('act/midi/:clipId'),
+    (0, swagger_1.ApiOperation)({ summary: '获取 MIDI（轮询直到 complete）' }),
+    __param(0, (0, common_1.Param)('clipId')),
+    __param(1, (0, common_1.Query)('model')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], SunoMusicController.prototype, "getMidi", null);
+__decorate([
+    (0, common_1.Post)('upload/url'),
+    (0, swagger_1.ApiOperation)({ summary: '通过 URL 上传音频（/suno/uploads/audio-url）' }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], SunoMusicController.prototype, "uploadByUrl", null);
+__decorate([
+    (0, common_1.Post)('fetch/batch'),
+    (0, swagger_1.ApiOperation)({ summary: '批量查询任务（POST /suno/fetch）' }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], SunoMusicController.prototype, "fetchBatch", null);
+__decorate([
+    (0, common_1.Post)('act/vox/:clipId'),
+    (0, swagger_1.ApiOperation)({ summary: '提取人声片段 vox' }),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('clipId')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_l = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _l : Object, String, Object]),
+    __metadata("design:returntype", Promise)
+], SunoMusicController.prototype, "getVox", null);
+__decorate([
+    (0, common_1.Post)('upload'),
+    (0, swagger_1.ApiOperation)({ summary: '上传音频（multipart → /suno/upload）' }),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file', {
+        limits: { fileSize: 50 * 1024 * 1024 },
+    })),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.UploadedFile)()),
+    __param(2, (0, common_1.Body)('model')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_m = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _m : Object, Object, String]),
+    __metadata("design:returntype", Promise)
+], SunoMusicController.prototype, "upload", null);
+__decorate([
+    (0, common_1.Post)('upload/pipeline'),
+    (0, swagger_1.ApiOperation)({ summary: 'S3 多步上传（init→S3→finish→poll→initialize-clip）' }),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file', {
+        limits: { fileSize: 50 * 1024 * 1024 },
+    })),
+    __param(0, (0, common_1.UploadedFile)()),
+    __param(1, (0, common_1.Body)('model')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], SunoMusicController.prototype, "uploadPipeline", null);
+__decorate([
+    (0, common_1.Post)('submit/concat'),
+    (0, swagger_1.ApiOperation)({ summary: '歌曲拼接（续写后合并完整曲）' }),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_o = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _o : Object, Object]),
+    __metadata("design:returntype", Promise)
+], SunoMusicController.prototype, "concat", null);
+__decorate([
+    (0, common_1.Post)('persona/create'),
+    (0, swagger_1.ApiOperation)({ summary: '新建 Persona（歌手风格）' }),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_p = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _p : Object, Object]),
+    __metadata("design:returntype", Promise)
+], SunoMusicController.prototype, "personaCreate", null);
+__decorate([
+    (0, common_1.Get)('act/wav/:clipId'),
+    (0, swagger_1.ApiOperation)({ summary: '获取 WAV 文件 URL' }),
+    __param(0, (0, common_1.Param)('clipId')),
+    __param(1, (0, common_1.Query)('model')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], SunoMusicController.prototype, "getWav", null);
+__decorate([
+    (0, common_1.Get)('act/mp4/:clipId'),
+    (0, swagger_1.ApiOperation)({ summary: '生成 MP4 MV 视频 URL' }),
+    __param(0, (0, common_1.Param)('clipId')),
+    __param(1, (0, common_1.Query)('model')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], SunoMusicController.prototype, "getMp4", null);
+__decorate([
+    (0, common_1.Get)('act/timing/:clipId'),
+    (0, swagger_1.ApiOperation)({ summary: '歌词时间轴 Timing' }),
+    __param(0, (0, common_1.Param)('clipId')),
+    __param(1, (0, common_1.Query)('model')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], SunoMusicController.prototype, "getTiming", null);
+exports.SunoMusicController = SunoMusicController = __decorate([
+    (0, swagger_1.ApiTags)('suno-music'),
+    (0, common_1.Controller)('music/suno'),
+    (0, common_1.UseGuards)(jwtAuth_guard_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    __param(4, (0, typeorm_1.InjectRepository)(user_entity_1.UserEntity)),
+    __metadata("design:paramtypes", [typeof (_a = typeof suno_music_service_1.SunoMusicService !== "undefined" && suno_music_service_1.SunoMusicService) === "function" ? _a : Object, typeof (_b = typeof suno_music_job_service_1.SunoMusicJobService !== "undefined" && suno_music_job_service_1.SunoMusicJobService) === "function" ? _b : Object, typeof (_c = typeof suno_upload_service_1.SunoUploadService !== "undefined" && suno_upload_service_1.SunoUploadService) === "function" ? _c : Object, typeof (_d = typeof userBalance_service_1.UserBalanceService !== "undefined" && userBalance_service_1.UserBalanceService) === "function" ? _d : Object, typeof (_e = typeof typeorm_2.Repository !== "undefined" && typeorm_2.Repository) === "function" ? _e : Object])
+], SunoMusicController);
+
+
+/***/ }),
+/* 197 */
+/***/ ((module) => {
+
+module.exports = require("@nestjs/platform-express");
+
+/***/ }),
+/* 198 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.SUNO_LYRICS_CHARGE_MULT = exports.SUNO_ALL_STEMS_CHARGE_MULT = exports.SUNO_DRAWING_TYPE = void 0;
+exports.SUNO_DRAWING_TYPE = 6;
+exports.SUNO_ALL_STEMS_CHARGE_MULT = 5;
+exports.SUNO_LYRICS_CHARGE_MULT = 0.5;
+
+
+/***/ }),
+/* 199 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.SUNO_UPSTREAM_HTML_HINT = void 0;
+exports.isLikelySunoHtmlBody = isLikelySunoHtmlBody;
+exports.isLikelySunoClipId = isLikelySunoClipId;
+exports.unwrapSunoEnvelope = unwrapSunoEnvelope;
+exports.extractSunoErrorMessage = extractSunoErrorMessage;
+exports.extractSunoClipsFromBody = extractSunoClipsFromBody;
+exports.extractSunoPersonaId = extractSunoPersonaId;
+exports.extractClipsFromSunoFetchTask = extractClipsFromSunoFetchTask;
+exports.extractLyricsTaskIdFromSubmit = extractLyricsTaskIdFromSubmit;
+exports.extractLyricsFromSunoFetchTask = extractLyricsFromSunoFetchTask;
+exports.extractSunoTagsExpanded = extractSunoTagsExpanded;
+const SUNO_CLIP_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+function isLikelySunoHtmlBody(data) {
+    if (typeof data !== 'string')
+        return false;
+    const s = data.trim().slice(0, 800).toLowerCase();
+    if (!s)
+        return false;
+    return (s.startsWith('<!doctype') ||
+        s.startsWith('<html') ||
+        (s.includes('<html') && (s.includes('</body>') || s.includes('<head>'))) ||
+        (s.includes('<script') && s.includes('</html>')));
+}
+function isLikelySunoClipId(value) {
+    const t = value.trim();
+    if (!t || t.length > 80 || /\s/.test(t) || t.includes('<'))
+        return false;
+    if (SUNO_CLIP_ID_RE.test(t))
+        return true;
+    if (t.length >= 8 && t.length <= 64 && /^[a-zA-Z0-9_-]+$/.test(t))
+        return true;
+    return false;
+}
+exports.SUNO_UPSTREAM_HTML_HINT = '上游返回了网页 HTML 而非 JSON。请确认 proxyUrl 为 API 根地址（如 https://api.ephone.ai，勿加 /v1）。ephone 等聚合使用 /suno/submit/music，系统已对 ephone.ai 自动适配；其它同类网关可设 SUNO_API_FLAVOR=submit。';
+function unwrapSunoEnvelope(data) {
+    if (data == null || typeof data !== 'object' || Array.isArray(data))
+        return data;
+    const o = data;
+    const code = String(o.code ?? '').toLowerCase();
+    if ((code === 'success' || code === 'ok') && o.data !== undefined) {
+        return o.data;
+    }
+    return data;
+}
+function errorMessageFromField(err) {
+    if (err == null)
+        return '';
+    if (typeof err === 'string')
+        return err.trim();
+    if (typeof err === 'object' && !Array.isArray(err)) {
+        const e = err;
+        return String(e.message ?? e.msg ?? e.detail ?? '').trim();
+    }
+    return '';
+}
+function extractSunoErrorMessage(data) {
+    if (data == null)
+        return '';
+    if (typeof data === 'string') {
+        if (isLikelySunoHtmlBody(data))
+            return exports.SUNO_UPSTREAM_HTML_HINT;
+        const t = data.trim();
+        if (t.length > 500)
+            return `${t.slice(0, 200)}…`;
+        return t;
+    }
+    if (typeof data !== 'object')
+        return '';
+    const o = data;
+    const code = String(o.code ?? '').toLowerCase();
+    if (code && code !== 'success' && code !== 'ok') {
+        const msg = String(o.message ?? o.msg ?? '').trim();
+        if (msg)
+            return msg;
+    }
+    const nestedErr = errorMessageFromField(o.error);
+    const parts = [o.message, nestedErr, o.details, o.msg]
+        .map(x => (x != null ? String(x).trim() : ''))
+        .filter(Boolean);
+    if (parts.length)
+        return parts.join(' · ');
+    const inner = unwrapSunoEnvelope(data);
+    if (inner !== data && inner && typeof inner === 'object' && !Array.isArray(inner)) {
+        return extractSunoErrorMessage(inner);
+    }
+    return '';
+}
+function extractSunoClipsFromBody(data) {
+    const unwrapped = unwrapSunoEnvelope(data);
+    if (typeof unwrapped === 'string' && isLikelySunoClipId(unwrapped)) {
+        return [{ id: unwrapped.trim(), status: 'submitted' }];
+    }
+    if (!unwrapped || typeof unwrapped !== 'object')
+        return [];
+    if (Array.isArray(unwrapped)) {
+        return unwrapped
+            .map(item => clipIdFromItem(item))
+            .filter((x) => Boolean(x));
+    }
+    const o = unwrapped;
+    const raw = o.clips ?? o.clip_list ?? o.items;
+    if (Array.isArray(raw)) {
+        return raw
+            .map(item => clipIdFromItem(item))
+            .filter((x) => Boolean(x));
+    }
+    const single = clipIdFromItem(o);
+    return single ? [single] : [];
+}
+function clipIdFromItem(item) {
+    if (!item || typeof item !== 'object')
+        return null;
+    const c = item;
+    const id = String(c.id ?? c.clip_id ?? '').trim();
+    if (!id)
+        return null;
+    return { id, status: c.status != null ? String(c.status) : undefined };
+}
+function extractSunoPersonaId(data) {
+    const unwrapped = unwrapSunoEnvelope(data);
+    if (!unwrapped || typeof unwrapped !== 'object' || Array.isArray(unwrapped)) {
+        if (typeof unwrapped === 'string') {
+            const t = unwrapped.trim();
+            return isLikelySunoClipId(t) ? t : '';
+        }
+        return '';
+    }
+    const o = unwrapped;
+    return String(o.id ?? o.persona_id ?? '').trim();
+}
+function normalizeSunoFetchTaskStatus(raw) {
+    const s = raw.trim().toUpperCase();
+    if (s === 'SUCCESS' || s === 'SUCCEEDED' || s === 'COMPLETE' || s === 'COMPLETED')
+        return 'complete';
+    if (s === 'FAILURE' || s === 'FAILED' || s === 'ERROR')
+        return 'error';
+    if (s === 'IN_PROGRESS' || s === 'PROCESSING' || s === 'RUNNING' || s === 'STREAMING') {
+        return 'streaming';
+    }
+    if (s === 'QUEUED' || s === 'SUBMITTED' || s === 'PENDING')
+        return 'queued';
+    return 'streaming';
+}
+function clipRowsFromArray(arr) {
+    const out = [];
+    for (const x of arr) {
+        if (!x || typeof x !== 'object')
+            continue;
+        const c = x;
+        const id = String(c.id ?? c.clip_id ?? '').trim();
+        if (!id)
+            continue;
+        const st = c.status != null ? String(c.status) : c.state != null ? String(c.state) : '';
+        out.push({
+            ...c,
+            id,
+            clip_id: id,
+            status: st ? normalizeSunoFetchTaskStatus(st) : c.status,
+        });
+    }
+    return out;
+}
+function extractClipsFromSunoFetchTask(data, taskIdFallback) {
+    const unwrapped = unwrapSunoEnvelope(data);
+    if (Array.isArray(unwrapped))
+        return clipRowsFromArray(unwrapped);
+    if (!unwrapped || typeof unwrapped !== 'object')
+        return [];
+    const task = unwrapped;
+    const fail = String(task.fail_reason ?? '').trim();
+    const stRaw = String(task.status ?? task.state ?? '').trim();
+    const st = normalizeSunoFetchTaskStatus(stRaw);
+    if (st === 'error' || fail) {
+        throw new Error(fail || stRaw || 'Suno 任务失败');
+    }
+    const songs = task.songs ?? task.clips ?? task.items;
+    if (Array.isArray(songs))
+        return clipRowsFromArray(songs);
+    const inner = task.data;
+    if (Array.isArray(inner))
+        return clipRowsFromArray(inner);
+    if (inner && typeof inner === 'object' && !Array.isArray(inner)) {
+        const nested = inner;
+        if (Array.isArray(nested.data))
+            return clipRowsFromArray(nested.data);
+        if (Array.isArray(nested.clips))
+            return clipRowsFromArray(nested.clips);
+        if (Array.isArray(nested.songs))
+            return clipRowsFromArray(nested.songs);
+    }
+    const tid = taskIdFallback || String(task.task_id ?? task.id ?? '').trim();
+    if (tid && st !== 'complete') {
+        return [
+            {
+                id: tid,
+                clip_id: tid,
+                status: st === 'queued' ? 'queued' : 'streaming',
+                title: String(task.title ?? '').trim() || undefined,
+            },
+        ];
+    }
+    return [];
+}
+function extractLyricsTaskIdFromSubmit(data) {
+    const unwrapped = unwrapSunoEnvelope(data);
+    if (typeof unwrapped === 'string' && isLikelySunoClipId(unwrapped))
+        return unwrapped.trim();
+    if (!unwrapped || typeof unwrapped !== 'object' || Array.isArray(unwrapped))
+        return '';
+    const o = unwrapped;
+    return String(o.task_id ?? o.id ?? '').trim();
+}
+function extractLyricsFromSunoFetchTask(data) {
+    const empty = { taskId: '', text: '', title: '', status: 'pending' };
+    const unwrapped = unwrapSunoEnvelope(data);
+    let task = null;
+    if (Array.isArray(unwrapped) && unwrapped.length > 0) {
+        const first = unwrapped[0];
+        if (first && typeof first === 'object')
+            task = first;
+    }
+    else if (unwrapped && typeof unwrapped === 'object' && !Array.isArray(unwrapped)) {
+        task = unwrapped;
+    }
+    if (!task)
+        return empty;
+    const taskId = String(task.task_id ?? task.id ?? '').trim();
+    const fail = String(task.fail_reason ?? '').trim();
+    const stRaw = String(task.status ?? task.state ?? '')
+        .trim()
+        .toUpperCase();
+    if (stRaw === 'FAILURE' || stRaw === 'FAILED' || stRaw === 'ERROR' || fail) {
+        return {
+            taskId,
+            text: '',
+            title: '',
+            status: 'error',
+            failReason: fail || stRaw || '歌词任务失败',
+        };
+    }
+    const inner = task.data;
+    let lyricBlock = null;
+    if (inner && typeof inner === 'object' && !Array.isArray(inner)) {
+        lyricBlock = inner;
+    }
+    const text = String(lyricBlock?.text ?? task.text ?? '').trim();
+    const title = String(lyricBlock?.title ?? task.title ?? '').trim();
+    const innerSt = String(lyricBlock?.status ?? '').toLowerCase();
+    const done = stRaw === 'SUCCESS' ||
+        stRaw === 'SUCCEEDED' ||
+        stRaw === 'COMPLETE' ||
+        stRaw === 'COMPLETED' ||
+        innerSt === 'complete' ||
+        innerSt === 'completed' ||
+        innerSt === 'success';
+    if (done && text) {
+        return { taskId, text, title, status: 'complete' };
+    }
+    return { taskId, text, title, status: 'pending' };
+}
+function extractSunoTagsExpanded(data) {
+    const unwrapped = unwrapSunoEnvelope(data);
+    if (!unwrapped || typeof unwrapped !== 'object' || Array.isArray(unwrapped)) {
+        return typeof unwrapped === 'string' ? unwrapped.trim() : '';
+    }
+    const o = unwrapped;
+    return String(o.upsampled_tags ?? o.tags ?? '').trim();
+}
+
+
+/***/ }),
+/* 200 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var SunoMusicService_1;
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.SunoMusicService = void 0;
+const common_1 = __webpack_require__(2);
+const typeorm_1 = __webpack_require__(34);
+const axios_1 = __webpack_require__(40);
+const typeorm_2 = __webpack_require__(3);
+const models_entity_1 = __webpack_require__(80);
+const suno_music_constants_1 = __webpack_require__(198);
+const suno_proxy_util_1 = __webpack_require__(201);
+const suno_response_util_1 = __webpack_require__(199);
+const suno_proxy_util_2 = __webpack_require__(201);
+const suno_stem_adapt_util_1 = __webpack_require__(202);
+function coerceUpstreamData(data) {
+    if (data == null)
+        return data;
+    if (typeof data === 'string') {
+        if ((0, suno_response_util_1.isLikelySunoHtmlBody)(data)) {
+            throw new common_1.HttpException(suno_response_util_1.SUNO_UPSTREAM_HTML_HINT, common_1.HttpStatus.BAD_GATEWAY);
+        }
+        const trimmed = data.trim();
+        if (!trimmed)
+            return data;
+        if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+            try {
+                return JSON.parse(trimmed);
+            }
+            catch {
+                throw new common_1.HttpException('上游返回非 JSON 内容', common_1.HttpStatus.BAD_GATEWAY);
+            }
+        }
+        return data;
+    }
+    return data;
+}
+let SunoMusicService = SunoMusicService_1 = class SunoMusicService {
+    modelsEntity;
+    logger = new common_1.Logger(SunoMusicService_1.name);
+    constructor(modelsEntity) {
+        this.modelsEntity = modelsEntity;
+    }
+    async resolveSunoModel(modelKey) {
+        if (!modelKey?.trim()) {
+            throw new common_1.HttpException('缺少模型参数 model', common_1.HttpStatus.BAD_REQUEST);
+        }
+        const row = await this.modelsEntity.findOne({ where: { model: modelKey.trim() } });
+        if (!row || !row.status) {
+            throw new common_1.HttpException('模型不存在或未启用', common_1.HttpStatus.BAD_REQUEST);
+        }
+        const dt = Number(row.drawingType);
+        const legacy = String(row.model).toLowerCase().includes('suno') ||
+            String(row.modelName || '')
+                .toLowerCase()
+                .includes('suno');
+        if (dt !== suno_music_constants_1.SUNO_DRAWING_TYPE && !legacy) {
+            throw new common_1.HttpException(`当前模型不是 Suno 音乐类型（drawingType=${suno_music_constants_1.SUNO_DRAWING_TYPE}）`, common_1.HttpStatus.BAD_REQUEST);
+        }
+        if (!row.proxyUrl?.trim()) {
+            throw new common_1.HttpException('模型未配置上游地址 proxyUrl', common_1.HttpStatus.BAD_REQUEST);
+        }
+        if (!row.key?.trim()) {
+            throw new common_1.HttpException('模型未配置上游 API Key', common_1.HttpStatus.BAD_REQUEST);
+        }
+        return row;
+    }
+    getApiFlavor(row) {
+        return (0, suno_proxy_util_1.resolveSunoApiFlavor)(row.proxyUrl || '');
+    }
+    adaptGeneratePayloadForUpstream(row, payload) {
+        return (0, suno_stem_adapt_util_1.adaptStemPayloadForSubmitFlavor)(this.getApiFlavor(row), payload);
+    }
+    buildAuthHeaders(row) {
+        return {
+            Authorization: `Bearer ${row.key}`,
+            Accept: 'application/json',
+        };
+    }
+    async requestUpstream(row, path, options) {
+        const { url, routeStyle, flavor } = (0, suno_proxy_util_1.buildSunoUpstreamPath)(row.proxyUrl, path);
+        const headers = {
+            ...this.buildAuthHeaders(row),
+        };
+        if (options.form) {
+            Object.assign(headers, options.form.getHeaders());
+        }
+        else if (options.method !== 'GET') {
+            headers['Content-Type'] = 'application/json';
+        }
+        const cfg = {
+            method: options.method || 'POST',
+            url,
+            headers,
+            timeout: (row.timeout || 300) * 1000,
+            validateStatus: () => true,
+            maxBodyLength: 80 * 1024 * 1024,
+            maxContentLength: 80 * 1024 * 1024,
+            responseType: 'text',
+            transformResponse: [d => d],
+        };
+        if (options.method === 'GET') {
+            cfg.params = options.params;
+        }
+        else if (options.form) {
+            cfg.data = options.form;
+        }
+        else {
+            cfg.data = options.data ?? {};
+        }
+        try {
+            const res = await axios_1.default.request(cfg);
+            let data = res.data;
+            try {
+                data = coerceUpstreamData(data);
+            }
+            catch (e) {
+                if (e instanceof common_1.HttpException)
+                    throw e;
+                throw new common_1.HttpException('上游响应解析失败', common_1.HttpStatus.BAD_GATEWAY);
+            }
+            const line = `[Suno] ← ${path} HTTP ${res.status} ${(0, suno_proxy_util_1.sunoSafeUrlForLog)(url)} (${routeStyle}/${flavor})`;
+            if (res.status >= 400)
+                this.logger.error(line);
+            else
+                this.logger.log(line);
+            if (res.status >= 200 && res.status < 300 && (0, suno_response_util_1.isLikelySunoHtmlBody)(data)) {
+                throw new common_1.HttpException(suno_response_util_1.SUNO_UPSTREAM_HTML_HINT, common_1.HttpStatus.BAD_GATEWAY);
+            }
+            return { status: res.status, data };
+        }
+        catch (e) {
+            if (e instanceof common_1.HttpException)
+                throw e;
+            const msg = e instanceof Error ? e.message : String(e);
+            this.logger.error(`Suno upstream error: ${msg}`);
+            throw new common_1.HttpException(msg || '上游请求失败', common_1.HttpStatus.BAD_GATEWAY);
+        }
+    }
+    unwrapUpstreamBody(data) {
+        return (0, suno_response_util_1.unwrapSunoEnvelope)(data);
+    }
+    extractErrorMessage(data) {
+        return (0, suno_response_util_1.extractSunoErrorMessage)(data);
+    }
+    isGenerateSuccess(status, data) {
+        if (status < 200 || status >= 300)
+            return false;
+        if ((0, suno_response_util_1.isLikelySunoHtmlBody)(data))
+            return false;
+        const err = (0, suno_response_util_1.extractSunoErrorMessage)(data);
+        if (err)
+            return false;
+        if ((0, suno_response_util_1.extractSunoClipsFromBody)(data).length > 0)
+            return true;
+        if (data && typeof data === 'object' && !Array.isArray(data)) {
+            const o = data;
+            const code = String(o.code ?? '').toLowerCase();
+            const inner = (0, suno_response_util_1.unwrapSunoEnvelope)(data);
+            if (code === 'success' && typeof inner === 'string' && (0, suno_response_util_1.isLikelySunoClipId)(inner)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    normalizeGenerateResponse(data) {
+        const clips = (0, suno_response_util_1.extractSunoClipsFromBody)(data);
+        if (clips.length)
+            return { clips };
+        const unwrapped = (0, suno_response_util_1.unwrapSunoEnvelope)(data);
+        if (unwrapped && typeof unwrapped === 'object' && !Array.isArray(unwrapped)) {
+            return unwrapped;
+        }
+        if (typeof unwrapped === 'string' && (0, suno_response_util_1.isLikelySunoClipId)(unwrapped)) {
+            return { clips: [{ id: unwrapped.trim(), status: 'submitted' }] };
+        }
+        return (data && typeof data === 'object' ? data : {});
+    }
+    sunoBaseDeduct(row) {
+        const d = Number(row.deduct);
+        return Number.isFinite(d) && d > 0 ? d : 1;
+    }
+    concatUpstreamPaths(row) {
+        const env = process.env.SUNO_CONCAT_PATH?.trim();
+        if (env)
+            return [env];
+        const flavor = (0, suno_proxy_util_1.resolveSunoApiFlavor)(row.proxyUrl || '');
+        if (flavor === 'submit') {
+            return ['/suno/generate/concat', '/suno/submit/concat'];
+        }
+        return ['/suno/generate/concat'];
+    }
+    concatUpstreamPath(row) {
+        if (row)
+            return this.concatUpstreamPaths(row)[0];
+        const p = process.env.SUNO_CONCAT_PATH?.trim();
+        return p || '/suno/generate/concat';
+    }
+    async requestConcat(row, clipId, isInfill) {
+        const paths = this.concatUpstreamPaths(row);
+        let last = null;
+        for (let i = 0; i < paths.length; i++) {
+            const path = paths[i];
+            const out = await this.requestUpstream(row, path, {
+                data: { clip_id: clipId, is_infill: isInfill === true },
+            });
+            if (this.isConcatSuccess(out.status, out.data))
+                return out;
+            last = out;
+            const err = (0, suno_response_util_1.extractSunoErrorMessage)(out.data);
+            const retryable = /job\s+not\s+exi/i.test(err);
+            if (!retryable || i >= paths.length - 1)
+                break;
+            this.logger.warn(`[Suno] concat ${path} failed (${err}), trying fallback`);
+        }
+        return last;
+    }
+    isHttpOk(status) {
+        return status >= 200 && status < 300;
+    }
+    isConcatSuccess(status, data) {
+        if (!this.isHttpOk(status) || data == null)
+            return false;
+        if ((0, suno_response_util_1.isLikelySunoHtmlBody)(data))
+            return false;
+        if ((0, suno_response_util_1.extractSunoErrorMessage)(data))
+            return false;
+        if ((0, suno_response_util_1.extractSunoClipsFromBody)(data).length > 0)
+            return true;
+        if (typeof data === 'string' && (0, suno_response_util_1.isLikelySunoClipId)(data))
+            return true;
+        const unwrapped = (0, suno_response_util_1.unwrapSunoEnvelope)(data);
+        if (typeof unwrapped === 'string' && (0, suno_response_util_1.isLikelySunoClipId)(unwrapped))
+            return true;
+        if (typeof data !== 'object')
+            return false;
+        const o = data;
+        const code = String(o.code ?? '').toLowerCase();
+        if (code === 'success')
+            return true;
+        if (o.task_id != null && String(o.task_id).trim())
+            return true;
+        return false;
+    }
+    isPersonaCreateSuccess(status, data) {
+        if (!this.isHttpOk(status))
+            return false;
+        if ((0, suno_response_util_1.isLikelySunoHtmlBody)(data))
+            return false;
+        if ((0, suno_response_util_1.extractSunoErrorMessage)(data))
+            return false;
+        return Boolean((0, suno_response_util_1.extractSunoPersonaId)(data));
+    }
+    normalizePersonaCreateResponse(data) {
+        const id = (0, suno_response_util_1.extractSunoPersonaId)(data);
+        return id ? { id } : (0, suno_response_util_1.unwrapSunoEnvelope)(data) || {};
+    }
+    normalizeTagsResponse(data) {
+        const tags = (0, suno_response_util_1.extractSunoTagsExpanded)(data);
+        if (tags)
+            return { upsampled_tags: tags };
+        const unwrapped = (0, suno_response_util_1.unwrapSunoEnvelope)(data);
+        if (unwrapped && typeof unwrapped === 'object' && !Array.isArray(unwrapped)) {
+            return unwrapped;
+        }
+        return (data && typeof data === 'object' ? data : {});
+    }
+    lyricsSubmitPath(row) {
+        return (0, suno_proxy_util_2.lyricsSubmitUpstreamPath)(this.getApiFlavor(row));
+    }
+    lyricsFetchPath(row, taskId) {
+        return (0, suno_proxy_util_2.lyricsFetchUpstreamPath)(this.getApiFlavor(row), taskId);
+    }
+    isLyricsSubmitSuccess(status, data) {
+        if (!this.isHttpOk(status) || data == null)
+            return false;
+        if ((0, suno_response_util_1.isLikelySunoHtmlBody)(data))
+            return false;
+        if ((0, suno_response_util_1.extractSunoErrorMessage)(data))
+            return false;
+        return Boolean((0, suno_response_util_1.extractLyricsTaskIdFromSubmit)(data));
+    }
+    normalizeLyricsSubmitResponse(data) {
+        const taskId = (0, suno_response_util_1.extractLyricsTaskIdFromSubmit)(data);
+        return taskId ? { task_id: taskId } : {};
+    }
+    normalizeLyricsPollResponse(data) {
+        const r = (0, suno_response_util_1.extractLyricsFromSunoFetchTask)(data);
+        return {
+            task_id: r.taskId,
+            text: r.text,
+            title: r.title,
+            status: r.status,
+            fail_reason: r.failReason,
+        };
+    }
+    isActResourceReady(status, data) {
+        if (!this.isHttpOk(status) || !data || typeof data !== 'object')
+            return false;
+        const o = data;
+        if (o.wav_file_url && String(o.wav_file_url).trim())
+            return true;
+        if (o.mp4 && String(o.mp4).trim())
+            return true;
+        if (Array.isArray(o.aligned_words) && o.aligned_words.length > 0)
+            return true;
+        if (o.state === 'complete')
+            return true;
+        return false;
+    }
+};
+exports.SunoMusicService = SunoMusicService;
+exports.SunoMusicService = SunoMusicService = SunoMusicService_1 = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, typeorm_1.InjectRepository)(models_entity_1.ModelsEntity)),
+    __metadata("design:paramtypes", [typeof (_a = typeof typeorm_2.Repository !== "undefined" && typeorm_2.Repository) === "function" ? _a : Object])
+], SunoMusicService);
+
+
+/***/ }),
+/* 201 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.resolveSunoApiFlavor = resolveSunoApiFlavor;
+exports.normalizeSunoProxyBaseUrl = normalizeSunoProxyBaseUrl;
+exports.buildSunoUpstreamPath = buildSunoUpstreamPath;
+exports.lyricsSubmitUpstreamPath = lyricsSubmitUpstreamPath;
+exports.lyricsFetchUpstreamPath = lyricsFetchUpstreamPath;
+exports.sunoSafeUrlForLog = sunoSafeUrlForLog;
+const ROUTE_SEGMENT = /^(sunoapi|suno)$/i;
+function splitHostMarkers(raw, fallback) {
+    return (raw ?? fallback)
+        .split(/[,;]/)
+        .map(s => s.trim().toLowerCase())
+        .filter(Boolean);
+}
+function resolveSunoApiFlavor(proxyUrl) {
+    const env = process.env.SUNO_API_FLAVOR?.trim().toLowerCase();
+    if (env === 'submit' || env === 'generate')
+        return env;
+    const u = (proxyUrl || '').toLowerCase();
+    const markers = splitHostMarkers(process.env.SUNO_SUBMIT_HOST_MARKERS, 'ephone.ai');
+    if (markers.some(m => u.includes(m)))
+        return 'submit';
+    return 'generate';
+}
+function normalizeSunoProxyBaseUrl(raw) {
+    let url = (raw || '').trim();
+    const envStyle = process.env.SUNO_API_ROUTE_STYLE?.trim().toLowerCase();
+    const envRoute = envStyle === 'sunoapi' ? 'sunoapi' : envStyle === 'suno' ? 'suno' : undefined;
+    if (!url)
+        return { baseUrl: '', routeStyle: envRoute ?? 'suno' };
+    while (url.endsWith('/'))
+        url = url.slice(0, -1);
+    let routeStyle = envRoute ?? 'suno';
+    try {
+        const u = new URL(url);
+        const parts = (u.pathname || '/').split('/').filter(Boolean);
+        const last = parts[parts.length - 1]?.toLowerCase();
+        if (last && ROUTE_SEGMENT.test(last)) {
+            routeStyle = envRoute ?? last.toLowerCase();
+            parts.pop();
+            u.pathname = parts.length ? `/${parts.join('/')}` : '/';
+            let out = u.toString();
+            while (out.endsWith('/'))
+                out = out.slice(0, -1);
+            return { baseUrl: out, routeStyle };
+        }
+    }
+    catch {
+        const m = url.match(/\/(sunoapi|suno)\/?$/i);
+        if (m) {
+            routeStyle = envRoute ?? m[1].toLowerCase();
+            url = url.slice(0, -m[0].length).replace(/\/+$/, '');
+        }
+    }
+    return { baseUrl: url, routeStyle };
+}
+function joinUrl(base, path) {
+    const b = base.replace(/\/+$/, '');
+    const p = path.startsWith('/') ? path : `/${path}`;
+    return `${b}${p}`;
+}
+function mapEndpointForFlavor(ep, flavor) {
+    if (flavor !== 'submit')
+        return ep;
+    if (ep === 'generate')
+        return 'submit/music';
+    return ep;
+}
+function buildSunoUpstreamPath(proxyUrl, path) {
+    const flavor = resolveSunoApiFlavor(proxyUrl);
+    const { baseUrl, routeStyle } = normalizeSunoProxyBaseUrl(proxyUrl);
+    let ep = String(path || '')
+        .trim()
+        .replace(/^\/+/, '');
+    ep = ep.replace(/^(sunoapi|suno)\//i, '');
+    ep = mapEndpointForFlavor(ep, flavor);
+    const upstreamPath = `/${routeStyle}/${ep}`;
+    return { url: joinUrl(baseUrl, upstreamPath), routeStyle, flavor };
+}
+function lyricsSubmitUpstreamPath(flavor) {
+    return flavor === 'submit' ? '/suno/submit/lyrics' : '/suno/generate/lyrics/';
+}
+function lyricsFetchUpstreamPath(flavor, taskId) {
+    const id = encodeURIComponent(taskId.trim());
+    return flavor === 'submit' ? `/suno/fetch/${id}` : `/suno/lyrics/${id}`;
+}
+function sunoSafeUrlForLog(fullUrl) {
+    try {
+        const u = new URL(fullUrl);
+        return `${u.origin}${u.pathname}`;
+    }
+    catch {
+        return '[invalid-url]';
+    }
+}
+
+
+/***/ }),
+/* 202 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.adaptStemPayloadForSubmitFlavor = adaptStemPayloadForSubmitFlavor;
+function adaptStemPayloadForSubmitFlavor(flavor, payload) {
+    if (flavor !== 'submit')
+        return payload;
+    const task = String(payload.task || '').trim();
+    if (task !== 'vocal-stems' && task !== 'all-stems')
+        return payload;
+    const clipId = String(payload.clip_id ?? payload.continue_clip_id ?? '').trim();
+    if (!clipId)
+        return payload;
+    const allStems = task === 'all-stems';
+    const out = {
+        task: 'gen_stem',
+        continue_clip_id: clipId,
+        mv: payload.mv ?? 'chirp-fenix',
+        make_instrumental: true,
+        generation_type: 'TEXT',
+        title: String(payload.title || (allStems ? 'All stems' : 'Vocal stems')),
+        prompt: '',
+        continued_aligned_prompt: null,
+        continue_at: null,
+        stem_type_id: 91,
+        stem_type_group_name: allStems ? 'Twelve' : 'Two',
+        stem_task: allStems ? 'twelve' : 'two',
+    };
+    if (payload.task_id)
+        out.task_id = payload.task_id;
+    return out;
+}
+
+
+/***/ }),
+/* 203 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var SunoUploadService_1;
+var _a, _b;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.SunoUploadService = void 0;
+const common_1 = __webpack_require__(2);
+const axios_1 = __webpack_require__(40);
+const FormData = __webpack_require__(171);
+const upload_service_1 = __webpack_require__(167);
+const suno_music_service_1 = __webpack_require__(200);
+const suno_proxy_util_1 = __webpack_require__(201);
+function sleep(ms) {
+    return new Promise(r => setTimeout(r, ms));
+}
+function extFromFilename(name) {
+    const m = String(name || '').match(/\.([a-z0-9]+)$/i);
+    const ext = m?.[1]?.toLowerCase() || 'mp3';
+    if (['mp3', 'wav', 'flac', 'm4a', 'ogg', 'aac'].includes(ext))
+        return ext;
+    return 'mp3';
+}
+function unwrapBody(data) {
+    const unwrapped = data && typeof data === 'object' ? data : {};
+    const code = String(unwrapped.code ?? '').toLowerCase();
+    if ((code === 'success' || code === 'ok') && unwrapped.data != null) {
+        const inner = unwrapped.data;
+        if (inner && typeof inner === 'object' && !Array.isArray(inner)) {
+            return inner;
+        }
+    }
+    return unwrapped;
+}
+let SunoUploadService = SunoUploadService_1 = class SunoUploadService {
+    sunoMusicService;
+    uploadService;
+    logger = new common_1.Logger(SunoUploadService_1.name);
+    constructor(sunoMusicService, uploadService) {
+        this.sunoMusicService = sunoMusicService;
+        this.uploadService = uploadService;
+    }
+    async uploadViaMultipart(row, file) {
+        const form = new FormData();
+        form.append('file', file.buffer, {
+            filename: file.originalname || 'audio.mp3',
+            contentType: file.mimetype || 'audio/mpeg',
+        });
+        const out = await this.sunoMusicService.requestUpstream(row, '/suno/upload', { form });
+        if (out.status < 200 || out.status >= 300) {
+            throw new common_1.HttpException(this.sunoMusicService.extractErrorMessage(out.data) || 'multipart 上传失败', common_1.HttpStatus.BAD_GATEWAY);
+        }
+        const body = this.sunoMusicService.unwrapUpstreamBody(out.data);
+        return body && typeof body === 'object' ? body : out.data;
+    }
+    async uploadViaPublicUrl(row, file, user) {
+        const hostedUrl = await this.uploadService.uploadFile({ buffer: file.buffer, mimetype: file.mimetype || 'audio/mpeg' }, 'music/upload', user);
+        const url = String(hostedUrl || '').trim();
+        if (!url) {
+            throw new common_1.HttpException('音频托管失败，未获得公网地址', common_1.HttpStatus.BAD_GATEWAY);
+        }
+        this.logger.log(`[Suno] upload url-bridge → ${url.slice(0, 96)}`);
+        const out = await this.sunoMusicService.requestUpstream(row, '/suno/uploads/audio-url', {
+            data: { url },
+        });
+        if (out.status < 200 || out.status >= 300) {
+            throw new common_1.HttpException(this.sunoMusicService.extractErrorMessage(out.data) || 'URL 上传失败', common_1.HttpStatus.BAD_GATEWAY);
+        }
+        const body = this.sunoMusicService.unwrapUpstreamBody(out.data);
+        return body ?? out.data;
+    }
+    async uploadAudioSmart(row, file, user) {
+        const flavor = (0, suno_proxy_util_1.resolveSunoApiFlavor)(row.proxyUrl || '');
+        if (flavor === 'submit') {
+            return this.uploadViaPublicUrl(row, file, user);
+        }
+        try {
+            return await this.uploadViaMultipart(row, file);
+        }
+        catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            this.logger.warn(`[Suno] multipart upload failed: ${msg}`);
+        }
+        try {
+            return await this.uploadViaPipeline(row, file);
+        }
+        catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            this.logger.warn(`[Suno] pipeline upload failed: ${msg}`);
+        }
+        return this.uploadViaPublicUrl(row, file, user);
+    }
+    async requestInit(row, extension) {
+        const paths = ['/sunoi/uploads/audio', '/suno/uploads/audio'];
+        let last = null;
+        for (const path of paths) {
+            const out = await this.sunoMusicService.requestUpstream(row, path, {
+                data: { extension },
+            });
+            last = out;
+            if (out.status >= 200 && out.status < 300)
+                return out;
+        }
+        if (last)
+            return last;
+        throw new common_1.HttpException('上传初始化失败', common_1.HttpStatus.BAD_GATEWAY);
+    }
+    async putToS3(uploadUrl, fields, buffer, filename, contentType) {
+        const form = new FormData();
+        for (const [k, v] of Object.entries(fields)) {
+            form.append(k, v);
+        }
+        form.append('file', buffer, { filename, contentType });
+        const res = await axios_1.default.post(uploadUrl, form, {
+            headers: form.getHeaders(),
+            maxBodyLength: 80 * 1024 * 1024,
+            validateStatus: () => true,
+            timeout: 120_000,
+        });
+        if (res.status >= 400) {
+            this.logger.warn(`S3 upload HTTP ${res.status}`);
+            throw new common_1.HttpException(`S3 上传失败 HTTP ${res.status}`, common_1.HttpStatus.BAD_GATEWAY);
+        }
+    }
+    async pollUploadStatus(row, uploadId, max = 30) {
+        const paths = [
+            `/sunoi/uploads/audio/${encodeURIComponent(uploadId)}`,
+            `/suno/uploads/audio/${encodeURIComponent(uploadId)}`,
+        ];
+        for (let i = 0; i < max; i++) {
+            for (const path of paths) {
+                const out = await this.sunoMusicService.requestUpstream(row, path, { method: 'GET' });
+                if (out.status < 200 || out.status >= 300)
+                    continue;
+                const body = unwrapBody(out.data);
+                const status = String(body.status ?? '').toLowerCase();
+                if (status === 'complete' || status === 'success')
+                    return body;
+                if (status === 'error' || status === 'failed') {
+                    const err = String(body.error_message ?? body.message ?? '上传处理失败');
+                    throw new common_1.HttpException(err, common_1.HttpStatus.BAD_GATEWAY);
+                }
+            }
+            await sleep(2000);
+        }
+        throw new common_1.HttpException('上传处理超时', common_1.HttpStatus.GATEWAY_TIMEOUT);
+    }
+    async finishUpload(row, uploadId, filename) {
+        const paths = [
+            `/sunoi/uploads/audio/${encodeURIComponent(uploadId)}/upload-finish`,
+            `/suno/uploads/audio/${encodeURIComponent(uploadId)}/upload-finish`,
+        ];
+        const payload = { upload_type: 'file_upload', upload_filename: filename };
+        for (const path of paths) {
+            const out = await this.sunoMusicService.requestUpstream(row, path, { data: payload });
+            if (out.status >= 200 && out.status < 300)
+                return;
+        }
+        throw new common_1.HttpException('报告上传完毕失败', common_1.HttpStatus.BAD_GATEWAY);
+    }
+    async initializeClip(row, uploadId) {
+        const paths = [
+            `/sunoi/uploads/audio/${encodeURIComponent(uploadId)}/initialize-clip`,
+            `/suno/uploads/audio/${encodeURIComponent(uploadId)}/initialize-clip`,
+        ];
+        for (const path of paths) {
+            const out = await this.sunoMusicService.requestUpstream(row, path, { data: {} });
+            if (out.status < 200 || out.status >= 300)
+                continue;
+            const body = unwrapBody(out.data);
+            const clipId = String(body.clip_id ?? body.clipId ?? '').trim();
+            if (clipId)
+                return clipId;
+        }
+        throw new common_1.HttpException('初始化 clip 失败', common_1.HttpStatus.BAD_GATEWAY);
+    }
+    async uploadViaPipeline(row, file) {
+        const filename = file.originalname || 'audio.mp3';
+        const extension = extFromFilename(filename);
+        const initOut = await this.requestInit(row, extension);
+        if (initOut.status < 200 || initOut.status >= 300) {
+            throw new common_1.HttpException(this.sunoMusicService.extractErrorMessage(initOut.data) || '上传初始化失败', common_1.HttpStatus.BAD_GATEWAY);
+        }
+        const initBody = unwrapBody(initOut.data);
+        const uploadId = String(initBody.id ?? '').trim();
+        const uploadUrl = String(initBody.url ?? '').trim();
+        const fieldsRaw = initBody.fields;
+        if (!uploadId || !uploadUrl || !fieldsRaw || typeof fieldsRaw !== 'object') {
+            throw new common_1.HttpException('上传初始化响应不完整', common_1.HttpStatus.BAD_GATEWAY);
+        }
+        const fields = {};
+        for (const [k, v] of Object.entries(fieldsRaw)) {
+            fields[k] = String(v ?? '');
+        }
+        const contentType = fields['Content-Type'] ||
+            file.mimetype ||
+            `audio/${extension === 'mp3' ? 'mpeg' : extension}`;
+        await this.putToS3(uploadUrl, fields, file.buffer, filename, contentType);
+        await this.finishUpload(row, uploadId, filename);
+        await this.pollUploadStatus(row, uploadId);
+        const clipId = await this.initializeClip(row, uploadId);
+        return { clip_id: clipId, upload_id: uploadId };
+    }
+};
+exports.SunoUploadService = SunoUploadService;
+exports.SunoUploadService = SunoUploadService = SunoUploadService_1 = __decorate([
+    (0, common_1.Injectable)(),
+    __metadata("design:paramtypes", [typeof (_a = typeof suno_music_service_1.SunoMusicService !== "undefined" && suno_music_service_1.SunoMusicService) === "function" ? _a : Object, typeof (_b = typeof upload_service_1.UploadService !== "undefined" && upload_service_1.UploadService) === "function" ? _b : Object])
+], SunoUploadService);
+
+
+/***/ }),
+/* 204 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ChatGroupModule = void 0;
 const common_1 = __webpack_require__(2);
-const chatGroup_controller_1 = __webpack_require__(191);
+const chatGroup_controller_1 = __webpack_require__(205);
 const chatGroup_service_1 = __webpack_require__(162);
 const typeorm_1 = __webpack_require__(34);
 const chatGroup_entity_1 = __webpack_require__(84);
@@ -15973,7 +18073,7 @@ exports.ChatGroupModule = ChatGroupModule = __decorate([
 
 
 /***/ }),
-/* 191 */
+/* 205 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -15995,11 +18095,11 @@ exports.ChatGroupController = void 0;
 const swagger_1 = __webpack_require__(14);
 const chatGroup_service_1 = __webpack_require__(162);
 const common_1 = __webpack_require__(2);
-const createGroup_dto_1 = __webpack_require__(192);
+const createGroup_dto_1 = __webpack_require__(206);
 const express_1 = __webpack_require__(108);
 const jwtAuth_guard_1 = __webpack_require__(89);
-const delGroup_dto_1 = __webpack_require__(193);
-const updateGroup_dto_1 = __webpack_require__(194);
+const delGroup_dto_1 = __webpack_require__(207);
+const updateGroup_dto_1 = __webpack_require__(208);
 let ChatGroupController = class ChatGroupController {
     chatGroupService;
     constructor(chatGroupService) {
@@ -16083,7 +18183,7 @@ exports.ChatGroupController = ChatGroupController = __decorate([
 
 
 /***/ }),
-/* 192 */
+/* 206 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16130,7 +18230,7 @@ __decorate([
 
 
 /***/ }),
-/* 193 */
+/* 207 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16157,7 +18257,7 @@ __decorate([
 
 
 /***/ }),
-/* 194 */
+/* 208 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16207,7 +18307,7 @@ __decorate([
 
 
 /***/ }),
-/* 195 */
+/* 209 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16223,7 +18323,7 @@ const common_1 = __webpack_require__(2);
 const typeorm_1 = __webpack_require__(34);
 const chatGroup_entity_1 = __webpack_require__(84);
 const user_entity_1 = __webpack_require__(85);
-const chatLog_controller_1 = __webpack_require__(196);
+const chatLog_controller_1 = __webpack_require__(210);
 const chatLog_entity_1 = __webpack_require__(77);
 const chatLog_service_1 = __webpack_require__(164);
 let ChatLogModule = class ChatLogModule {
@@ -16241,7 +18341,7 @@ exports.ChatLogModule = ChatLogModule = __decorate([
 
 
 /***/ }),
-/* 196 */
+/* 210 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16267,15 +18367,15 @@ const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
 const express_1 = __webpack_require__(108);
 const chatLog_service_1 = __webpack_require__(164);
-const chatList_dto_1 = __webpack_require__(197);
-const del_dto_1 = __webpack_require__(198);
-const delByGroup_dto_1 = __webpack_require__(199);
-const exportExcelChatlog_dto_1 = __webpack_require__(200);
-const queryAllChatLog_dto_1 = __webpack_require__(201);
-const queryByAppId_dto_1 = __webpack_require__(202);
-const queryMyChatLog_dto_1 = __webpack_require__(203);
-const querySingleChat_dto_1 = __webpack_require__(204);
-const recDrawImg_dto_1 = __webpack_require__(205);
+const chatList_dto_1 = __webpack_require__(211);
+const del_dto_1 = __webpack_require__(212);
+const delByGroup_dto_1 = __webpack_require__(213);
+const exportExcelChatlog_dto_1 = __webpack_require__(214);
+const queryAllChatLog_dto_1 = __webpack_require__(215);
+const queryByAppId_dto_1 = __webpack_require__(216);
+const queryMyChatLog_dto_1 = __webpack_require__(217);
+const querySingleChat_dto_1 = __webpack_require__(218);
+const recDrawImg_dto_1 = __webpack_require__(219);
 let ChatLogController = class ChatLogController {
     chatLogService;
     constructor(chatLogService) {
@@ -16429,7 +18529,7 @@ exports.ChatLogController = ChatLogController = __decorate([
 
 
 /***/ }),
-/* 197 */
+/* 211 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16458,7 +18558,7 @@ __decorate([
 
 
 /***/ }),
-/* 198 */
+/* 212 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16485,7 +18585,7 @@ __decorate([
 
 
 /***/ }),
-/* 199 */
+/* 213 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16512,7 +18612,7 @@ __decorate([
 
 
 /***/ }),
-/* 200 */
+/* 214 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16567,7 +18667,7 @@ __decorate([
 
 
 /***/ }),
-/* 201 */
+/* 215 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16635,7 +18735,7 @@ __decorate([
 
 
 /***/ }),
-/* 202 */
+/* 216 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16676,7 +18776,7 @@ __decorate([
 
 
 /***/ }),
-/* 203 */
+/* 217 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16705,7 +18805,7 @@ __decorate([
 
 
 /***/ }),
-/* 204 */
+/* 218 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16734,7 +18834,7 @@ __decorate([
 
 
 /***/ }),
-/* 205 */
+/* 219 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16761,7 +18861,7 @@ __decorate([
 
 
 /***/ }),
-/* 206 */
+/* 220 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16784,9 +18884,9 @@ const balance_entity_1 = __webpack_require__(82);
 const fingerprint_entity_1 = __webpack_require__(86);
 const userBalance_entity_1 = __webpack_require__(83);
 const userBalance_service_1 = __webpack_require__(35);
-const crami_controller_1 = __webpack_require__(207);
-const crami_entity_1 = __webpack_require__(209);
-const crami_service_1 = __webpack_require__(208);
+const crami_controller_1 = __webpack_require__(221);
+const crami_entity_1 = __webpack_require__(223);
+const crami_service_1 = __webpack_require__(222);
 const cramiPackage_entity_1 = __webpack_require__(73);
 let CramiModule = class CramiModule {
 };
@@ -16816,7 +18916,7 @@ exports.CramiModule = CramiModule = __decorate([
 
 
 /***/ }),
-/* 207 */
+/* 221 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -16841,15 +18941,15 @@ const superAuth_guard_1 = __webpack_require__(107);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
 const express_1 = __webpack_require__(108);
-const crami_service_1 = __webpack_require__(208);
-const batchDelCrami_dto_1 = __webpack_require__(210);
-const createCrami_dto_1 = __webpack_require__(211);
-const createPackage_dto_1 = __webpack_require__(212);
-const deletePackage_dto_1 = __webpack_require__(213);
-const queryAllCrami_dto_1 = __webpack_require__(214);
-const queryAllPackage_dto_1 = __webpack_require__(215);
-const updatePackage_dto_1 = __webpack_require__(216);
-const useCrami_dto_1 = __webpack_require__(217);
+const crami_service_1 = __webpack_require__(222);
+const batchDelCrami_dto_1 = __webpack_require__(224);
+const createCrami_dto_1 = __webpack_require__(225);
+const createPackage_dto_1 = __webpack_require__(226);
+const deletePackage_dto_1 = __webpack_require__(227);
+const queryAllCrami_dto_1 = __webpack_require__(228);
+const queryAllPackage_dto_1 = __webpack_require__(229);
+const updatePackage_dto_1 = __webpack_require__(230);
+const useCrami_dto_1 = __webpack_require__(231);
 let CramiController = class CramiController {
     cramiService;
     constructor(cramiService) {
@@ -16993,7 +19093,7 @@ exports.CramiController = CramiController = __decorate([
 
 
 /***/ }),
-/* 208 */
+/* 222 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17019,7 +19119,7 @@ const typeorm_1 = __webpack_require__(34);
 const typeorm_2 = __webpack_require__(3);
 const user_entity_1 = __webpack_require__(85);
 const userBalance_service_1 = __webpack_require__(35);
-const crami_entity_1 = __webpack_require__(209);
+const crami_entity_1 = __webpack_require__(223);
 const cramiPackage_entity_1 = __webpack_require__(73);
 let CramiService = class CramiService {
     cramiEntity;
@@ -17237,7 +19337,7 @@ exports.CramiService = CramiService = __decorate([
 
 
 /***/ }),
-/* 209 */
+/* 223 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17322,7 +19422,7 @@ exports.CramiEntity = CramiEntity = __decorate([
 
 
 /***/ }),
-/* 210 */
+/* 224 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17352,7 +19452,7 @@ __decorate([
 
 
 /***/ }),
-/* 211 */
+/* 225 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17412,7 +19512,7 @@ __decorate([
 
 
 /***/ }),
-/* 212 */
+/* 226 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17533,7 +19633,7 @@ __decorate([
 
 
 /***/ }),
-/* 213 */
+/* 227 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17562,7 +19662,7 @@ __decorate([
 
 
 /***/ }),
-/* 214 */
+/* 228 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17613,7 +19713,7 @@ __decorate([
 
 
 /***/ }),
-/* 215 */
+/* 229 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17674,7 +19774,7 @@ __decorate([
 
 
 /***/ }),
-/* 216 */
+/* 230 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17691,7 +19791,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UpdatePackageDto = void 0;
 const class_validator_1 = __webpack_require__(114);
 const swagger_1 = __webpack_require__(14);
-const createPackage_dto_1 = __webpack_require__(212);
+const createPackage_dto_1 = __webpack_require__(226);
 class UpdatePackageDto extends createPackage_dto_1.CreatePackageDto {
     id;
 }
@@ -17704,7 +19804,7 @@ __decorate([
 
 
 /***/ }),
-/* 217 */
+/* 231 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17737,7 +19837,7 @@ __decorate([
 
 
 /***/ }),
-/* 218 */
+/* 232 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -17757,7 +19857,7 @@ exports.DatabaseModule = void 0;
 const common_1 = __webpack_require__(2);
 const typeorm_1 = __webpack_require__(34);
 const typeorm_2 = __webpack_require__(3);
-const database_service_1 = __webpack_require__(219);
+const database_service_1 = __webpack_require__(233);
 const app_entity_1 = __webpack_require__(110);
 const appCats_entity_1 = __webpack_require__(111);
 const userApps_entity_1 = __webpack_require__(112);
@@ -17766,16 +19866,17 @@ const badWords_entity_1 = __webpack_require__(150);
 const violationLog_entity_1 = __webpack_require__(151);
 const chatGroup_entity_1 = __webpack_require__(84);
 const chatLog_entity_1 = __webpack_require__(77);
-const crami_entity_1 = __webpack_require__(209);
+const crami_entity_1 = __webpack_require__(223);
 const cramiPackage_entity_1 = __webpack_require__(73);
 const drawing_mj_job_entity_1 = __webpack_require__(178);
+const suno_music_job_entity_1 = __webpack_require__(194);
 const config_entity_1 = __webpack_require__(75);
 const models_entity_1 = __webpack_require__(80);
-const model_token_catalog_entity_1 = __webpack_require__(220);
-const order_entity_1 = __webpack_require__(221);
+const model_token_catalog_entity_1 = __webpack_require__(234);
+const order_entity_1 = __webpack_require__(235);
 const plugin_entity_1 = __webpack_require__(166);
-const share_entity_1 = __webpack_require__(222);
-const signIn_entity_1 = __webpack_require__(223);
+const share_entity_1 = __webpack_require__(236);
+const signIn_entity_1 = __webpack_require__(237);
 const user_entity_1 = __webpack_require__(85);
 const userSecurityLog_entity_1 = __webpack_require__(106);
 const accountLog_entity_1 = __webpack_require__(81);
@@ -17832,6 +19933,7 @@ exports.DatabaseModule = DatabaseModule = DatabaseModule_1 = __decorate([
                         app_entity_1.AppEntity,
                         order_entity_1.OrderEntity,
                         drawing_mj_job_entity_1.DrawingMjJobEntity,
+                        suno_music_job_entity_1.SunoMusicJobEntity,
                     ],
                     synchronize: false,
                     logging: false,
@@ -17847,7 +19949,7 @@ exports.DatabaseModule = DatabaseModule = DatabaseModule_1 = __decorate([
 
 
 /***/ }),
-/* 219 */
+/* 233 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18044,7 +20146,7 @@ exports.DatabaseService = DatabaseService = __decorate([
 
 
 /***/ }),
-/* 220 */
+/* 234 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18109,7 +20211,7 @@ exports.ModelTokenCatalogEntity = ModelTokenCatalogEntity = __decorate([
 
 
 /***/ }),
-/* 221 */
+/* 235 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18203,7 +20305,7 @@ exports.OrderEntity = OrderEntity = __decorate([
 
 
 /***/ }),
-/* 222 */
+/* 236 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18249,7 +20351,7 @@ exports.Share = Share = __decorate([
 
 
 /***/ }),
-/* 223 */
+/* 237 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18296,7 +20398,7 @@ exports.SigninEntity = SigninEntity = __decorate([
 
 
 /***/ }),
-/* 224 */
+/* 238 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18312,7 +20414,7 @@ const common_1 = __webpack_require__(2);
 const typeorm_1 = __webpack_require__(34);
 const chatLog_entity_1 = __webpack_require__(77);
 const config_entity_1 = __webpack_require__(75);
-const globalConfig_controller_1 = __webpack_require__(225);
+const globalConfig_controller_1 = __webpack_require__(239);
 const globalConfig_service_1 = __webpack_require__(76);
 let GlobalConfigModule = class GlobalConfigModule {
 };
@@ -18329,7 +20431,7 @@ exports.GlobalConfigModule = GlobalConfigModule = __decorate([
 
 
 /***/ }),
-/* 225 */
+/* 239 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18353,8 +20455,8 @@ const superAuth_guard_1 = __webpack_require__(107);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
 const express_1 = __webpack_require__(108);
-const queryConfig_dto_1 = __webpack_require__(226);
-const setConfig_dto_1 = __webpack_require__(227);
+const queryConfig_dto_1 = __webpack_require__(240);
+const setConfig_dto_1 = __webpack_require__(241);
 const globalConfig_service_1 = __webpack_require__(76);
 let GlobalConfigController = class GlobalConfigController {
     globalConfigService;
@@ -18433,7 +20535,7 @@ exports.GlobalConfigController = GlobalConfigController = __decorate([
 
 
 /***/ }),
-/* 226 */
+/* 240 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18468,7 +20570,7 @@ __decorate([
 
 
 /***/ }),
-/* 227 */
+/* 241 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18504,7 +20606,7 @@ __decorate([
 
 
 /***/ }),
-/* 228 */
+/* 242 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18517,12 +20619,12 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ModelsModule = void 0;
 const common_1 = __webpack_require__(2);
-const models_controller_1 = __webpack_require__(229);
+const models_controller_1 = __webpack_require__(243);
 const models_service_1 = __webpack_require__(78);
 const typeorm_1 = __webpack_require__(34);
 const models_entity_1 = __webpack_require__(80);
-const model_token_catalog_entity_1 = __webpack_require__(220);
-const model_token_catalog_service_1 = __webpack_require__(237);
+const model_token_catalog_entity_1 = __webpack_require__(234);
+const model_token_catalog_service_1 = __webpack_require__(251);
 let ModelsModule = class ModelsModule {
 };
 exports.ModelsModule = ModelsModule;
@@ -18538,7 +20640,7 @@ exports.ModelsModule = ModelsModule = __decorate([
 
 
 /***/ }),
-/* 229 */
+/* 243 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18561,14 +20663,14 @@ const adminAuth_guard_1 = __webpack_require__(88);
 const superAuth_guard_1 = __webpack_require__(107);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
-const queryModel_dto_1 = __webpack_require__(230);
-const queryModelType_dto_1 = __webpack_require__(231);
-const queryTokenCatalog_dto_1 = __webpack_require__(232);
-const setModel_dto_1 = __webpack_require__(233);
-const setModelType_dto_1 = __webpack_require__(234);
-const setTokenCatalog_dto_1 = __webpack_require__(235);
-const syncTokenCatalog_dto_1 = __webpack_require__(236);
-const model_token_catalog_service_1 = __webpack_require__(237);
+const queryModel_dto_1 = __webpack_require__(244);
+const queryModelType_dto_1 = __webpack_require__(245);
+const queryTokenCatalog_dto_1 = __webpack_require__(246);
+const setModel_dto_1 = __webpack_require__(247);
+const setModelType_dto_1 = __webpack_require__(248);
+const setTokenCatalog_dto_1 = __webpack_require__(249);
+const syncTokenCatalog_dto_1 = __webpack_require__(250);
+const model_token_catalog_service_1 = __webpack_require__(251);
 const models_service_1 = __webpack_require__(78);
 let ModelsController = class ModelsController {
     modelsService;
@@ -18591,6 +20693,9 @@ let ModelsController = class ModelsController {
     }
     drawingModelsList() {
         return this.modelsService.drawingModelsList();
+    }
+    musicModelsList() {
+        return this.modelsService.musicModelsList();
     }
     baseConfig() {
         return this.modelsService.getBaseConfig();
@@ -18669,6 +20774,13 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], ModelsController.prototype, "drawingModelsList", null);
+__decorate([
+    (0, common_1.Get)('musicList'),
+    (0, swagger_1.ApiOperation)({ summary: '客户端查询音乐独立页可用模型（Suno，drawingType=6）' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], ModelsController.prototype, "musicModelsList", null);
 __decorate([
     (0, common_1.Get)('baseConfig'),
     (0, swagger_1.ApiOperation)({ summary: '客户端查询当前已经配置模型的基础配置' }),
@@ -18772,7 +20884,7 @@ exports.ModelsController = ModelsController = __decorate([
 
 
 /***/ }),
-/* 230 */
+/* 244 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18836,7 +20948,7 @@ __decorate([
 
 
 /***/ }),
-/* 231 */
+/* 245 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18882,7 +20994,7 @@ __decorate([
 
 
 /***/ }),
-/* 232 */
+/* 246 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -18924,7 +21036,7 @@ __decorate([
 
 
 /***/ }),
-/* 233 */
+/* 247 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19136,7 +21248,7 @@ __decorate([
 
 
 /***/ }),
-/* 234 */
+/* 248 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19277,7 +21389,7 @@ __decorate([
 
 
 /***/ }),
-/* 235 */
+/* 249 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19339,7 +21451,7 @@ __decorate([
 
 
 /***/ }),
-/* 236 */
+/* 250 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19371,7 +21483,7 @@ __decorate([
 
 
 /***/ }),
-/* 237 */
+/* 251 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -19394,11 +21506,11 @@ exports.ModelTokenCatalogService = void 0;
 const common_1 = __webpack_require__(2);
 const typeorm_1 = __webpack_require__(34);
 const axios_1 = __webpack_require__(40);
-const https = __webpack_require__(238);
+const https = __webpack_require__(252);
 const crypto_1 = __webpack_require__(17);
 const typeorm_2 = __webpack_require__(3);
-const model_limits_openrouter_litellm_1 = __webpack_require__(239);
-const model_token_catalog_entity_1 = __webpack_require__(220);
+const model_limits_openrouter_litellm_1 = __webpack_require__(253);
+const model_token_catalog_entity_1 = __webpack_require__(234);
 let ModelTokenCatalogService = ModelTokenCatalogService_1 = class ModelTokenCatalogService {
     catalogRepo;
     logger = new common_1.Logger(ModelTokenCatalogService_1.name);
@@ -19839,13 +21951,13 @@ exports.ModelTokenCatalogService = ModelTokenCatalogService = ModelTokenCatalogS
 
 
 /***/ }),
-/* 238 */
+/* 252 */
 /***/ ((module) => {
 
 module.exports = require("https");
 
 /***/ }),
-/* 239 */
+/* 253 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -20100,7 +22212,7 @@ function openRouterListToMap(data) {
 
 
 /***/ }),
-/* 240 */
+/* 254 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20113,8 +22225,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.OfficialModule = void 0;
 const common_1 = __webpack_require__(2);
-const official_controller_1 = __webpack_require__(241);
-const official_service_1 = __webpack_require__(244);
+const official_controller_1 = __webpack_require__(255);
+const official_service_1 = __webpack_require__(258);
 let OfficialModule = class OfficialModule {
 };
 exports.OfficialModule = OfficialModule;
@@ -20129,7 +22241,7 @@ exports.OfficialModule = OfficialModule = __decorate([
 
 
 /***/ }),
-/* 241 */
+/* 255 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20154,9 +22266,9 @@ const utils_1 = __webpack_require__(37);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
 const express_1 = __webpack_require__(108);
-const createMenu_dto_1 = __webpack_require__(242);
-const getQrCode_dto_1 = __webpack_require__(243);
-const official_service_1 = __webpack_require__(244);
+const createMenu_dto_1 = __webpack_require__(256);
+const getQrCode_dto_1 = __webpack_require__(257);
+const official_service_1 = __webpack_require__(258);
 let OfficialController = class OfficialController {
     officialService;
     constructor(officialService) {
@@ -20508,7 +22620,7 @@ exports.OfficialController = OfficialController = __decorate([
 
 
 /***/ }),
-/* 242 */
+/* 256 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20644,7 +22756,7 @@ __decorate([
 
 
 /***/ }),
-/* 243 */
+/* 257 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -20677,7 +22789,7 @@ __decorate([
 
 
 /***/ }),
-/* 244 */
+/* 258 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21107,7 +23219,7 @@ exports.OfficialService = OfficialService = __decorate([
 
 
 /***/ }),
-/* 245 */
+/* 259 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21121,9 +23233,9 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.OrderModule = void 0;
 const cramiPackage_entity_1 = __webpack_require__(73);
 const common_1 = __webpack_require__(2);
-const order_controller_1 = __webpack_require__(246);
-const order_service_1 = __webpack_require__(247);
-const order_entity_1 = __webpack_require__(221);
+const order_controller_1 = __webpack_require__(260);
+const order_service_1 = __webpack_require__(261);
+const order_entity_1 = __webpack_require__(235);
 const typeorm_1 = __webpack_require__(34);
 const user_entity_1 = __webpack_require__(85);
 let OrderModule = class OrderModule {
@@ -21139,7 +23251,7 @@ exports.OrderModule = OrderModule = __decorate([
 
 
 /***/ }),
-/* 246 */
+/* 260 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21162,12 +23274,12 @@ const superAuth_guard_1 = __webpack_require__(107);
 const jwtAuth_guard_1 = __webpack_require__(89);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
-const order_service_1 = __webpack_require__(247);
+const order_service_1 = __webpack_require__(261);
 const express_1 = __webpack_require__(108);
-const buy_dto_1 = __webpack_require__(249);
-const queryByOrder_dto_1 = __webpack_require__(250);
+const buy_dto_1 = __webpack_require__(263);
+const queryByOrder_dto_1 = __webpack_require__(264);
 const adminAuth_guard_1 = __webpack_require__(88);
-const queryAllOrder_dto_1 = __webpack_require__(251);
+const queryAllOrder_dto_1 = __webpack_require__(265);
 let OrderController = class OrderController {
     orderService;
     constructor(orderService) {
@@ -21247,7 +23359,7 @@ exports.OrderController = OrderController = __decorate([
 
 
 /***/ }),
-/* 247 */
+/* 261 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21272,9 +23384,9 @@ const typeorm_1 = __webpack_require__(34);
 const typeorm_2 = __webpack_require__(3);
 const cramiPackage_entity_1 = __webpack_require__(73);
 const globalConfig_service_1 = __webpack_require__(76);
-const pay_service_1 = __webpack_require__(248);
+const pay_service_1 = __webpack_require__(262);
 const user_entity_1 = __webpack_require__(85);
-const order_entity_1 = __webpack_require__(221);
+const order_entity_1 = __webpack_require__(235);
 let OrderService = class OrderService {
     orderEntity;
     cramiPackageEntity;
@@ -21409,7 +23521,7 @@ exports.OrderService = OrderService = __decorate([
 
 
 /***/ }),
-/* 248 */
+/* 262 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -21436,7 +23548,7 @@ const crypto = __webpack_require__(17);
 const typeorm_2 = __webpack_require__(3);
 const cramiPackage_entity_1 = __webpack_require__(73);
 const globalConfig_service_1 = __webpack_require__(76);
-const order_entity_1 = __webpack_require__(221);
+const order_entity_1 = __webpack_require__(235);
 const user_service_1 = __webpack_require__(99);
 const userBalance_service_1 = __webpack_require__(35);
 let PayService = class PayService {
@@ -22131,7 +24243,7 @@ exports.PayService = PayService = __decorate([
 
 
 /***/ }),
-/* 249 */
+/* 263 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22168,7 +24280,7 @@ __decorate([
 
 
 /***/ }),
-/* 250 */
+/* 264 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22199,7 +24311,7 @@ __decorate([
 
 
 /***/ }),
-/* 251 */
+/* 265 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22252,7 +24364,7 @@ __decorate([
 
 
 /***/ }),
-/* 252 */
+/* 266 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22265,9 +24377,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PayModule = void 0;
 const common_1 = __webpack_require__(2);
-const pay_controller_1 = __webpack_require__(253);
-const pay_service_1 = __webpack_require__(248);
-const order_entity_1 = __webpack_require__(221);
+const pay_controller_1 = __webpack_require__(267);
+const pay_service_1 = __webpack_require__(262);
+const order_entity_1 = __webpack_require__(235);
 const cramiPackage_entity_1 = __webpack_require__(73);
 const typeorm_1 = __webpack_require__(34);
 let PayModule = class PayModule {
@@ -22285,7 +24397,7 @@ exports.PayModule = PayModule = __decorate([
 
 
 /***/ }),
-/* 253 */
+/* 267 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22306,7 +24418,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PayController = void 0;
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
-const pay_service_1 = __webpack_require__(248);
+const pay_service_1 = __webpack_require__(262);
 let PayController = class PayController {
     payService;
     constructor(payService) {
@@ -22370,7 +24482,7 @@ exports.PayController = PayController = __decorate([
 
 
 /***/ }),
-/* 254 */
+/* 268 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22384,9 +24496,9 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PluginModule = void 0;
 const common_1 = __webpack_require__(2);
 const typeorm_1 = __webpack_require__(34);
-const plugin_controller_1 = __webpack_require__(255);
+const plugin_controller_1 = __webpack_require__(269);
 const plugin_entity_1 = __webpack_require__(166);
-const plugin_service_1 = __webpack_require__(256);
+const plugin_service_1 = __webpack_require__(270);
 let PluginModule = class PluginModule {
 };
 exports.PluginModule = PluginModule;
@@ -22400,7 +24512,7 @@ exports.PluginModule = PluginModule = __decorate([
 
 
 /***/ }),
-/* 255 */
+/* 269 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22423,7 +24535,7 @@ const superAuth_guard_1 = __webpack_require__(107);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
 const express_1 = __webpack_require__(108);
-const plugin_service_1 = __webpack_require__(256);
+const plugin_service_1 = __webpack_require__(270);
 let PluginController = class PluginController {
     pluginService;
     constructor(pluginService) {
@@ -22489,7 +24601,7 @@ exports.PluginController = PluginController = __decorate([
 
 
 /***/ }),
-/* 256 */
+/* 270 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22619,7 +24731,7 @@ exports.PluginService = PluginService = __decorate([
 
 
 /***/ }),
-/* 257 */
+/* 271 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22633,9 +24745,9 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ShareModule = void 0;
 const common_1 = __webpack_require__(2);
 const typeorm_1 = __webpack_require__(34);
-const share_controller_1 = __webpack_require__(258);
-const share_entity_1 = __webpack_require__(222);
-const share_service_1 = __webpack_require__(259);
+const share_controller_1 = __webpack_require__(272);
+const share_entity_1 = __webpack_require__(236);
+const share_service_1 = __webpack_require__(273);
 let ShareModule = class ShareModule {
 };
 exports.ShareModule = ShareModule;
@@ -22649,7 +24761,7 @@ exports.ShareModule = ShareModule = __decorate([
 
 
 /***/ }),
-/* 258 */
+/* 272 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22671,7 +24783,7 @@ exports.ShareController = void 0;
 const jwtAuth_guard_1 = __webpack_require__(89);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
-const share_service_1 = __webpack_require__(259);
+const share_service_1 = __webpack_require__(273);
 let ShareController = class ShareController {
     shareService;
     constructor(shareService) {
@@ -22719,7 +24831,7 @@ exports.ShareController = ShareController = __decorate([
 
 
 /***/ }),
-/* 259 */
+/* 273 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22742,7 +24854,7 @@ const common_1 = __webpack_require__(2);
 const typeorm_1 = __webpack_require__(34);
 const typeorm_2 = __webpack_require__(3);
 const globalConfig_service_1 = __webpack_require__(76);
-const share_entity_1 = __webpack_require__(222);
+const share_entity_1 = __webpack_require__(236);
 let ShareService = class ShareService {
     shareRepository;
     globalConfigService;
@@ -22798,7 +24910,7 @@ exports.ShareService = ShareService = __decorate([
 
 
 /***/ }),
-/* 260 */
+/* 274 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22811,10 +24923,10 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.SigninModule = void 0;
 const common_1 = __webpack_require__(2);
-const signin_controller_1 = __webpack_require__(261);
-const signin_service_1 = __webpack_require__(262);
+const signin_controller_1 = __webpack_require__(275);
+const signin_service_1 = __webpack_require__(276);
 const typeorm_1 = __webpack_require__(34);
-const signIn_entity_1 = __webpack_require__(223);
+const signIn_entity_1 = __webpack_require__(237);
 const user_entity_1 = __webpack_require__(85);
 let SigninModule = class SigninModule {
 };
@@ -22831,7 +24943,7 @@ exports.SigninModule = SigninModule = __decorate([
 
 
 /***/ }),
-/* 261 */
+/* 275 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22851,7 +24963,7 @@ var _a, _b, _c;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.SigninController = void 0;
 const common_1 = __webpack_require__(2);
-const signin_service_1 = __webpack_require__(262);
+const signin_service_1 = __webpack_require__(276);
 const swagger_1 = __webpack_require__(14);
 const jwtAuth_guard_1 = __webpack_require__(89);
 const express_1 = __webpack_require__(108);
@@ -22896,7 +25008,7 @@ exports.SigninController = SigninController = __decorate([
 
 
 /***/ }),
-/* 262 */
+/* 276 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -22918,7 +25030,7 @@ exports.SigninService = void 0;
 const globalConfig_service_1 = __webpack_require__(76);
 const userBalance_service_1 = __webpack_require__(35);
 const common_1 = __webpack_require__(2);
-const signIn_entity_1 = __webpack_require__(223);
+const signIn_entity_1 = __webpack_require__(237);
 const typeorm_1 = __webpack_require__(34);
 const typeorm_2 = __webpack_require__(3);
 const date_1 = __webpack_require__(48);
@@ -23031,7 +25143,7 @@ exports.SigninService = SigninService = __decorate([
 
 
 /***/ }),
-/* 263 */
+/* 277 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -23044,7 +25156,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.SpaModule = void 0;
 const common_1 = __webpack_require__(2);
-const spa_controller_1 = __webpack_require__(264);
+const spa_controller_1 = __webpack_require__(278);
 let SpaModule = class SpaModule {
 };
 exports.SpaModule = SpaModule;
@@ -23056,7 +25168,7 @@ exports.SpaModule = SpaModule = __decorate([
 
 
 /***/ }),
-/* 264 */
+/* 278 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -23127,7 +25239,7 @@ exports.SpaController = SpaController = SpaController_1 = __decorate([
 
 
 /***/ }),
-/* 265 */
+/* 279 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -23143,10 +25255,10 @@ const common_1 = __webpack_require__(2);
 const typeorm_1 = __webpack_require__(34);
 const chatLog_entity_1 = __webpack_require__(77);
 const config_entity_1 = __webpack_require__(75);
-const order_entity_1 = __webpack_require__(221);
+const order_entity_1 = __webpack_require__(235);
 const user_entity_1 = __webpack_require__(85);
-const statistic_controller_1 = __webpack_require__(266);
-const statistic_service_1 = __webpack_require__(268);
+const statistic_controller_1 = __webpack_require__(280);
+const statistic_service_1 = __webpack_require__(282);
 let StatisticModule = class StatisticModule {
 };
 exports.StatisticModule = StatisticModule;
@@ -23160,7 +25272,7 @@ exports.StatisticModule = StatisticModule = __decorate([
 
 
 /***/ }),
-/* 266 */
+/* 280 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -23182,8 +25294,8 @@ exports.StatisticController = void 0;
 const adminAuth_guard_1 = __webpack_require__(88);
 const common_1 = __webpack_require__(2);
 const swagger_1 = __webpack_require__(14);
-const queryStatisticDto_dto_1 = __webpack_require__(267);
-const statistic_service_1 = __webpack_require__(268);
+const queryStatisticDto_dto_1 = __webpack_require__(281);
+const statistic_service_1 = __webpack_require__(282);
 let StatisticController = class StatisticController {
     statisticService;
     constructor(statisticService) {
@@ -23237,7 +25349,7 @@ exports.StatisticController = StatisticController = __decorate([
 
 
 /***/ }),
-/* 267 */
+/* 281 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -23264,7 +25376,7 @@ __decorate([
 
 
 /***/ }),
-/* 268 */
+/* 282 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -23292,7 +25404,7 @@ const typeorm_2 = __webpack_require__(3);
 const chatLog_entity_1 = __webpack_require__(77);
 const config_entity_1 = __webpack_require__(75);
 const globalConfig_service_1 = __webpack_require__(76);
-const order_entity_1 = __webpack_require__(221);
+const order_entity_1 = __webpack_require__(235);
 const user_entity_1 = __webpack_require__(85);
 let StatisticService = class StatisticService {
     userEntity;
@@ -23548,7 +25660,7 @@ exports.StatisticService = StatisticService = __decorate([
 
 
 /***/ }),
-/* 269 */
+/* 283 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -23561,12 +25673,12 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.TaskModule = void 0;
 const common_1 = __webpack_require__(2);
-const schedule_1 = __webpack_require__(270);
+const schedule_1 = __webpack_require__(284);
 const typeorm_1 = __webpack_require__(34);
-const globalConfig_module_1 = __webpack_require__(224);
-const models_module_1 = __webpack_require__(228);
+const globalConfig_module_1 = __webpack_require__(238);
+const models_module_1 = __webpack_require__(242);
 const userBalance_entity_1 = __webpack_require__(83);
-const task_service_1 = __webpack_require__(271);
+const task_service_1 = __webpack_require__(285);
 let TaskModule = class TaskModule {
 };
 exports.TaskModule = TaskModule;
@@ -23584,13 +25696,13 @@ exports.TaskModule = TaskModule = __decorate([
 
 
 /***/ }),
-/* 270 */
+/* 284 */
 /***/ ((module) => {
 
 module.exports = require("@nestjs/schedule");
 
 /***/ }),
-/* 271 */
+/* 285 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -23610,7 +25722,7 @@ var _a, _b, _c;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.TaskService = void 0;
 const common_1 = __webpack_require__(2);
-const schedule_1 = __webpack_require__(270);
+const schedule_1 = __webpack_require__(284);
 const typeorm_1 = __webpack_require__(34);
 const fs = __webpack_require__(19);
 const path = __webpack_require__(21);
@@ -23690,7 +25802,7 @@ exports.TaskService = TaskService = __decorate([
 
 
 /***/ }),
-/* 272 */
+/* 286 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -23704,7 +25816,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UploadModule = void 0;
 const common_1 = __webpack_require__(2);
 const redisCache_module_1 = __webpack_require__(27);
-const upload_controller_1 = __webpack_require__(273);
+const upload_controller_1 = __webpack_require__(287);
 const upload_service_1 = __webpack_require__(167);
 let UploadModule = class UploadModule {
 };
@@ -23721,7 +25833,7 @@ exports.UploadModule = UploadModule = __decorate([
 
 
 /***/ }),
-/* 273 */
+/* 287 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -23742,7 +25854,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UploadController = void 0;
 const jwtAuth_guard_1 = __webpack_require__(89);
 const common_1 = __webpack_require__(2);
-const platform_express_1 = __webpack_require__(274);
+const platform_express_1 = __webpack_require__(197);
 const swagger_1 = __webpack_require__(14);
 const express_1 = __webpack_require__(108);
 const upload_service_1 = __webpack_require__(167);
@@ -23781,13 +25893,7 @@ exports.UploadController = UploadController = __decorate([
 
 
 /***/ }),
-/* 274 */
-/***/ ((module) => {
-
-module.exports = require("@nestjs/platform-express");
-
-/***/ }),
-/* 275 */
+/* 288 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -23810,7 +25916,7 @@ const chatLog_entity_1 = __webpack_require__(77);
 const models_entity_1 = __webpack_require__(80);
 const cramiPackage_entity_1 = __webpack_require__(73);
 const config_entity_1 = __webpack_require__(75);
-const globalConfig_module_1 = __webpack_require__(224);
+const globalConfig_module_1 = __webpack_require__(238);
 const redisCache_service_1 = __webpack_require__(29);
 const user_entity_1 = __webpack_require__(85);
 const verification_entity_1 = __webpack_require__(103);
@@ -23818,7 +25924,7 @@ const verification_service_1 = __webpack_require__(102);
 const accountLog_entity_1 = __webpack_require__(81);
 const balance_entity_1 = __webpack_require__(82);
 const fingerprint_entity_1 = __webpack_require__(86);
-const userBalance_controller_1 = __webpack_require__(276);
+const userBalance_controller_1 = __webpack_require__(289);
 const userBalance_entity_1 = __webpack_require__(83);
 const userBalance_service_1 = __webpack_require__(35);
 let UserBalanceModule = class UserBalanceModule {
@@ -23854,7 +25960,7 @@ exports.UserBalanceModule = UserBalanceModule = __decorate([
 
 
 /***/ }),
-/* 276 */
+/* 289 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -23988,7 +26094,7 @@ exports.UserBalanceController = UserBalanceController = __decorate([
 
 
 /***/ }),
-/* 277 */
+/* 290 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -24017,7 +26123,7 @@ exports.VerificationModule = VerificationModule = __decorate([
 
 
 /***/ }),
-/* 278 */
+/* 291 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -24067,7 +26173,7 @@ exports.AllExceptionsFilter = AllExceptionsFilter = __decorate([
 
 
 /***/ }),
-/* 279 */
+/* 292 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -24075,7 +26181,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.initDatabase = initDatabase;
 const common_1 = __webpack_require__(2);
 const dotenv_1 = __webpack_require__(18);
-const mysql = __webpack_require__(280);
+const mysql = __webpack_require__(293);
 const typeorm_1 = __webpack_require__(3);
 const app_entity_1 = __webpack_require__(110);
 const appCats_entity_1 = __webpack_require__(111);
@@ -24085,16 +26191,16 @@ const badWords_entity_1 = __webpack_require__(150);
 const violationLog_entity_1 = __webpack_require__(151);
 const chatGroup_entity_1 = __webpack_require__(84);
 const chatLog_entity_1 = __webpack_require__(77);
-const crami_entity_1 = __webpack_require__(209);
+const crami_entity_1 = __webpack_require__(223);
 const cramiPackage_entity_1 = __webpack_require__(73);
 const drawing_mj_job_entity_1 = __webpack_require__(178);
 const config_entity_1 = __webpack_require__(75);
 const models_entity_1 = __webpack_require__(80);
-const model_token_catalog_entity_1 = __webpack_require__(220);
-const order_entity_1 = __webpack_require__(221);
+const model_token_catalog_entity_1 = __webpack_require__(234);
+const order_entity_1 = __webpack_require__(235);
 const plugin_entity_1 = __webpack_require__(166);
-const share_entity_1 = __webpack_require__(222);
-const signIn_entity_1 = __webpack_require__(223);
+const share_entity_1 = __webpack_require__(236);
+const signIn_entity_1 = __webpack_require__(237);
 const user_entity_1 = __webpack_require__(85);
 const userSecurityLog_entity_1 = __webpack_require__(106);
 const accountLog_entity_1 = __webpack_require__(81);
@@ -24254,6 +26360,53 @@ async function ensureModelsTokenPricingColumns(conn) {
         }
     }
 }
+async function ensureSunoMusicJobTable(conn) {
+    const db = process.env.DB_DATABASE;
+    const [tables] = (await conn.execute(`SELECT COUNT(*) as c FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'suno_music_job'`, [db]));
+    if (Number(tables[0]?.c) > 0)
+        return;
+    await conn.execute(`
+    CREATE TABLE \`suno_music_job\` (
+      \`id\` int NOT NULL AUTO_INCREMENT,
+      \`createdAt\` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+      \`updatedAt\` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+      \`userId\` int NOT NULL COMMENT '用户ID',
+      \`clientKey\` varchar(32) DEFAULT NULL COMMENT '客户端 localId',
+      \`clipId\` varchar(64) DEFAULT NULL COMMENT 'Suno clip_id',
+      \`modelKey\` varchar(191) NOT NULL COMMENT '模型 model 字段',
+      \`sceneLabel\` varchar(48) DEFAULT NULL COMMENT '场景标签',
+      \`promptLabel\` text NOT NULL COMMENT '标题或摘要',
+      \`status\` varchar(32) NOT NULL DEFAULT 'submitted' COMMENT '任务状态',
+      \`loading\` tinyint NOT NULL DEFAULT 1 COMMENT '是否进行中',
+      \`error\` text COMMENT '失败原因',
+      \`clipJson\` longtext COMMENT 'feed 片段 JSON',
+      \`deductCharged\` int DEFAULT NULL COMMENT '扣费积分',
+      \`chargeMult\` smallint DEFAULT NULL COMMENT '扣费倍数',
+      \`deductTypeSnapshot\` tinyint DEFAULT NULL COMMENT '扣费类型快照',
+      \`deletedAt\` datetime(6) DEFAULT NULL COMMENT '删除时间',
+      PRIMARY KEY (\`id\`),
+      KEY \`IDX_suno_music_job_user_id\` (\`userId\`,\`id\`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Suno 音乐任务';
+  `);
+    common_1.Logger.log('已创建表 suno_music_job', 'Database');
+}
+async function ensureSunoMusicJobDeletedAtColumn(conn) {
+    const db = process.env.DB_DATABASE;
+    const [colRows] = (await conn.execute(`SELECT COUNT(*) as c FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'suno_music_job' AND COLUMN_NAME = 'deletedAt'`, [db]));
+    if (Number(colRows[0]?.c) === 0) {
+        await conn.execute(`ALTER TABLE \`suno_music_job\` ADD COLUMN \`deletedAt\` datetime(6) DEFAULT NULL COMMENT '删除时间'`);
+        common_1.Logger.log('suno_music_job 表已添加列 deletedAt', 'Database');
+    }
+}
+async function ensureUserMusicJobsSyncSeq(conn) {
+    const db = process.env.DB_DATABASE;
+    const table = 'users';
+    const [colRows] = (await conn.execute(`SELECT COUNT(*) as c FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'music_jobs_sync_seq'`, [db, table]));
+    if (Number(colRows[0]?.c) === 0) {
+        await conn.execute(`ALTER TABLE \`${table}\` ADD COLUMN \`music_jobs_sync_seq\` int unsigned NOT NULL DEFAULT 0 COMMENT 'Suno 音乐任务列表同步序号'`);
+        common_1.Logger.log('users 表已添加列 music_jobs_sync_seq', 'Database');
+    }
+}
 async function ensureDrawingMjJobParentColumns(conn) {
     const db = process.env.DB_DATABASE;
     const table = 'drawing_mj_job';
@@ -24359,6 +26512,24 @@ async function runAllMigrations() {
         catch (error) {
             common_1.Logger.log(`drawing_mj_job 父任务列迁移跳过: ${error.message}`, 'Database');
         }
+        try {
+            await ensureSunoMusicJobTable(conn);
+        }
+        catch (error) {
+            common_1.Logger.log(`suno_music_job 表迁移跳过: ${error.message}`, 'Database');
+        }
+        try {
+            await ensureSunoMusicJobDeletedAtColumn(conn);
+        }
+        catch (error) {
+            common_1.Logger.log(`suno_music_job.deletedAt 迁移跳过: ${error.message}`, 'Database');
+        }
+        try {
+            await ensureUserMusicJobsSyncSeq(conn);
+        }
+        catch (error) {
+            common_1.Logger.log(`users.music_jobs_sync_seq 迁移跳过: ${error.message}`, 'Database');
+        }
     }
     finally {
         await conn.end();
@@ -24402,7 +26573,7 @@ async function initDatabase() {
 
 
 /***/ }),
-/* 280 */
+/* 293 */
 /***/ ((module) => {
 
 module.exports = require("mysql2/promise");
@@ -24457,7 +26628,7 @@ const ioredis_1 = __webpack_require__(20);
 const path = __webpack_require__(21);
 __webpack_require__(22);
 const app_module_1 = __webpack_require__(23);
-const allExceptions_filter_1 = __webpack_require__(278);
+const allExceptions_filter_1 = __webpack_require__(291);
 Dotenv.config({ path: '.env' });
 function findFilePath(filename) {
     const possiblePaths = [
@@ -24491,7 +26662,7 @@ async function bootstrap() {
         common_1.Logger.log('Generating and setting new JWT_SECRET');
         await redis.set('JWT_SECRET', jwtSecret);
     }
-    const { initDatabase } = __webpack_require__(279);
+    const { initDatabase } = __webpack_require__(292);
     const app = await core_1.NestFactory.create(app_module_1.AppModule, {
         bufferLogs: true,
         logger: ['log', 'error', 'warn', 'debug', 'verbose'],
