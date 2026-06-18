@@ -7,7 +7,7 @@ export default defineConfig(({ mode }) => {
   const isBuild = mode === 'production'
 
   return {
-    base: './',
+    base: '/',
     resolve: {
       alias: {
         '@': path.resolve(__dirname, 'src'),
