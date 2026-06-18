@@ -1,5 +1,6 @@
 import { t } from '@/locales'
 import { useAuthStore } from '@/store'
+import { formatApiErrorMessage } from '@/utils/apiErrorMessage'
 import { message } from '@/utils/message'
 import type { AxiosProgressEvent, AxiosResponse, GenericAbortSignal } from 'axios'
 import request from './axios'
@@ -13,6 +14,8 @@ export interface HttpOption {
   signal?: GenericAbortSignal
   beforeRequest?: () => void
   afterRequest?: () => void
+  /** 为 true 时不弹出全局错误 toast（用于音乐页后台刷新等） */
+  silent?: boolean
 }
 
 export interface Response<T = any> {
@@ -40,6 +43,7 @@ function http<T = any>({
   signal,
   beforeRequest,
   afterRequest,
+  silent,
 }: HttpOption) {
   const ms = message()
 
@@ -64,11 +68,17 @@ function http<T = any>({
       return res.data
 
     if (code === 401) {
-      authStore.removeToken()
-      window.location.reload()
+      if (!silent) {
+        authStore.removeToken()
+        window.location.reload()
+      }
+      const loginMsg = formatApiErrorMessage(res.data, { url, httpStatus: 401 })
+      return Promise.reject({ ...res.data, message: loginMsg })
     }
 
-    return Promise.reject(res.data)
+    const bizMsg = formatApiErrorMessage(res.data, { url, httpStatus: Number(code) })
+    if (!silent) ms.error(bizMsg)
+    return Promise.reject({ ...res.data, message: bizMsg })
   }
 
   const failHandler = (error: any) => {
@@ -79,27 +89,44 @@ function http<T = any>({
     }
     afterRequest?.()
     const status = error?.response?.status
+    const reqUrl = String(error?.config?.url || error?.request?.responseURL || url || '')
 
     if (status === 401) {
-      authStore.removeToken()
-      if (!hasWhitePath(error?.request?.responseURL)) {
-        authStore.loadInit && authStore.setLoginDialog(true)
-        const message = error?.response?.data?.message || '请先登录后再进行使用！'
-        if (Date.now() - last401ErrorTimestamp > 3000) {
-          ms.error(message)
+      if (!silent) {
+        authStore.removeToken()
+        if (!hasWhitePath(error?.request?.responseURL)) {
+          authStore.loadInit && authStore.setLoginDialog(true)
+          const loginMsg = formatApiErrorMessage(data, {
+            url: reqUrl,
+            httpStatus: status,
+            fallbackKey: 'common.unauthorizedTips',
+          })
+          if (Date.now() - last401ErrorTimestamp > 3000) {
+            ms.error(loginMsg)
+          }
         }
+        last401ErrorTimestamp = Date.now()
       }
-      last401ErrorTimestamp = Date.now()
-    } else if (status === 413) {
-      const msg = t('drawing.mjPayloadTooLarge')
-      ms.error(msg)
-      throw new Error(msg)
-    } else {
-      if (data && typeof data === 'object' && !data?.success) {
-        ms.error(data?.message || '请求接口错误！')
-      }
+      throw new Error(
+        formatApiErrorMessage(data, {
+          url: reqUrl,
+          httpStatus: status,
+          fallbackKey: 'common.unauthorizedTips',
+        })
+      )
     }
-    throw new Error(error?.response?.data?.message || error?.message || 'Error')
+
+    if (status === 413) {
+      const msg = t('drawing.mjPayloadTooLarge')
+      if (!silent) ms.error(msg)
+      throw new Error(msg)
+    }
+
+    const msg = formatApiErrorMessage(data, { url: reqUrl, httpStatus: status })
+    if (!silent && data && typeof data === 'object' && !data?.success) {
+      ms.error(msg)
+    }
+    throw new Error(msg)
   }
 
   beforeRequest?.()
@@ -131,6 +158,7 @@ export function get<T = any>({
   signal,
   beforeRequest,
   afterRequest,
+  silent,
 }: HttpOption): Promise<Response<T>> {
   return http<T>({
     url,
@@ -140,6 +168,7 @@ export function get<T = any>({
     signal,
     beforeRequest,
     afterRequest,
+    silent,
   })
 }
 
@@ -152,6 +181,7 @@ export function post<T = any>({
   signal,
   beforeRequest,
   afterRequest,
+  silent,
 }: HttpOption): Promise<Response<T>> {
   return http<T>({
     url,
@@ -162,6 +192,7 @@ export function post<T = any>({
     signal,
     beforeRequest,
     afterRequest,
+    silent,
   })
 }
 
