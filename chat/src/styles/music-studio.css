@@ -1,0 +1,2560 @@
+/* Suno 音乐工作台独立主题（与绘画页解耦，随 html.dark 切换） */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
+.music-page,
+.music-studio {
+  /* ── Midnight Studio v2 色板（UI Pro Max: indigo + cyan + play green） ── */
+  --music-brand: #4338ca;
+  --music-brand-light: #6366f1;
+  --music-brand-deep: #1e1b4b;
+  --music-accent: #06b6d4;
+  --music-accent-soft: #22d3ee;
+  --music-accent-glow: rgba(6, 182, 212, 0.22);
+  --music-warm: #f59e0b;
+  --music-warm-glow: rgba(245, 158, 11, 0.35);
+  --music-success: #22c55e;
+  --music-success-glow: rgba(34, 197, 94, 0.35);
+  --music-danger: #f43f5e;
+  --music-gradient-brand: linear-gradient(135deg, #4338ca 0%, #6366f1 42%, #06b6d4 100%);
+  --music-gradient-cta: linear-gradient(145deg, #22c55e 0%, #16a34a 100%);
+  --music-gradient-card: linear-gradient(145deg, rgb(67 56 202 / 0.35), rgb(6 182 212 / 0.12));
+  --music-gradient-sidebar-icon: linear-gradient(135deg, #4338ca 0%, #06b6d4 100%);
+
+  /* 兼容旧 token 名 */
+  --music-accent-dim: #4f46e5;
+  --music-warm-legacy: #f59e0b;
+  --music-cta-play: var(--music-success);
+  --music-cta-play-glow: var(--music-success-glow);
+  --music-indigo-deep: var(--music-brand-deep);
+  --music-indigo: var(--music-brand);
+
+  font-family:
+    'Poppins',
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+
+  /* 别名：组件内沿用 --drawing-* 时映射到音乐 token */
+  --drawing-main: var(--music-surface-page);
+  --drawing-sidebar: var(--music-surface-sidebar);
+  --drawing-sidebar-grad-from: var(--music-surface-sidebar-grad-from);
+  --drawing-sidebar-grad-via: var(--music-surface-sidebar-grad-via);
+  --drawing-sidebar-grad-to: var(--music-surface-sidebar-grad-to);
+  --drawing-panel: var(--music-surface-panel);
+  --drawing-card: var(--music-surface-card);
+  --drawing-card-media: var(--music-surface-card-media);
+  --drawing-field: var(--music-surface-field);
+  --drawing-toolbar: var(--music-surface-toolbar);
+}
+
+html:not(.dark) .music-page,
+html:not(.dark) .music-studio {
+  --music-surface-page: #eef1f8;
+  --music-surface-sidebar: #ffffff;
+  --music-surface-sidebar-grad-from: #f8f9fc;
+  --music-surface-sidebar-grad-via: #f3f5fb;
+  --music-surface-sidebar-grad-to: #e8ecf6;
+  --music-surface-card: #ffffff;
+  --music-surface-card-media: #e8edf8;
+  --music-surface-field: #f4f6fb;
+  --music-surface-toolbar: #ffffff;
+  --music-surface-panel: #eef2fa;
+  --music-surface-modal: #ffffff;
+  --music-border-subtle: #dce3f0;
+  --music-border-default: #c5d0e4;
+  --music-accent-glow: rgba(67, 56, 202, 0.14);
+  --music-dock-fade: rgba(238, 241, 248, 0.72);
+}
+
+html.dark .music-page,
+html.dark .music-studio {
+  --music-surface-page: #0f0f23;
+  --music-surface-sidebar: #14122b;
+  --music-surface-sidebar-grad-from: #181633;
+  --music-surface-sidebar-grad-via: #15132d;
+  --music-surface-sidebar-grad-to: #121028;
+  --music-surface-card: #1c1a35;
+  --music-surface-card-media: #222040;
+  --music-surface-field: #252340;
+  --music-surface-toolbar: #1a1830;
+  --music-surface-panel: #1e1c38;
+  --music-surface-modal: #14122b;
+  --music-border-subtle: rgba(255, 255, 255, 0.08);
+  --music-border-default: rgba(255, 255, 255, 0.12);
+  --music-accent-glow: rgba(6, 182, 212, 0.18);
+  --music-dock-fade: rgba(8, 6, 12, 0.55);
+}
+
+.music-studio .music-field {
+  @apply rounded-xl border text-sm text-[var(--text-primary)];
+  @apply transition-colors focus:outline-none focus:ring-2;
+  border-color: var(--music-border-default);
+  background-color: var(--music-surface-field);
+}
+
+.music-studio .music-field:focus {
+  border-color: rgb(67 56 202 / 0.5);
+  box-shadow: 0 0 0 2px rgb(67 56 202 / 0.2);
+}
+
+html.dark .music-studio .music-field:focus {
+  border-color: rgb(6 182 212 / 0.45);
+  box-shadow: 0 0 0 2px rgb(6 182 212 / 0.18);
+}
+
+.music-studio .music-card {
+  @apply rounded-2xl border backdrop-blur-sm;
+  border-color: var(--music-border-default);
+  background-color: color-mix(in srgb, var(--music-surface-card) 92%, transparent);
+}
+
+.music-studio .music-chip {
+  @apply rounded-full border border-transparent px-3 py-1.5 text-xs font-medium transition-all;
+}
+
+.music-studio .music-chip-active {
+  border-color: rgb(6 182 212 / 0.45);
+  background-color: rgb(6 182 212 / 0.12);
+  color: rgb(14 116 144);
+  box-shadow: 0 0 20px var(--music-accent-glow);
+}
+
+html:not(.dark) .music-studio .music-chip-active {
+  border-color: rgb(67 56 202 / 0.35);
+  background-color: rgb(67 56 202 / 0.08);
+  color: rgb(49 46 129);
+}
+
+.music-studio .music-chip-idle {
+  @apply text-[var(--text-secondary)] transition-colors;
+  background-color: var(--music-surface-field);
+}
+
+.music-studio .music-chip-idle:hover {
+  border-color: var(--music-border-default);
+  background-color: color-mix(in srgb, var(--music-surface-field) 85%, var(--music-accent) 15%);
+}
+
+.music-studio .music-btn-primary {
+  @apply relative w-full overflow-hidden rounded-xl border-0 py-3 text-sm font-semibold text-white;
+  background: var(--music-gradient-brand);
+  box-shadow: 0 4px 24px var(--music-accent-glow);
+}
+
+.music-studio .music-btn-primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+  box-shadow: 0 6px 28px var(--music-accent-glow);
+}
+
+.music-studio .music-btn-primary:disabled {
+  opacity: 0.55;
+}
+
+.music-studio .music-tab-active {
+  background: var(--music-gradient-brand);
+  color: #fff;
+  box-shadow: 0 4px 16px var(--music-accent-glow);
+}
+
+/* 侧栏 Tab / 子场景：显式文字色，不依赖 Tailwind 任意值是否打进包 */
+.music-studio .music-primary-tab {
+  color: var(--text-secondary);
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.music-studio .music-primary-tab:hover:not(.music-tab-active) {
+  background-color: var(--music-surface-panel);
+}
+
+html.dark .music-studio .music-primary-tab:not(.music-tab-active) {
+  color: #e2e8f0;
+}
+
+html:not(.dark) .music-studio .music-primary-tab:not(.music-tab-active) {
+  color: #475569;
+}
+
+.music-studio .music-mode-btn {
+  border: 1px solid transparent;
+  background-color: var(--music-surface-field);
+  color: var(--text-secondary);
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.music-studio .music-mode-btn:hover:not(.is-active) {
+  background-color: var(--music-surface-panel);
+}
+
+.music-studio .music-mode-btn.is-active {
+  border-color: rgb(6 182 212 / 0.55);
+  background-color: rgb(67 56 202 / 0.14);
+  color: var(--text-primary);
+}
+
+html.dark .music-studio .music-mode-btn {
+  color: #e2e8f0;
+}
+
+html.dark .music-studio .music-mode-btn.is-active {
+  color: #f8fafc;
+}
+
+html:not(.dark) .music-studio .music-mode-btn {
+  color: #475569;
+}
+
+html:not(.dark) .music-studio .music-mode-btn.is-active {
+  color: #1e1b4b;
+}
+
+.music-studio .music-mode-btn--grid:not(.is-active) {
+  border-color: var(--music-border-subtle);
+}
+
+.music-studio .music-mode-btn--grid:not(.is-active):hover {
+  border-color: var(--music-border-default);
+}
+
+.music-studio .music-mode-btn--grid.is-active {
+  border-color: rgb(6 182 212 / 0.5);
+  background-color: rgb(67 56 202 / 0.12);
+  box-shadow: 0 0 16px var(--music-accent-glow);
+}
+
+html:not(.dark) .music-studio .music-mode-btn--grid.is-active {
+  color: #312e81;
+}
+
+html.dark .music-studio .music-mode-btn--grid.is-active {
+  color: #ede9fe;
+}
+
+/* ── 表单标签 ── */
+.music-studio .music-form-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.music-studio .music-form-label--caps {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+html.dark .music-studio .music-form-label {
+  color: #e2e8f0;
+}
+
+html.dark .music-studio .music-form-label--caps {
+  color: #94a3b8;
+}
+
+/* ── 输入框 / 文本域 ── */
+.music-studio .music-input,
+.music-studio .music-textarea {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid var(--music-border-default);
+  background-color: var(--music-surface-field);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.music-studio .music-input {
+  padding: 0.5rem 0.75rem;
+  min-height: 2.5rem;
+}
+
+.music-studio .music-textarea {
+  padding: 0.625rem 0.75rem;
+  min-height: 5rem;
+  resize: vertical;
+}
+
+.music-studio .music-input::placeholder,
+.music-studio .music-textarea::placeholder {
+  color: var(--text-muted);
+  opacity: 0.85;
+}
+
+.music-studio .music-input:hover:not(:disabled):not(:focus),
+.music-studio .music-textarea:hover:not(:disabled):not(:focus) {
+  border-color: color-mix(in srgb, var(--music-accent) 35%, var(--music-border-default));
+}
+
+.music-studio .music-input:focus,
+.music-studio .music-textarea:focus {
+  outline: none;
+  border-color: rgb(6 182 212 / 0.55);
+  box-shadow: 0 0 0 3px rgb(6 182 212 / 0.18);
+}
+
+.music-studio .music-input:disabled,
+.music-studio .music-textarea:disabled,
+.music-studio .music-select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.music-studio .music-input--mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.75rem;
+}
+
+/* ── 下拉选择 ── */
+.music-studio .music-select {
+  width: 100%;
+  min-height: 2.5rem;
+  cursor: pointer;
+  appearance: none;
+  padding: 0.5rem 2.25rem 0.5rem 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--music-border-default);
+  background-color: var(--music-surface-field);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.65rem center;
+  background-size: 1rem;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+html.dark .music-studio .music-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23cbd5e1' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+}
+
+.music-studio .music-select:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--music-accent) 35%, var(--music-border-default));
+}
+
+.music-studio .music-select:focus {
+  outline: none;
+  border-color: rgb(167 139 250 / 0.55);
+  box-shadow: 0 0 0 3px rgb(139 92 246 / 0.18);
+}
+
+.music-studio .music-select option {
+  background-color: var(--music-surface-card);
+  color: var(--text-primary);
+}
+
+/* ── 按钮体系 ── */
+.music-studio .music-btn-secondary,
+.music-studio .music-btn-ghost {
+  display: inline-flex;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border-radius: 0.75rem;
+  font-weight: 500;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.music-studio .music-btn-secondary:disabled,
+.music-studio .music-btn-ghost:disabled,
+.music-studio .music-btn-primary:disabled {
+  cursor: not-allowed;
+}
+
+.music-studio .music-btn-sm {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.music-studio .music-btn-secondary {
+  border: 1px solid rgb(139 92 246 / 0.4);
+  background-color: color-mix(in srgb, var(--music-surface-field) 88%, rgb(139 92 246 / 8%));
+  color: #5b21b6;
+}
+
+html.dark .music-studio .music-btn-secondary {
+  color: #ddd6fe;
+}
+
+.music-studio .music-btn-secondary:hover:not(:disabled) {
+  border-color: rgb(167 139 250 / 0.55);
+  background-color: rgb(139 92 246 / 0.12);
+  box-shadow: 0 0 16px rgb(139 92 246 / 0.12);
+}
+
+.music-studio .music-btn-secondary:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.music-studio .music-btn-ghost {
+  border: 1px solid transparent;
+  background-color: transparent;
+  color: var(--text-muted);
+}
+
+.music-studio .music-btn-ghost:hover:not(:disabled) {
+  border-color: var(--music-border-subtle);
+  background-color: var(--music-surface-field);
+  color: var(--text-primary);
+}
+
+.music-studio .music-btn-block {
+  width: 100%;
+}
+
+/* ── 任务区操作按钮 ── */
+.music-studio .music-action-btn {
+  cursor: pointer;
+  border-radius: 0.5rem;
+  border: 1px solid var(--music-border-default);
+  background-color: var(--music-surface-field);
+  padding: 0.25rem 0.625rem;
+  font-size: 0.6875rem;
+  line-height: 1.25;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.music-studio .music-action-btn:hover {
+  border-color: color-mix(in srgb, var(--music-accent) 40%, var(--music-border-default));
+  background-color: var(--music-surface-panel);
+  color: var(--text-primary);
+}
+
+html.dark .music-studio .music-action-btn {
+  color: #cbd5e1;
+}
+
+html.dark .music-studio .music-action-btn:hover {
+  color: #f8fafc;
+}
+
+.music-studio .music-action-btn--violet {
+  border-color: rgb(67 56 202 / 0.35);
+  background-color: rgb(67 56 202 / 0.1);
+  color: #3730a3;
+}
+
+html.dark .music-studio .music-action-btn--violet {
+  color: #c7d2fe;
+}
+
+.music-studio .music-action-btn--violet:hover {
+  border-color: rgb(99 102 241 / 0.5);
+  background-color: rgb(67 56 202 / 0.18);
+  color: #312e81;
+}
+
+html.dark .music-studio .music-action-btn--violet:hover {
+  color: #eef2ff;
+}
+
+.music-studio .music-action-btn--fuchsia {
+  border-color: rgb(6 182 212 / 0.35);
+  background-color: rgb(6 182 212 / 0.1);
+  color: #0e7490;
+}
+
+html.dark .music-studio .music-action-btn--fuchsia {
+  color: #a5f3fc;
+}
+
+.music-studio .music-action-btn--fuchsia:hover {
+  border-color: rgb(34 211 238 / 0.5);
+  background-color: rgb(6 182 212 / 0.18);
+}
+
+.music-studio .music-action-btn--danger {
+  color: var(--music-danger);
+  border-color: color-mix(in srgb, var(--music-danger) 35%, transparent);
+}
+
+.music-studio .music-action-btn--danger:hover {
+  border-color: color-mix(in srgb, var(--music-danger) 55%, transparent);
+  background: color-mix(in srgb, var(--music-danger) 12%, transparent);
+}
+
+.music-studio .music-action-btn--with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.music-studio .music-action-btn__icon {
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.music-studio .music-action-btn--lg {
+  border-radius: 0.625rem;
+  padding: 0.375rem 0.625rem;
+  font-size: 0.6875rem;
+}
+
+/* ── 复选框 / 单选 ── */
+.music-studio .music-check-row {
+  display: flex;
+  cursor: pointer;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.music-studio .music-checkbox,
+.music-studio .music-radio {
+  height: 1rem;
+  width: 1rem;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: var(--music-accent);
+}
+
+.music-studio .music-radio-card {
+  display: flex;
+  cursor: pointer;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--music-border-default);
+  background-color: var(--music-surface-field);
+  padding: 0.5rem 0.75rem;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.music-studio .music-radio-card:hover {
+  border-color: rgb(139 92 246 / 0.35);
+  background-color: var(--music-surface-panel);
+}
+
+.music-studio .music-radio-card:has(:checked) {
+  border-color: rgb(139 92 246 / 0.55);
+  background-color: rgb(139 92 246 / 0.1);
+}
+
+/* ── 滑块 ── */
+.music-studio .music-range {
+  width: 100%;
+  height: 0.35rem;
+  margin-top: 0.5rem;
+  appearance: none;
+  border-radius: 9999px;
+  background: linear-gradient(
+    to right,
+    var(--music-accent) 0%,
+    var(--music-accent) var(--music-range-pct, 50%),
+    color-mix(in srgb, var(--music-border-default) 70%, transparent) var(--music-range-pct, 50%),
+    color-mix(in srgb, var(--music-border-default) 70%, transparent) 100%
+  );
+  cursor: pointer;
+}
+
+.music-studio .music-range::-webkit-slider-thumb {
+  appearance: none;
+  height: 0.9rem;
+  width: 0.9rem;
+  border-radius: 9999px;
+  border: 2px solid #fff;
+  background: var(--music-gradient-brand);
+  box-shadow: 0 0 10px var(--music-accent-glow);
+  cursor: pointer;
+}
+
+.music-studio .music-range::-moz-range-thumb {
+  height: 0.9rem;
+  width: 0.9rem;
+  border: 2px solid #fff;
+  border-radius: 9999px;
+  background: var(--music-gradient-brand);
+  box-shadow: 0 0 10px var(--music-accent-glow);
+  cursor: pointer;
+}
+
+/* ── 折叠说明 ── */
+.music-studio .music-details {
+  overflow: hidden;
+  border-radius: 0.75rem;
+  border: 1px solid var(--music-border-default);
+  background-color: var(--music-surface-field);
+  font-size: 0.75rem;
+}
+
+.music-studio .music-details > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 0.5rem 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: background-color 0.15s ease;
+}
+
+.music-studio .music-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.music-studio .music-details > summary::after {
+  content: '';
+  float: right;
+  margin-top: 0.2rem;
+  height: 0.45rem;
+  width: 0.45rem;
+  border-right: 2px solid var(--text-muted);
+  border-bottom: 2px solid var(--text-muted);
+  transform: rotate(45deg);
+  transition: transform 0.15s ease;
+}
+
+.music-studio .music-details[open] > summary::after {
+  transform: rotate(-135deg);
+  margin-top: 0.35rem;
+}
+
+.music-studio .music-details > summary:hover {
+  background-color: var(--music-surface-panel);
+}
+
+.music-studio .music-details__body {
+  border-top: 1px solid var(--music-border-subtle);
+  padding: 0.5rem 0.75rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* ── 模式说明面板（常驻） ── */
+.music-studio .music-mode-help {
+  border-radius: 0.75rem;
+  border: 1px solid rgb(6 182 212 / 0.28);
+  background: linear-gradient(135deg, rgb(67 56 202 / 0.08), rgb(6 182 212 / 0.06));
+  padding: 0.75rem 0.875rem;
+  font-size: 0.75rem;
+  line-height: 1.55;
+  animation: music-mode-help-in 0.22s ease-out;
+}
+
+@keyframes music-mode-help-in {
+  from {
+    opacity: 0.55;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.music-studio .music-mode-help__header {
+  margin-bottom: 0.35rem;
+}
+
+.music-studio .music-mode-help__title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+}
+
+.music-studio .music-mode-help__title {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.music-studio .music-mode-help__scene {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  background: rgb(6 182 212 / 0.14);
+  padding: 0.1rem 0.45rem;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgb(14 116 144);
+}
+
+.dark .music-studio .music-mode-help__scene {
+  color: rgb(165 243 252);
+}
+
+.music-studio .music-mode-help__body {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.music-studio .music-mode-help__tips {
+  margin: 0.5rem 0 0;
+  padding-left: 1.1rem;
+  color: var(--text-muted);
+}
+
+.music-studio .music-mode-help__tips li + li {
+  margin-top: 0.25rem;
+}
+
+.music-studio .music-mode-help__extra {
+  margin: 0.45rem 0 0;
+  color: rgb(67 56 202 / 0.9);
+}
+
+.dark .music-studio .music-mode-help__extra {
+  color: rgb(165 243 252 / 0.95);
+}
+
+.music-studio .music-mode-help__mv {
+  margin: 0.5rem 0 0;
+  border-radius: 0.5rem;
+  border: 1px solid rgb(245 158 11 / 0.35);
+  background: rgb(245 158 11 / 0.08);
+  padding: 0.4rem 0.55rem;
+  color: rgb(146 64 14);
+}
+
+.dark .music-studio .music-mode-help__mv {
+  color: rgb(254 243 199);
+}
+
+/* ── 上传区 ── */
+.music-studio .music-upload-zone {
+  display: flex;
+  cursor: pointer;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  border: 1px dashed rgb(139 92 246 / 0.45);
+  background-color: rgb(139 92 246 / 0.04);
+  padding: 1.5rem 1rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.music-studio .music-upload-zone:hover {
+  border-color: rgb(167 139 250 / 0.6);
+  background-color: rgb(139 92 246 / 0.1);
+}
+
+.music-studio .music-upload-zone--active {
+  border-style: solid;
+  border-color: rgb(139 92 246 / 0.55);
+  min-height: 5.5rem;
+  padding: 1rem 1.25rem;
+}
+
+.music-studio .music-upload-progress--inline {
+  width: 100%;
+  margin-top: 0;
+  gap: 0.5rem;
+  align-items: stretch;
+  text-align: center;
+}
+
+.music-studio .music-upload-progress__title {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: rgb(196 181 253);
+}
+
+.music-studio .music-upload-progress__detail {
+  font-size: 0.68rem;
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.music-studio .music-upload-progress__pct-lg {
+  font-size: 1.125rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: rgb(216 180 254);
+}
+
+.music-studio .music-upload-progress__track--lg {
+  height: 0.625rem;
+}
+
+.music-studio .music-upload-zone__spinner {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid rgb(139 92 246 / 0.25);
+  border-top-color: rgb(167 139 250);
+  border-radius: 50%;
+  animation: music-upload-spin 0.7s linear infinite;
+}
+
+@keyframes music-upload-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.music-studio .music-upload-progress {
+  margin-top: 0.625rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.music-studio .music-upload-progress__track {
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: 9999px;
+  background-color: rgb(139 92 246 / 0.15);
+  box-shadow: inset 0 0 0 1px rgb(139 92 246 / 0.2);
+}
+
+.music-studio .music-upload-progress__bar {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgb(124 58 237), rgb(217 70 239));
+  transition: width 0.25s ease-out;
+}
+
+.music-studio .music-upload-progress__meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.music-studio .music-upload-progress__pct {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: rgb(167 139 250);
+}
+
+.music-studio .music-upload-progress__phase {
+  min-width: 0;
+  text-align: right;
+}
+
+.music-studio .music-upload-success {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgb(34 197 94 / 0.35);
+  background-color: rgb(34 197 94 / 0.06);
+  padding: 0.75rem;
+}
+
+.music-studio .music-upload-success__title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgb(74 222 128);
+}
+
+.music-studio .music-upload-success__id {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  word-break: break-all;
+}
+
+.music-studio .music-upload-success__id code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.7rem;
+}
+
+.music-studio .music-upload-success__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.music-studio .music-upload-error {
+  margin-top: 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgb(239 68 68 / 0.4);
+  background-color: rgb(239 68 68 / 0.08);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: rgb(252 165 165);
+}
+
+.music-studio .music-upload-error--catalog {
+  border-color: rgb(245 158 11 / 0.45);
+  background-color: rgb(245 158 11 / 0.1);
+  color: rgb(253 186 116);
+}
+
+.music-studio .music-upload-error-tips {
+  margin-top: 0.375rem;
+  border-radius: 0.5rem;
+  border: 1px dashed rgb(245 158 11 / 0.35);
+  background-color: rgb(245 158 11 / 0.06);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.7rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.music-studio .music-action-btn--disabled,
+.music-studio .music-action-btn--locked {
+  pointer-events: none;
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.music-studio .music-action-btn--busy {
+  cursor: wait;
+}
+
+.music-studio .music-action-btn__spin {
+  height: 0.875rem;
+  width: 0.875rem;
+  border-width: 2px;
+}
+
+/* 后续操作按钮悬停说明（Teleport 到 body，避免被任务列表裁切） */
+.music-studio .music-action-tooltip-wrap {
+  vertical-align: top;
+}
+
+.music-action-tooltip-portal.music-studio {
+  position: fixed;
+  z-index: 5000;
+  max-width: min(20rem, calc(100vw - 1.5rem));
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  background: #232629;
+  color: #fff;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  font-weight: 400;
+  text-align: left;
+  white-space: normal;
+  pointer-events: none;
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+html.dark .music-action-tooltip-portal.music-studio {
+  background: #2d2f33;
+  color: #ececec;
+}
+
+.music-action-tooltip-portal.music-studio.is-top {
+  transform: translate(-50%, -100%);
+}
+
+.music-action-tooltip-portal.music-studio.is-bottom {
+  transform: translate(-50%, 0);
+}
+
+.music-action-tooltip-portal.music-studio.is-top::before,
+.music-action-tooltip-portal.music-studio.is-bottom::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  width: 0.5rem;
+  height: 0.5rem;
+  background: inherit;
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.music-action-tooltip-portal.music-studio.is-top::before {
+  bottom: -0.2rem;
+}
+
+.music-action-tooltip-portal.music-studio.is-bottom::before {
+  top: -0.2rem;
+}
+
+.music-action-tooltip-fade-enter-active,
+.music-action-tooltip-fade-leave-active {
+  transition: opacity 0.18s ease;
+}
+
+.music-action-tooltip-fade-enter-from,
+.music-action-tooltip-fade-leave-to {
+  opacity: 0;
+}
+
+.music-studio .music-work-footer {
+  position: relative;
+  z-index: 25;
+  flex-shrink: 0;
+}
+
+.music-studio .music-detail-actions {
+  position: relative;
+  z-index: 2;
+  max-height: min(42vh, 280px);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.music-studio .music-sidebar-pulse {
+  animation: music-sidebar-highlight 2.2s ease-out;
+  box-shadow: inset 0 0 0 2px rgb(6 182 212 / 0.55);
+}
+
+@keyframes music-sidebar-highlight {
+  0% {
+    box-shadow:
+      inset 0 0 0 2px rgb(6 182 212 / 0.7),
+      0 0 24px rgb(6 182 212 / 0.25);
+  }
+  100% {
+    box-shadow: inset 0 0 0 0 transparent;
+  }
+}
+
+.music-studio .music-form-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--music-border-default);
+  background-color: var(--music-surface-card);
+  padding: 1rem;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+}
+
+html.dark .music-studio .music-form-panel {
+  box-shadow: none;
+}
+
+/* ── 向导步骤条 ── */
+.music-studio .music-steps {
+  display: flex;
+  width: 100%;
+  gap: 0.35rem;
+  font-size: 0.6875rem;
+}
+
+.music-studio .music-step {
+  flex: 1;
+  border-radius: 0.5rem;
+  border: 1px solid var(--music-border-subtle);
+  background-color: var(--music-surface-field);
+  padding: 0.35rem 0.25rem;
+  text-align: center;
+  color: var(--text-muted);
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.music-studio .music-step.is-done {
+  border-color: rgb(139 92 246 / 0.35);
+  background-color: rgb(139 92 246 / 0.08);
+  color: #6d28d9;
+  font-weight: 600;
+}
+
+html.dark .music-studio .music-step.is-done {
+  color: #ddd6fe;
+}
+
+.music-studio .music-btn-primary {
+  cursor: pointer;
+}
+
+.music-studio .music-btn-primary.music-btn-sm {
+  width: auto;
+  padding: 0.5rem 1.25rem;
+  min-height: 2.25rem;
+}
+
+.music-studio .music-btn-primary:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+.music-studio .music-primary-tab,
+.music-studio .music-mode-btn {
+  cursor: pointer;
+}
+
+html:not(.dark) .music-studio .music-empty-glow {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(124, 58, 237, 0.08), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 80%, rgba(236, 72, 153, 0.05), transparent);
+}
+
+html.dark .music-studio .music-empty-glow {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(168, 85, 247, 0.12), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 80%, rgba(244, 114, 182, 0.08), transparent);
+}
+
+/* —— 黑胶唱机（参考系统） —— */
+.music-studio .music-turntable {
+  flex-shrink: 0;
+}
+
+/* 碟片呼吸光晕 */
+@keyframes music-turntable-breathe-outer {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 0.75;
+    transform: scale(1.06);
+  }
+}
+
+@keyframes music-turntable-breathe-mid {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.98);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.04);
+  }
+}
+
+@keyframes music-turntable-breathe-inner {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+}
+
+@keyframes music-turntable-glow-pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+    box-shadow:
+      0 0 18px rgba(67, 56, 202, 0.28),
+      0 0 36px rgba(6, 182, 212, 0.1);
+  }
+  50% {
+    opacity: 0.55;
+    box-shadow:
+      0 0 32px rgba(67, 56, 202, 0.5),
+      0 0 56px rgba(6, 182, 212, 0.22);
+  }
+}
+
+@keyframes music-turntable-grooves-shimmer {
+  0%,
+  100% {
+    opacity: 0.75;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes music-turntable-edge-breathe {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(1);
+    box-shadow: 0 0 4px rgba(255, 255, 255, 0.4);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.4);
+    box-shadow:
+      0 0 10px rgba(255, 255, 255, 0.95),
+      0 0 18px rgba(6, 182, 212, 0.55);
+  }
+}
+
+.music-studio .music-turntable-breathe {
+  transform-origin: 50% 50%;
+  will-change: transform, opacity;
+}
+
+.music-studio .music-turntable-breathe--outer {
+  background: radial-gradient(
+    circle,
+    rgba(67, 56, 202, 0.14) 0%,
+    rgba(6, 182, 212, 0.08) 40%,
+    transparent 70%
+  );
+  animation: music-turntable-breathe-outer 3.6s ease-in-out infinite;
+}
+
+.music-studio .music-turntable-breathe--mid {
+  background: radial-gradient(
+    circle,
+    rgba(67, 56, 202, 0.24) 0%,
+    rgba(6, 182, 212, 0.12) 50%,
+    transparent 72%
+  );
+  animation: music-turntable-breathe-mid 2.8s ease-in-out infinite;
+  animation-delay: 0.35s;
+}
+
+.music-studio .music-turntable-breathe--inner,
+.music-studio .music-turntable-halo {
+  background: radial-gradient(
+    circle,
+    rgba(67, 56, 202, 0.38) 0%,
+    rgba(6, 182, 212, 0.2) 45%,
+    transparent 72%
+  );
+  box-shadow:
+    0 0 24px rgba(67, 56, 202, 0.35),
+    0 0 48px rgba(6, 182, 212, 0.15);
+}
+
+.music-studio .music-turntable-breathe--inner {
+  animation: music-turntable-breathe-inner 2.2s ease-in-out infinite;
+  animation-delay: 0.15s;
+}
+
+.music-studio .music-turntable:not(.is-playing) .music-turntable-breathe--outer {
+  animation: music-turntable-breathe-outer 5s ease-in-out infinite;
+  opacity: 0.5;
+}
+
+.music-studio .music-turntable:not(.is-playing) .music-turntable-breathe--mid {
+  animation: music-turntable-breathe-mid 4.2s ease-in-out infinite;
+  opacity: 0.55;
+}
+
+.music-studio .music-turntable:not(.is-playing) .music-turntable-breathe--inner {
+  animation: music-turntable-breathe-inner 3.5s ease-in-out infinite;
+  opacity: 0.6;
+}
+
+.music-studio .music-turntable.is-playing .music-turntable-breathe--outer {
+  animation-duration: 2.8s;
+}
+
+.music-studio .music-turntable.is-playing .music-turntable-breathe--mid {
+  animation-duration: 2.2s;
+}
+
+.music-studio .music-turntable.is-playing .music-turntable-breathe--inner {
+  animation-duration: 1.8s;
+}
+
+.music-studio .music-turntable-platter-glow {
+  animation: music-turntable-glow-pulse 2.4s ease-in-out infinite;
+  animation-delay: 0.2s;
+  pointer-events: none;
+}
+
+.music-studio .music-turntable:not(.is-playing) .music-turntable-platter-glow {
+  animation-duration: 4s;
+  opacity: 0.35;
+}
+
+.music-studio .music-turntable.is-playing .music-turntable-platter-glow {
+  animation-duration: 2s;
+}
+
+.music-studio .music-turntable-grooves-shimmer {
+  animation: music-turntable-grooves-shimmer 2.6s ease-in-out infinite;
+}
+
+.music-studio .music-turntable.is-playing .music-turntable-grooves-shimmer {
+  animation-duration: 1.6s;
+}
+
+.music-studio .music-turntable-edge-dot {
+  transform-origin: center center;
+  animation: music-turntable-edge-breathe 2.4s ease-in-out infinite;
+}
+
+.music-studio .music-turntable.is-playing .music-turntable-edge-dot {
+  animation-duration: 1.5s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .music-studio .music-turntable-breathe,
+  .music-studio .music-turntable-platter-glow,
+  .music-studio .music-turntable-grooves-shimmer,
+  .music-studio .music-turntable-edge-dot {
+    animation: none !important;
+  }
+}
+
+.music-studio .music-turntable-rotor {
+  transform: rotate(0deg);
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+
+.music-studio .music-turntable-grooves {
+  background: repeating-radial-gradient(
+    circle at center,
+    transparent 0,
+    transparent 1.5px,
+    rgba(255, 255, 255, 0.045) 1.5px,
+    rgba(255, 255, 255, 0.045) 2.5px
+  );
+  opacity: 0.9;
+}
+
+.music-studio .music-turntable-hub {
+  position: relative;
+}
+
+.music-studio .music-turntable-hub::after {
+  content: '';
+  position: absolute;
+  inset: 28%;
+  border-radius: 9999px;
+  background: radial-gradient(circle, #3f3f46 0%, #18181b 100%);
+}
+
+@keyframes music-turntable-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.music-studio .music-turntable-rotor.is-playing {
+  animation: music-turntable-spin 5.5s linear infinite;
+}
+
+.music-studio .music-tonearm {
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.55));
+  transform-origin: 73% 18%;
+  transition: transform 0.5s cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+
+.music-studio .music-turntable:has(.music-turntable-rotor.is-playing) .music-tonearm {
+  transform: rotate(10deg);
+}
+
+.music-studio .music-turntable:not(:has(.music-turntable-rotor.is-playing)) .music-tonearm {
+  transform: rotate(-14deg);
+}
+
+.music-studio .music-player-turntable-slot {
+  overflow: visible;
+  flex-shrink: 0;
+  padding: 2px 4px;
+  margin: 0;
+}
+
+.music-studio .music-player-compact {
+  max-height: 5.75rem;
+}
+
+.music-studio .music-player-viz-wrap {
+  line-height: 0;
+}
+
+.music-studio .music-player-controls--bar {
+  gap: 0.35rem !important;
+}
+
+.music-studio .music-player-panel .music-play-btn {
+  height: 2.35rem;
+  width: 2.35rem;
+  box-shadow:
+    0 0 16px rgba(99, 102, 241, 0.45),
+    0 3px 10px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.music-studio .music-player-panel .music-play-btn-play-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.music-studio .music-player-panel .music-play-btn-pause span {
+  width: 0.22rem;
+  height: 0.85rem;
+}
+
+.music-studio .music-player-panel .music-transport-btn {
+  height: 1.85rem;
+  width: 1.85rem;
+}
+
+.music-studio .music-player-panel .music-transport-btn svg {
+  height: 0.85rem;
+  width: 0.85rem;
+}
+
+.music-studio .music-player-panel .music-progress-range,
+.music-studio .music-player-panel .music-volume-range {
+  height: 3px;
+}
+
+.music-studio .music-player-panel .music-progress-range::-webkit-slider-thumb,
+.music-studio .music-player-panel .music-volume-range::-webkit-slider-thumb {
+  height: 9px;
+  width: 9px;
+}
+
+/* —— 播放控制 —— */
+.music-studio .music-play-btn {
+  position: relative;
+  display: flex;
+  height: 3.5rem;
+  width: 3.5rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 1px solid rgb(255 255 255 / 0.2);
+  background: var(--music-gradient-cta);
+  color: #fff;
+  box-shadow:
+    0 0 22px var(--music-success-glow),
+    0 6px 18px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    filter 0.18s ease;
+}
+
+.music-studio .music-play-btn::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border-radius: inherit;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.22) 0%, transparent 48%);
+  pointer-events: none;
+}
+
+.music-studio .music-play-btn:hover:not(:disabled) {
+  transform: scale(1.05);
+  filter: brightness(1.06);
+  box-shadow:
+    0 0 28px var(--music-success-glow),
+    0 8px 22px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+
+.music-studio .music-play-btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.music-studio .music-play-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  filter: grayscale(0.35);
+}
+
+.music-studio .music-play-btn-play-icon {
+  position: relative;
+  z-index: 1;
+  width: 1.35rem;
+  height: 1.35rem;
+  margin-left: 0.12rem;
+}
+
+.music-studio .music-play-btn-pause {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.32rem;
+}
+
+.music-studio .music-play-btn-pause span {
+  display: block;
+  width: 0.28rem;
+  height: 1.1rem;
+  border-radius: 0.12rem;
+  background: #fff;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.35);
+}
+
+.music-studio .music-transport-btn {
+  display: flex;
+  height: 2.5rem;
+  width: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 1px solid var(--music-border-default);
+  background: var(--music-surface-field);
+  color: var(--text-primary);
+  transition:
+    background 0.15s ease,
+    transform 0.15s ease;
+}
+
+.music-studio .music-transport-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--music-surface-field) 80%, var(--music-accent) 20%);
+  transform: scale(1.05);
+}
+
+.music-studio .music-transport-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* 进度条 / 音量条 */
+.music-studio .music-progress-range {
+  height: 4px;
+  appearance: none;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--music-border-default) 55%, transparent);
+}
+
+.music-studio .music-progress-range::-webkit-slider-thumb {
+  appearance: none;
+  height: 12px;
+  width: 12px;
+  border-radius: 9999px;
+  background: #fff;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+}
+
+.music-studio .music-progress-range::-moz-range-thumb {
+  height: 12px;
+  width: 12px;
+  border: none;
+  border-radius: 9999px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.music-studio .music-volume-range {
+  height: 4px;
+  appearance: none;
+  border-radius: 9999px;
+  background: linear-gradient(
+    to right,
+    #22c55e 0%,
+    #3b82f6 50%,
+    rgba(255, 255, 255, 0.12) 50%,
+    rgba(255, 255, 255, 0.12) 100%
+  );
+}
+
+.music-studio .music-volume-range::-webkit-slider-thumb {
+  appearance: none;
+  height: 10px;
+  width: 10px;
+  border-radius: 9999px;
+  background: #a5f3fc;
+  cursor: pointer;
+}
+
+/* 底栏浮层：与屏幕底边留白 + 安全区 */
+.music-studio .music-player-dock {
+  flex-shrink: 0;
+  z-index: 30;
+  padding: 6px 10px calc(12px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(to bottom, transparent 0%, var(--music-dock-fade) 100%);
+}
+
+@media (min-width: 640px) {
+  .music-studio .music-player-dock {
+    padding-left: 14px;
+    padding-right: 14px;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+.music-studio .music-player-panel {
+  position: relative;
+  overflow: visible;
+  border-radius: 14px;
+  border: 1px solid var(--music-border-default);
+  background: var(--music-surface-toolbar);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+}
+
+html.dark .music-studio .music-player-panel {
+  box-shadow:
+    0 8px 28px rgba(0, 0, 0, 0.42),
+    0 0 0 1px var(--music-border-subtle);
+}
+
+.music-studio .music-player-panel-inner {
+  overflow: visible;
+}
+
+.music-studio .music-work-scroll {
+  scroll-padding-bottom: 0.75rem;
+}
+
+.music-studio .music-work-scroll > ul {
+  padding-bottom: 0.35rem;
+}
+
+.music-studio .music-visualizer-bar {
+  transition: height 0.12s ease-out;
+}
+
+.music-studio .music-visualizer-bar--inline {
+  background: linear-gradient(to top, var(--music-brand) 0%, var(--music-accent-soft) 100%);
+}
+
+.music-studio .music-visualizer-bar--boxed {
+  background: linear-gradient(
+    to top,
+    var(--music-brand-deep) 0%,
+    var(--music-accent) 55%,
+    var(--music-accent-soft) 100%
+  );
+}
+
+.music-studio .music-visualizer.is-active .music-visualizer-bar {
+  box-shadow: 0 0 8px var(--music-accent-glow);
+}
+
+.music-studio .music-player-bar {
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.35);
+}
+
+.music-lyrics-fade-enter-active,
+.music-lyrics-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.music-lyrics-fade-enter-active .max-w-4xl,
+.music-lyrics-fade-leave-active .max-w-4xl {
+  transition:
+    transform 0.22s ease,
+    opacity 0.22s ease;
+}
+
+.music-lyrics-fade-enter-from,
+.music-lyrics-fade-leave-to {
+  opacity: 0;
+}
+
+.music-lyrics-fade-enter-from .max-w-4xl,
+.music-lyrics-fade-leave-to .max-w-4xl {
+  transform: scale(0.96) translateY(8px);
+  opacity: 0;
+}
+
+/* —— 歌词播放器 —— */
+.music-lyrics-overlay {
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(6px);
+}
+
+.music-lyrics-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.music-lyrics-line {
+  margin: 0;
+  border-color: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.music-lyrics-line p,
+.music-lyrics-line time {
+  margin: 0;
+}
+
+.music-lyrics-line--idle {
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.music-lyrics-line--past {
+  border-color: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.music-lyrics-line--active {
+  border-color: rgba(129, 140, 248, 0.45);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(168, 85, 247, 0.08) 100%);
+  box-shadow: 0 0 20px rgba(129, 140, 248, 0.12);
+}
+
+.music-lyrics-tag,
+.music-lyrics-line.music-lyrics-tag {
+  border-color: transparent;
+  background: transparent;
+  padding-top: 0.35rem;
+  padding-bottom: 0.35rem;
+}
+
+.music-lyrics-tag-text {
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(167, 139, 250, 0.85);
+  line-height: 1.2;
+}
+
+.music-lyrics-line-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  min-height: 0;
+}
+
+.music-lyrics-line-body--no-time {
+  display: block;
+}
+
+.music-lyrics-line-time {
+  flex-shrink: 0;
+  width: 4.75rem;
+  padding-top: 0.1rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.68rem;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+  color: rgba(34, 211, 238, 0.88);
+  white-space: nowrap;
+}
+
+.music-lyrics-words {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.music-lyrics-line--active .music-lyrics-words {
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.music-lyrics-words--plain {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.music-lyrics-words--plain.is-active {
+  color: #fff;
+  font-weight: 600;
+}
+
+.music-lyrics-line--past .music-lyrics-words--plain {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.music-lyrics-word {
+  display: inline;
+  transition: color 0.12s ease;
+}
+
+.music-lyrics-word--future {
+  color: rgba(255, 255, 255, 0.32);
+}
+
+.music-lyrics-word--past {
+  color: rgba(255, 255, 255, 0.58);
+}
+
+.music-lyrics-word--current {
+  color: #fff;
+  font-weight: 600;
+  text-shadow:
+    0 0 12px rgba(192, 132, 252, 0.65),
+    0 0 24px rgba(99, 102, 241, 0.35);
+}
+
+/* ── 统一弹窗壳（MusicModalShell，Teleport 到 body 时 overlay 与 music-studio 同节点） ── */
+.music-studio.music-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1rem;
+  background: rgba(15, 15, 35, 0.72);
+  backdrop-filter: blur(8px);
+}
+
+html:not(.dark) .music-studio.music-modal-overlay {
+  background: rgba(30, 27, 75, 0.45);
+}
+
+.music-studio.music-modal-overlay .music-modal-panel {
+  border-radius: 1rem;
+  border: 1px solid var(--music-border-default);
+  background: var(--music-surface-modal);
+  box-shadow:
+    0 24px 48px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgb(139 92 246 / 0.08);
+}
+
+.music-studio.music-modal-overlay .music-modal-header {
+  border-bottom: 1px solid var(--music-border-subtle);
+  padding: 1rem 1.25rem;
+}
+
+.music-studio.music-modal-overlay .music-modal-title {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.music-studio.music-modal-overlay .music-modal-subtitle {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.music-studio.music-modal-overlay .music-modal-close {
+  cursor: pointer;
+  border-radius: 0.5rem;
+  padding: 0.375rem;
+  color: var(--text-muted);
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.music-studio.music-modal-overlay .music-modal-close:hover {
+  background: var(--music-surface-field);
+  color: var(--text-primary);
+}
+
+.music-studio.music-modal-overlay .music-modal-close:focus-visible {
+  outline: 2px solid rgb(6 182 212 / 0.55);
+  outline-offset: 2px;
+}
+
+.music-studio.music-modal-overlay .music-modal-body {
+  padding: 1rem 1.25rem;
+}
+
+.music-studio.music-modal-overlay .music-modal-footer {
+  border-top: 1px solid var(--music-border-subtle);
+  padding: 0.875rem 1.25rem;
+}
+
+.music-modal-fade-enter-active,
+.music-modal-fade-leave-active {
+  transition: opacity 0.22s ease;
+}
+
+.music-modal-fade-enter-active .music-modal-panel,
+.music-modal-fade-leave-active .music-modal-panel {
+  transition:
+    transform 0.22s ease,
+    opacity 0.22s ease;
+}
+
+.music-modal-fade-enter-from,
+.music-modal-fade-leave-to {
+  opacity: 0;
+}
+
+.music-modal-fade-enter-from .music-modal-panel,
+.music-modal-fade-leave-to .music-modal-panel {
+  transform: scale(0.96) translateY(8px);
+  opacity: 0;
+}
+
+/* ── 任务卡片 ── */
+.music-studio .music-job-card {
+  cursor: pointer;
+  display: flex;
+  gap: 0.75rem;
+  border-radius: 1rem;
+  border: 1px solid var(--music-border-subtle);
+  background: var(--music-surface-card);
+  padding: 0.75rem;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.music-studio .music-job-card:hover {
+  border-color: var(--music-border-default);
+  background: var(--music-surface-field);
+  box-shadow: 0 4px 20px rgb(67 56 202 / 0.08);
+}
+
+.music-studio .music-job-card.is-active {
+  border-color: rgb(6 182 212 / 0.45);
+  background: rgb(67 56 202 / 0.1);
+  box-shadow: inset 0 0 0 1px rgb(6 182 212 / 0.15);
+}
+
+.music-studio .music-job-card:focus-visible {
+  outline: 2px solid rgb(6 182 212 / 0.55);
+  outline-offset: 2px;
+}
+
+/* ── 空状态引导 ── */
+.music-studio .music-empty-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: min(320px, 50vh);
+  padding: 2rem 1.5rem;
+  text-align: center;
+}
+
+.music-studio .music-empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 6rem;
+  height: 6rem;
+  margin-bottom: 1.5rem;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, rgb(67 56 202 / 0.28), rgb(6 182 212 / 0.14));
+  box-shadow:
+    0 0 32px var(--music-accent-glow),
+    inset 0 0 0 1px rgb(139 92 246 / 0.3);
+}
+
+.music-studio .music-empty-steps {
+  margin: 1.25rem 0 0;
+  padding: 0;
+  list-style: none;
+  max-width: 22rem;
+  text-align: left;
+}
+
+.music-studio .music-empty-steps li {
+  display: flex;
+  gap: 0.625rem;
+  align-items: flex-start;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.music-studio .music-empty-steps li + li {
+  margin-top: 0.625rem;
+}
+
+.music-studio .music-empty-step-num {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  border-radius: 9999px;
+  background: rgb(67 56 202 / 0.15);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: rgb(67 56 202);
+}
+
+html.dark .music-studio .music-empty-step-num {
+  color: rgb(165 243 252);
+}
+
+/* ── 品牌图标 / 徽章 / 状态点 ── */
+.music-studio .music-brand-icon {
+  display: flex;
+  height: 2.75rem;
+  width: 2.75rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  background: var(--music-gradient-sidebar-icon);
+  color: #fff;
+  box-shadow: 0 8px 24px var(--music-accent-glow);
+}
+
+.music-studio .music-text-accent {
+  color: rgb(67 56 202);
+}
+
+html.dark .music-studio .music-text-accent {
+  color: rgb(165 243 252);
+}
+
+.music-studio .music-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 9999px;
+  background: rgb(67 56 202 / 0.12);
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgb(49 46 129);
+}
+
+html.dark .music-studio .music-badge {
+  background: rgb(6 182 212 / 0.12);
+  color: rgb(165 243 252);
+}
+
+.music-studio .music-status-dot {
+  height: 0.5rem;
+  width: 0.5rem;
+  flex-shrink: 0;
+  border-radius: 9999px;
+}
+
+.music-studio .music-status-dot--complete {
+  background: var(--music-success);
+  box-shadow: 0 0 8px var(--music-success-glow);
+}
+
+.music-studio .music-status-dot--streaming {
+  background: var(--music-warm);
+  animation: music-pulse 1.5s ease-in-out infinite;
+}
+
+.music-studio .music-status-dot--error {
+  background: var(--music-danger);
+}
+
+.music-studio .music-status-dot--pending {
+  background: #94a3b8;
+}
+
+@keyframes music-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.music-studio .music-card-art {
+  background: var(--music-gradient-card);
+}
+
+.music-studio .music-art-gradient {
+  background: var(--music-gradient-sidebar-icon);
+  color: #fff;
+}
+
+.music-studio .music-surface-accent {
+  border: 1px solid rgb(67 56 202 / 0.25);
+  background: rgb(67 56 202 / 0.06);
+}
+
+html.dark .music-studio .music-surface-accent {
+  border-color: rgb(6 182 212 / 0.2);
+  background: rgb(6 182 212 / 0.06);
+}
+
+.music-studio .music-play-mini {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 1px solid rgb(67 56 202 / 0.3);
+  background: rgb(67 56 202 / 0.12);
+  color: rgb(49 46 129);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+html.dark .music-studio .music-play-mini {
+  border-color: rgb(6 182 212 / 0.3);
+  background: rgb(6 182 212 / 0.12);
+  color: rgb(165 243 252);
+}
+
+.music-studio .music-play-mini:hover:not(:disabled) {
+  background: rgb(67 56 202 / 0.2);
+}
+
+html.dark .music-studio .music-play-mini:hover:not(:disabled) {
+  background: rgb(6 182 212 / 0.2);
+}
+
+.music-studio .music-play-mini:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.music-studio .music-spin {
+  height: 1.25rem;
+  width: 1.25rem;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  border: 2px solid rgb(67 56 202 / 0.2);
+  border-top-color: var(--music-accent);
+  animation: music-spin 0.8s linear infinite;
+}
+
+/* ── 风格标签扩展 ── */
+.music-studio .music-tags-expand {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.music-studio .music-tags-expand--inline .music-tags-expand__row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.music-studio .music-tags-expand--stack .music-tags-expand__row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.music-studio .music-tags-expand__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.music-studio .music-tags-expand__btn-icon {
+  opacity: 0.85;
+}
+
+.music-studio .music-tags-expand__btn-spin {
+  height: 0.875rem;
+  width: 0.875rem;
+  border-width: 2px;
+}
+
+.music-studio .music-tags-expand-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgb(67 56 202 / 0.28);
+  background: rgb(67 56 202 / 0.08);
+  padding: 0.75rem 0.875rem;
+  animation: music-tags-expand-pulse 2s ease-in-out infinite;
+}
+
+html.dark .music-studio .music-tags-expand-status {
+  border-color: rgb(6 182 212 / 0.28);
+  background: rgb(6 182 212 / 0.08);
+}
+
+.music-studio .music-tags-expand-status__orb {
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+}
+
+.music-studio .music-tags-expand-status__title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.music-studio .music-tags-expand-status__hint {
+  margin-top: 0.2rem;
+  font-size: 0.6875rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+@keyframes music-tags-expand-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.82;
+  }
+}
+
+.music-studio .music-tags-expand-result {
+  border-radius: 0.75rem;
+  border: 1px solid var(--music-border-subtle);
+  background: var(--music-surface-panel);
+  padding: 0.75rem;
+}
+
+.music-studio .music-tags-expand-result__label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.35rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.music-studio .music-tags-expand-result__icon {
+  color: var(--music-accent);
+}
+
+.music-studio .music-tags-expand-result__text {
+  font-size: 0.75rem;
+  line-height: 1.55;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.music-studio .music-btn-primary.music-btn--with-spinner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+@keyframes music-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.music-studio .music-focus-brand:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgb(67 56 202 / 0.45);
+}
+
+html.dark .music-studio .music-focus-brand:focus-visible {
+  box-shadow: 0 0 0 2px rgb(6 182 212 / 0.45);
+}
+
+.music-studio .music-card-play {
+  color: rgb(49 46 129);
+}
+
+/* ── 页面加载 ── */
+.music-studio .music-page-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 3rem 1rem;
+}
+
+.music-studio .music-page-loading__orb {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 9999px;
+  background: conic-gradient(
+    from 0deg,
+    var(--music-indigo),
+    var(--music-accent),
+    var(--music-cta-play),
+    var(--music-indigo)
+  );
+  animation: music-page-loading-spin 1.1s linear infinite;
+  mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+}
+
+@keyframes music-page-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── 音乐详情弹窗 ── */
+.music-studio .music-clip-detail-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.music-studio .music-clip-detail-section {
+  border-radius: 0.875rem;
+  border: 1px solid var(--music-border-subtle);
+  background: var(--music-surface-panel);
+  padding: 0.875rem 1rem;
+}
+
+.music-studio .music-clip-detail-section--creative {
+  grid-column: 1 / -1;
+}
+
+.music-studio .music-clip-detail-section__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.625rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.music-studio .music-clip-detail-section__icon {
+  color: var(--music-accent);
+  opacity: 0.9;
+}
+
+.music-studio .music-clip-detail-rows {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.music-studio .music-clip-detail-row {
+  display: grid;
+  grid-template-columns: minmax(5.5rem, 7.5rem) 1fr;
+  gap: 0.5rem 0.75rem;
+  align-items: start;
+  font-size: 0.8125rem;
+}
+
+.music-studio .music-clip-detail-row dt {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.music-studio .music-clip-detail-row dd {
+  margin: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.375rem;
+  min-width: 0;
+  color: var(--text-primary);
+  line-height: 1.45;
+}
+
+.music-studio .music-clip-detail-row--mono .music-clip-detail-value,
+.music-studio .music-clip-detail-row--mono .music-clip-detail-link {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.6875rem;
+  word-break: break-all;
+}
+
+.music-studio .music-clip-detail-value {
+  min-width: 0;
+  flex: 1;
+  white-space: pre-wrap;
+}
+
+.music-studio .music-clip-detail-link {
+  min-width: 0;
+  flex: 1;
+  color: var(--music-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  word-break: break-all;
+}
+
+.music-studio .music-clip-detail-link:hover {
+  opacity: 0.85;
+}
+
+.music-studio .music-clip-detail-copy {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.375rem;
+  color: var(--text-muted);
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.music-studio .music-clip-detail-copy:hover {
+  background: var(--music-surface-field);
+  color: var(--text-primary);
+}
+
+.music-studio .music-clip-detail-row.is-empty .music-clip-detail-value {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.music-studio .music-clip-detail-cover {
+  background: var(--music-surface-card-media);
+}
+
+.music-studio .music-clip-detail-siblings {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.music-studio .music-clip-detail-sibling {
+  width: 100%;
+  text-align: left;
+  border-radius: 0.625rem;
+  border: 1px solid var(--music-border-subtle);
+  background: var(--music-surface-field);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.music-studio .music-clip-detail-sibling:not(:disabled):hover {
+  border-color: var(--music-border-default);
+  background: var(--music-surface-card);
+}
+
+.music-studio .music-clip-detail-sibling.is-current {
+  border-color: rgb(6 182 212 / 0.4);
+  background: rgb(67 56 202 / 0.12);
+  cursor: default;
+}
+
+.music-studio .music-clip-detail-sibling__tag {
+  margin-left: 0.5rem;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--music-accent);
+}
+
+.music-studio .music-clip-detail-json {
+  margin: 0;
+  max-height: 14rem;
+  overflow: auto;
+  border-radius: 0.625rem;
+  border: 1px solid var(--music-border-subtle);
+  background: var(--music-surface-field);
+  padding: 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.music-studio .music-clip-detail-raw {
+  margin-top: 0.25rem;
+}
+
+.music-studio .music-clip-detail-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.625rem;
+  height: 1.625rem;
+  border-radius: 0.375rem;
+  color: var(--music-accent);
+}
+
+.music-studio .music-clip-detail-trigger:hover {
+  background: rgb(67 56 202 / 0.12);
+}
+
+.music-studio .music-clip-detail-source-card {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--music-border-subtle);
+  background: var(--music-surface-field);
+  padding: 0.625rem 0.75rem;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.music-studio .music-clip-detail-source-card:hover {
+  border-color: rgb(6 182 212 / 0.4);
+  background: var(--music-surface-card);
+}
+
+@media (min-width: 640px) {
+  .music-studio .music-clip-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .music-studio .music-clip-detail-section--creative,
+  .music-studio .music-clip-detail-section--siblings,
+  .music-studio .music-clip-detail-section--source,
+  .music-studio .music-clip-detail-raw {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ── 全局交互：指针 / 焦点 / 动效减弱 ── */
+.music-studio button:not(:disabled),
+.music-studio [role='tab'],
+.music-studio .music-job-card,
+.music-studio .music-upload-zone,
+.music-studio label.music-radio-card {
+  cursor: pointer;
+}
+
+.music-studio button:focus-visible,
+.music-studio [role='tab']:focus-visible,
+.music-studio .music-mode-btn:focus-visible,
+.music-studio .music-select:focus-visible,
+.music-studio .music-input:focus-visible,
+.music-studio .music-textarea:focus-visible {
+  outline: 2px solid rgb(6 182 212 / 0.55);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .music-studio *,
+  .music-studio *::before,
+  .music-studio *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .music-studio .music-page-loading__orb {
+    animation: none;
+    background: var(--music-accent);
+  }
+}
