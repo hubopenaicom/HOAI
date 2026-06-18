@@ -15,6 +15,7 @@ import { ChatLogEntity } from '../chatLog/chatLog.entity';
 import { CramiEntity } from '../crami/crami.entity';
 import { CramiPackageEntity } from '../crami/cramiPackage.entity';
 import { DrawingMjJobEntity } from '../drawingMj/drawing-mj-job.entity';
+import { SunoMusicJobEntity } from '../sunoMusic/suno-music-job.entity';
 import { ConfigEntity } from '../globalConfig/config.entity';
 import { ModelsEntity } from '../models/models.entity';
 import { ModelTokenCatalogEntity } from '../models/model-token-catalog.entity';
@@ -69,6 +70,7 @@ import { VerificationEntity } from '../verification/verification.entity';
             AppEntity,
             OrderEntity,
             DrawingMjJobEntity,
+            SunoMusicJobEntity,
           ],
           synchronize: false,
           logging: false,
