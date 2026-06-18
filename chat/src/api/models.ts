@@ -20,3 +20,10 @@ export function fetchDrawingModelsListAPI<T>() {
     url: '/models/drawingList',
   })
 }
+
+/** 音乐独立页：Suno（drawingType=6 或模型名含 suno） */
+export function fetchMusicModelsListAPI<T>() {
+  return get<T>({
+    url: '/models/musicList',
+  })
+}
