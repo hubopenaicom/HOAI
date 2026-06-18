@@ -56,6 +56,12 @@ export class ModelsController {
     return this.modelsService.drawingModelsList();
   }
 
+  @Get('musicList')
+  @ApiOperation({ summary: '客户端查询音乐独立页可用模型（Suno，drawingType=6）' })
+  musicModelsList() {
+    return this.modelsService.musicModelsList();
+  }
+
   @Get('baseConfig')
   @ApiOperation({ summary: '客户端查询当前已经配置模型的基础配置' })
   baseConfig() {
